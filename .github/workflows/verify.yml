@@ -47,16 +47,15 @@ jobs:
       REDIS_URL: redis://localhost:6379
 
     steps:
+      # Sem o submódulo: nada em `verify` lê docs/, que está fora do tsconfig,
+      # do ESLint e do Prettier. Buscá-lo só acrescentaria tempo a cada execução.
       - uses: actions/checkout@v4
-        with:
-          # Traz a documentação referenciada como submódulo (ADR-0023 §13).
-          submodules: recursive
 
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
 
       - name: Instalar dependências
