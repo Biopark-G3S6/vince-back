@@ -25,13 +25,16 @@
     "noUnusedParameters": true,
     "forceConsistentCasingInFileNames": true,
 
+    // TypeScript admite um único curinga por padrão de caminho, então o alias
+    // de módulo é genérico. A restrição a `contracts/` é imposta pelo ESLint
+    // (ADR-0007 §4), não pelo compilador: `@modules/<modulo>/contracts` é a
+    // única forma aceita em revisão e no build.
     "paths": {
       "@shared/*": ["src/shared/*"],
       "@app/*": ["src/app/*"],
-      "@modules/*/contracts": ["src/modules/*/contracts/index.ts"],
-      "@modules/*/contracts/*": ["src/modules/*/contracts/*"]
+      "@modules/*": ["src/modules/*"]
     }
   },
-  "include": ["src/**/*", "prisma/**/*.ts"],
+  "include": ["src/**/*", "*.config.ts", "test-setup.ts"],
   "exclude": ["node_modules", "dist", "docs"]
 }

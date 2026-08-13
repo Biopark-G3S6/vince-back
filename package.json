@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "VinceArt — backend, monolito modular",
   "private": true,
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@11.21.0",
   "engines": {
     "node": ">=22"
   },
@@ -12,23 +12,19 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
-
     "verify": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
-
     "docs:update": "git submodule update --remote docs",
     "prepare": "lefthook install"
   },
@@ -51,16 +47,19 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.0",
     "@types/express": "^5.0.0",
-    "@types/node": "^22.10.0",
+    "@types/node": "^24.0.0",
     "@types/supertest": "^6.0.2",
     "@vitest/coverage-v8": "^2.1.0",
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^9.1.0",
+    "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-boundaries": "^5.0.0",
+    "globals": "^17.11.0",
     "lefthook": "^1.10.0",
     "prettier": "^3.4.0",
     "prisma": "^6.0.0",

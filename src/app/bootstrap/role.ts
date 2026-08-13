@@ -16,7 +16,9 @@ export function resolveRole(env: NodeJS.ProcessEnv = process.env): Role {
   const raw = (env.ROLE ?? 'api').trim();
 
   if (!isRole(raw)) {
-    throw new Error(`ROLE inválido: "${raw}". Valores admitidos: ${ROLES.join(', ')} (ADR-0008 §3).`);
+    throw new Error(
+      `ROLE inválido: "${raw}". Valores admitidos: ${ROLES.join(', ')} (ADR-0008 §3).`,
+    );
   }
 
   return raw;

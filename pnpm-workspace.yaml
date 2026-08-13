@@ -1,0 +1,18 @@
+# Scripts de instalação autorizados explicitamente.
+#
+# O pnpm bloqueia scripts de instalação de dependências por padrão. Estes precisam
+# rodar: lefthook instala os ganchos de git, o Prisma baixa seus motores, e esbuild,
+# swc e msgpackr baixam binários nativos usados pela compilação e pelos testes.
+#
+# Marcar um pacote como `true` aqui é decisão de segurança: significa permitir que
+# ele execute código arbitrário durante a instalação. Não acrescente sem saber por quê.
+
+allowBuilds:
+  '@prisma/client': true
+  '@prisma/engines': true
+  '@swc/core': true
+  esbuild: true
+  lefthook: true
+  msgpackr-extract: true
+  prisma: true
+  unrs-resolver: true

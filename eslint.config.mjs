@@ -12,60 +12,89 @@ import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import boundaries from 'eslint-plugin-boundaries';
 import prettier from 'eslint-config-prettier';
+import globals from 'globals';
 
 const sameModule = (type) => [type, { module: '${from.module}' }];
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**', 'docs/**', 'coverage/**'] },
+  { ignores: ['dist/**', 'node_modules/**', 'docs/**', 'coverage/**', 'generated/**'] },
 
   eslint.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
+
+  // Arquivos de configuração na raiz: fora do projeto TypeScript, sem análise
+  // baseada em tipos e fora das regras de fronteira.
+  {
+    files: ['*.mjs', '*.js', '*.config.ts', 'test-setup.ts'],
+    ...tseslint.configs.disableTypeChecked,
+    languageOptions: { globals: globals.node },
+  },
 
   {
+    files: ['src/**/*.ts'],
+    extends: [...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       parserOptions: {
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
     },
+    rules: {
+      // Prefixo com sublinhado marca parâmetro deliberadamente não usado.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
+    },
   },
 
   {
+    files: ['src/**/*.ts'],
     plugins: { boundaries },
     settings: {
+      // Sem o resolvedor de TypeScript, importações relativas para arquivos .ts
+      // não são resolvidas e o plugin as classifica como desconhecidas.
+      'import/resolver': {
+        typescript: { alwaysTryTypes: true, project: './tsconfig.json' },
+      },
       'boundaries/include': ['src/**/*.ts'],
       'boundaries/elements': [
-        { type: 'app', pattern: 'src/app/**' },
-        { type: 'shared', pattern: 'src/shared/**' },
+        { type: 'main', pattern: 'src/main.ts', mode: 'file' },
+        { type: 'app', pattern: 'src/app/**/*', mode: 'file' },
+        { type: 'shared', pattern: 'src/shared/**/*', mode: 'file' },
         {
           type: 'module-root',
-          pattern: 'src/modules/(*)/*.module.ts',
+          pattern: 'src/modules/*/*.module.ts',
           mode: 'file',
           capture: ['module'],
         },
         {
           type: 'contracts',
-          pattern: 'src/modules/(*)/contracts/**',
+          pattern: 'src/modules/*/contracts/**/*',
+          mode: 'file',
           capture: ['module'],
         },
         {
           type: 'domain',
-          pattern: 'src/modules/(*)/domain/**',
+          pattern: 'src/modules/*/domain/**/*',
+          mode: 'file',
           capture: ['module'],
         },
         {
           type: 'application',
-          pattern: 'src/modules/(*)/application/**',
+          pattern: 'src/modules/*/application/**/*',
+          mode: 'file',
           capture: ['module'],
         },
         {
           type: 'infrastructure',
-          pattern: 'src/modules/(*)/infrastructure/**',
+          pattern: 'src/modules/*/infrastructure/**/*',
+          mode: 'file',
           capture: ['module'],
         },
         {
           type: 'presentation',
-          pattern: 'src/modules/(*)/presentation/**',
+          pattern: 'src/modules/*/presentation/**/*',
+          mode: 'file',
           capture: ['module'],
         },
       ],
@@ -79,8 +108,11 @@ export default tseslint.config(
           default: 'disallow',
           message: '${file.type} não pode importar de ${dependency.type} (ver ADR-0003 e ADR-0005)',
           rules: [
-            // Composition root: conhece os módulos apenas por seu registro e seus contratos.
-            { from: 'app', allow: ['shared', 'module-root', 'contracts'] },
+            // Ponto de entrada: só monta a aplicação.
+            { from: 'main', allow: ['app', 'shared'] },
+
+            // Composition root: conhece os módulos por seu registro e seus contratos.
+            { from: 'app', allow: ['app', 'shared', 'module-root', 'contracts'] },
 
             // Kernel compartilhado: nunca aponta para módulos (ADR-0009 §7).
             { from: 'shared', allow: ['shared'] },
@@ -125,12 +157,7 @@ export default tseslint.config(
             // Apresentação: invoca casos de uso, nunca repositório ou entidade (ADR-0003 §7).
             {
               from: 'presentation',
-              allow: [
-                'shared',
-                'contracts',
-                sameModule('application'),
-                sameModule('presentation'),
-              ],
+              allow: ['shared', 'contracts', sameModule('application'), sameModule('presentation')],
             },
           ],
         },
@@ -141,9 +168,9 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ['../../*modules/*', '../../../*'],
+              group: ['../../modules/*', '../../../*'],
               message:
-                'Importação relativa atravessando módulo. Use o alias @modules/<modulo>/contracts (ADR-0007 §8, §9).',
+                'Importação relativa atravessando módulo. Use @modules/<modulo>/contracts (ADR-0007 §8, §9).',
             },
           ],
         },

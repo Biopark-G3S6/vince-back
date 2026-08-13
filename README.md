@@ -26,11 +26,11 @@ Já clonou sem os submódulos? `git submodule update --init --recursive`.
 
 O artefato de build é único; o papel vem do ambiente (`ADR-0008`).
 
-| `ROLE` | Faz | Replicável |
-| :--- | :--- | :--- |
-| `api` | Controllers HTTP. Sem processadores de fila. | Sim |
-| `worker` | Processadores de fila dos módulos em `MODULES`. Sem HTTP salvo saúde. | Sim |
-| `relay` | Publica os eventos do outbox. Sem HTTP salvo saúde. | **Não**, por módulo |
+| `ROLE`   | Faz                                                                   | Replicável          |
+| :------- | :-------------------------------------------------------------------- | :------------------ |
+| `api`    | Controllers HTTP. Sem processadores de fila.                          | Sim                 |
+| `worker` | Processadores de fila dos módulos em `MODULES`. Sem HTTP salvo saúde. | Sim                 |
+| `relay`  | Publica os eventos do outbox. Sem HTTP salvo saúde.                   | **Não**, por módulo |
 
 `MODULES` vazio significa todos os módulos. Escalar réplicas por papel é a resposta padrão a
 gargalo — antes de considerar extrair um módulo para serviço próprio.
@@ -48,20 +48,21 @@ src/
     infrastructure/       repositórios, adapters, consumidores
     presentation/         controllers e rotas
     <modulo>.module.ts    registro do módulo
-prisma/schema/            um .prisma por módulo
+    <modulo>.prisma       schema do módulo — reside DENTRO dele (ADR-0010 §3)
+prisma/migrations/        migrações geradas, únicas para a aplicação
 ```
 
 Cada diretório tem um README com as regras que valem ali.
 
 ## Comandos
 
-| Comando | O que faz |
-| :--- | :--- |
-| `pnpm run verify` | **A porta de verificação**: tipos, lint, formatação, fronteiras e testes |
-| `pnpm run start:dev` | Sobe a aplicação com recarga |
-| `pnpm run test` | Testes unitários e de integração |
-| `pnpm run db:migrate` | Cria e aplica migração |
-| `pnpm run docs:update` | Atualiza o submódulo de documentação para o último commit |
+| Comando                | O que faz                                                                |
+| :--------------------- | :----------------------------------------------------------------------- |
+| `pnpm run verify`      | **A porta de verificação**: tipos, lint, formatação, fronteiras e testes |
+| `pnpm run start:dev`   | Sobe a aplicação com recarga                                             |
+| `pnpm run test`        | Testes unitários e de integração                                         |
+| `pnpm run db:migrate`  | Cria e aplica migração                                                   |
+| `pnpm run docs:update` | Atualiza o submódulo de documentação para o último commit                |
 
 `pnpm run verify` é a mesma definição que o GitHub Actions executa. Se passa aqui, passa lá.
 

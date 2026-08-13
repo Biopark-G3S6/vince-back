@@ -33,7 +33,8 @@ async function bootstrap(): Promise<void> {
     app.setGlobalPrefix('api/v1');
   }
 
-  const port = role === 'api' ? Number(process.env.PORT ?? 3000) : Number(process.env.HEALTH_PORT ?? 3001);
+  const port =
+    role === 'api' ? Number(process.env.PORT ?? 3000) : Number(process.env.HEALTH_PORT ?? 3001);
 
   await app.listen(port);
 }

@@ -1,0 +1,18 @@
+/// Módulo de plataforma: registro de erros (ADR-0022 §30).
+/// Agregação por assinatura; NÃO uma linha por ocorrência (ADR-0022 §20, §25).
+model AssinaturaErro {
+  id             String   @id @db.Uuid
+  assinatura     String   @unique
+  classificacao  String
+  tipo           String
+  origem         String
+  ocorrencias    Int      @default(1)
+  primeiraEm     DateTime @map("primeira_em") @db.Timestamptz(3)
+  ultimaEm       DateTime @map("ultima_em") @db.Timestamptz(3)
+  criadoEm       DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  @@index([ultimaEm])
+  @@map("assinatura_erro")
+  @@schema("observabilidade")
+}
