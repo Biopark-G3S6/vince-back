@@ -1,0 +1,22 @@
+# Ganchos do controle de versão (ADR-0023 §11, §12).
+#
+# pré-commit: rápido, apenas arquivos alterados — segundos.
+# pré-push:   comando de verificação completo — a mesma definição usada pelo GitHub Actions.
+#
+# O gancho é contornável com --no-verify. A barreira efetiva é a proteção de
+# ramificação exigindo o workflow aprovado (ADR-0023 §17, §18).
+
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: "*.{ts,js,mjs,json,yml,yaml,md}"
+      run: pnpm prettier --check {staged_files}
+    lint:
+      glob: "*.ts"
+      run: pnpm eslint {staged_files}
+
+pre-push:
+  commands:
+    verify:
+      run: pnpm run verify

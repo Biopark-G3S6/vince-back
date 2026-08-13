@@ -1,0 +1,41 @@
+# Serviços de apoio do ambiente de desenvolvimento (ADR-0023 §1 a §7).
+# A aplicação executa na máquina, não em container — apenas estes serviços vêm daqui.
+# Versões fixadas: devem corresponder às do ambiente produtivo (ADR-0023 §3).
+
+services:
+  postgres:
+    image: postgres:17.2-alpine
+    container_name: vince-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vince
+      POSTGRES_PASSWORD: vince
+      POSTGRES_DB: vince
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vince -d vince"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: vince-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:
+  redis-data:

@@ -1,8 +1,27 @@
-# Nestjs specific
-/dist
+# Dependências e build
 /node_modules
+/dist
 /build
 /tmp
+/.temp
+/.tmp
+
+# Cobertura e artefatos de teste
+/coverage
+/.nyc_output
+/test-results
+/playwright-report
+
+# Variáveis de ambiente — .env.example é versionado
+.env*
+!.env.example
+
+# Sobrescrita local do Compose
+docker-compose.override.yml
+
+# Prisma
+/prisma/*.db
+/prisma/*.db-journal
 
 # Logs
 logs
@@ -13,12 +32,14 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
-# dotenv environment variable files
-.env
-.env.development
-.env.test
-.env.production
+# Ferramentas
+.eslintcache
+/.nest
+*.tsbuildinfo
 
-# temp directory
-.temp
-.tmp
+# Editores e sistema operacional
+.DS_Store
+Thumbs.db
+.idea
+.vscode/*
+!.vscode/extensions.json

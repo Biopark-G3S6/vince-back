@@ -1,0 +1,19 @@
+// Configuração base do Prisma. Os models de cada módulo residem em arquivo próprio,
+// nesta mesma pasta, nomeado pelo módulo (ver README deste diretório).
+//
+// ADR-0018 §1  cada módulo possui schema próprio no PostgreSQL
+// ADR-0018 §3  não existem tabelas de negócio em `public`
+// ADR-0010 §7  uma única instância de PrismaClient por processo
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+
+  // Um schema por módulo. Acrescente aqui ao criar um módulo com dados próprios.
+  schemas = ["observabilidade"]
+}

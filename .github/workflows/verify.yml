@@ -1,0 +1,72 @@
+# Verificação automatizada (ADR-0023 §14).
+#
+# Executa o MESMO comando definido em package.json (`pnpm verify`), sem duplicar a
+# definição (ADR-0023 §9). Serviços nas mesmas versões do docker-compose.yml (§15).
+#
+# A barreira efetiva é a proteção de ramificação exigindo este workflow aprovado
+# como condição de incorporação (ADR-0023 §17). Sem ela, este arquivo apenas informa.
+
+name: Verificação
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    name: Verificar
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17.2-alpine
+        env:
+          POSTGRES_USER: vince
+          POSTGRES_PASSWORD: vince
+          POSTGRES_DB: vince
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vince -d vince"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://vince:vince@localhost:5432/vince
+      REDIS_URL: redis://localhost:6379
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Traz a documentação referenciada como submódulo (ADR-0023 §13).
+          submodules: recursive
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Gerar cliente Prisma
+        run: pnpm run db:generate
+
+      - name: Aplicar migrações
+        run: pnpm run db:deploy
+
+      - name: Verificar
+        run: pnpm run verify
