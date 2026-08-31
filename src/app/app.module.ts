@@ -1,6 +1,9 @@
 import { DynamicModule, Module } from '@nestjs/common';
 
+import { AccessModule } from '@modules/access/access.module';
+
 import type { Role } from './bootstrap/role';
+import { getPrismaClient } from './prisma/prisma-client';
 
 /**
  * Composition root da aplicação (ADR-0003 §10).
@@ -28,11 +31,16 @@ export class AppModule {
    * Cada módulo é registrado uma única vez, em seu próprio `<modulo>.module.ts`,
    * que é o único ponto de registro de providers, rotas, consumidores e jobs (ADR-0003 §9).
    */
-  private static registryFor(_role: Role, _modules: string[]): DynamicModule['imports'] {
+  private static registryFor(_role: Role, modules: string[]): DynamicModule['imports'] {
+    const active = (name: string): boolean => modules.length === 0 || modules.includes(name);
+
+    // `getPrismaClient()` devolve a instância única do processo (ADR-0010 §7); cada
+    // módulo com dados próprios recebe dela a sua extensão escopada, e nenhum cliente
+    // é criado quando módulo algum com persistência está ativo.
+    //
     // Adicione aqui o registro de cada módulo, uma linha por módulo.
-    //
-    //   ObservabilidadeModule.forRole(role),
-    //
-    return [];
+    const registry = [active('access') ? AccessModule.forRoot(getPrismaClient()) : null];
+
+    return registry.filter((entry) => entry !== null);
   }
 }

@@ -22,11 +22,13 @@ export default tseslint.config(
   eslint.configs.recommended,
 
   // Arquivos de configuração na raiz: fora do projeto TypeScript, sem análise
-  // baseada em tipos e fora das regras de fronteira.
+  // baseada em tipos e fora das regras de fronteira. O parser do TypeScript é
+  // declarado explicitamente porque alguns deles são `.ts` e o parser padrão do
+  // ESLint não lê anotação de tipo.
   {
     files: ['*.mjs', '*.js', '*.config.ts', 'test-setup.ts'],
     ...tseslint.configs.disableTypeChecked,
-    languageOptions: { globals: globals.node },
+    languageOptions: { parser: tseslint.parser, globals: globals.node },
   },
 
   {
@@ -62,8 +64,11 @@ export default tseslint.config(
         { type: 'app', pattern: 'src/app/**/*', mode: 'file' },
         { type: 'shared', pattern: 'src/shared/**/*', mode: 'file' },
         {
+          // O teste do módulo é escrito na fronteira da fachada (ADR-0024 §2) e reside
+          // junto do código que exercita (§17) — logo, na raiz do módulo, com as mesmas
+          // permissões de importação do seu composition root.
           type: 'module-root',
-          pattern: 'src/modules/*/*.module.ts',
+          pattern: ['src/modules/*/*.module.ts', 'src/modules/*/*.module.spec.ts'],
           mode: 'file',
           capture: ['module'],
         },
@@ -123,6 +128,7 @@ export default tseslint.config(
               allow: [
                 'shared',
                 'contracts',
+                sameModule('module-root'),
                 sameModule('domain'),
                 sameModule('application'),
                 sameModule('infrastructure'),

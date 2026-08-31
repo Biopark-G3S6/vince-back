@@ -1,0 +1,53 @@
+/// Módulo de negócio: identidade e autorização (ADR-0027 §1).
+///
+/// As três tabelas abaixo são o vocabulário de autorização. São populadas por carga
+/// inicial e não possuem superfície de escrita em tempo de execução (ADR-0027 §13, §15).
+///
+/// ADR-0018 §9, §10  chave primária UUID v7, gerado pela aplicação
+/// ADR-0018 §11      tabela de associação pode ter chave primária composta
+/// ADR-0018 §15, §17 timestamptz; toda tabela registra criação e atualização
+/// ADR-0018 §19      sem ENUM nativo: `role.code` e `permission.code` são texto
+model Permission {
+  id        String   @id @db.Uuid
+  code      String   @unique
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  roles RolePermission[]
+
+  @@map("permission")
+  @@schema("access")
+}
+
+/// Papel global, pré-criado. Não é escopado a instituição, curso, turma ou evento
+/// (ADR-0027 §16): o escopo vem do vínculo, verificado no caso de uso (ADR-0014 §12).
+model Role {
+  id        String   @id @db.Uuid
+  code      String   @unique
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  permissions RolePermission[]
+
+  @@map("role")
+  @@schema("access")
+}
+
+/// Composição do papel. Referência dentro do próprio módulo, logo com chave
+/// estrangeira declarada (ADR-0018 §12).
+model RolePermission {
+  roleId       String   @map("role_id") @db.Uuid
+  permissionId String   @map("permission_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  // `roleId` é a coluna líder da chave primária e já está indexada por ela;
+  // `permissionId` exige índice próprio (ADR-0018 §20).
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permission")
+  @@schema("access")
+}
