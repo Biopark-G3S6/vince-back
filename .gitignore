@@ -37,6 +37,17 @@ lerna-debug.log*
 /.nest
 *.tsbuildinfo
 
+# OpenSpec
+# As especificações, mudanças e o arquivo em openspec/ são versionados — são a
+# fonte da verdade do que foi acordado. Só o transitório fica de fora.
+.openspec-archive.lock
+
+# Claude Code
+# Os comandos e skills em .claude/ são gerados pelo OpenSpec e valem para o
+# time inteiro; a configuração local de cada um, não.
+.claude/settings.local.json
+.claude/settings.local.json.backup
+
 # Editores e sistema operacional
 .DS_Store
 Thumbs.db

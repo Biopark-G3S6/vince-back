@@ -24,8 +24,9 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:seed": "pnpm run build && node dist/app/bootstrap/seed-catalog.js",
     "docs:update": "git submodule update --remote docs",
+    "docs:check-catalog": "tsx src/app/bootstrap/check-catalog.ts",
     "prepare": "lefthook install"
   },
   "dependencies": {
@@ -48,6 +49,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@fission-ai/openspec": "^1.11.0",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.0",

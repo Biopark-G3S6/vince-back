@@ -7,6 +7,13 @@ ou de **plataforma**, quando é capacidade técnica transversal que exige dados 
 **Não** crie diretórios por camada técnica neste nível (`ADR-0003 §2`). A camada vem dentro do
 módulo, não acima dele.
 
+## Módulos existentes
+
+| Módulo                        | Natureza   | Capacidade                                         | ADR      |
+| :---------------------------- | :--------- | :------------------------------------------------- | :------- |
+| [`access/`](access/README.md) | Negócio    | Identidade e autorização — papel, permissão, conta | ADR-0027 |
+| `observabilidade/`            | Plataforma | Registro de erros agregado por assinatura          | ADR-0022 |
+
 ## Estrutura obrigatória
 
 ```

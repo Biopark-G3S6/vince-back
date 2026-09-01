@@ -17,6 +17,7 @@ cp .env.example .env
 docker compose up -d          # PostgreSQL e Redis
 pnpm install
 pnpm run db:migrate
+pnpm run db:seed              # papéis e permissões — sem isso não há autorização
 pnpm run start:dev
 ```
 
@@ -62,9 +63,16 @@ Cada diretório tem um README com as regras que valem ali.
 | `pnpm run start:dev`   | Sobe a aplicação com recarga                                             |
 | `pnpm run test`        | Testes unitários e de integração                                         |
 | `pnpm run db:migrate`  | Cria e aplica migração                                                   |
+| `pnpm run db:seed`     | Carga inicial: o catálogo de permissões e os cinco papéis                |
 | `pnpm run docs:update` | Atualiza o submódulo de documentação para o último commit                |
 
 `pnpm run verify` é a mesma definição que o GitHub Actions executa. Se passa aqui, passa lá.
+Ele depende do Compose ativo: os repositórios são exercitados contra PostgreSQL real
+(`ADR-0024 §9`), em uma base por processo de teste.
+
+`pnpm run docs:check-catalog` fica **fora** de `verify`: confronta o catálogo de permissões
+declarado no código com a URS §2.3 e §2.3.1, e por isso depende do submódulo `docs/`, que a
+verificação não busca (`ADR-0027 §19`). É ferramenta de revisão, e roda deliberadamente.
 
 ## O que o lint impede
 
