@@ -6,7 +6,7 @@ import type { PrismaClient } from '@prisma/client';
  * A instância crua nasce uma única vez no composition root e é estendida aqui. A
  * extensão faz duas coisas, porque uma só não bastaria:
  *
- *   - em tempo de compilação, o tipo exposto é a projeção dos três models próprios;
+ *   - em tempo de compilação, o tipo exposto é a projeção dos models próprios;
  *     `assinaturaErro`, do módulo `observabilidade`, não existe nele;
  *   - em tempo de execução, o gancho de consulta recusa operação sobre model alheio,
  *     inclusive a alcançada por travessia de tipo.
@@ -16,7 +16,14 @@ import type { PrismaClient } from '@prisma/client';
  */
 
 /** Os models sob propriedade do módulo (ADR-0027 §5). */
-export const OWNED_MODELS = ['permission', 'role', 'rolePermission'] as const;
+export const OWNED_MODELS = [
+  'permission',
+  'role',
+  'rolePermission',
+  'user',
+  'userRole',
+  'roleAssignmentAudit',
+] as const;
 
 export type OwnedModel = (typeof OWNED_MODELS)[number];
 
@@ -71,6 +78,9 @@ export abstract class AccessPrisma {
   abstract readonly permission: ScopedClient['permission'];
   abstract readonly role: ScopedClient['role'];
   abstract readonly rolePermission: ScopedClient['rolePermission'];
+  abstract readonly user: ScopedClient['user'];
+  abstract readonly userRole: ScopedClient['userRole'];
+  abstract readonly roleAssignmentAudit: ScopedClient['roleAssignmentAudit'];
 
   abstract transaction<T>(
     run: (tx: AccessModels) => Promise<T>,
@@ -89,6 +99,9 @@ export function createAccessPrisma(prisma: PrismaClient): AccessPrisma {
     permission: scoped.permission,
     role: scoped.role,
     rolePermission: scoped.rolePermission,
+    user: scoped.user,
+    userRole: scoped.userRole,
+    roleAssignmentAudit: scoped.roleAssignmentAudit,
 
     transaction: (run, options) =>
       scoped.$transaction(
@@ -97,6 +110,9 @@ export function createAccessPrisma(prisma: PrismaClient): AccessPrisma {
             permission: tx.permission,
             role: tx.role,
             rolePermission: tx.rolePermission,
+            user: tx.user,
+            userRole: tx.userRole,
+            roleAssignmentAudit: tx.roleAssignmentAudit,
           }),
         {
           timeout: options?.timeoutMs ?? DEFAULT_TIMEOUT_MS,

@@ -29,10 +29,16 @@ async function seed(): Promise<void> {
 
     process.stdout.write(
       `catálogo de acesso carregado: ` +
-        `${report.permissionsCreated} permissões criadas, ` +
-        `${report.rolesCreated} papéis criados, ` +
-        `${report.grantsCreated} vínculos criados, ` +
-        `${report.grantsRemoved} vínculos removidos\n`,
+        `${report.catalog.permissionsCreated} permissões criadas, ` +
+        `${report.catalog.rolesCreated} papéis criados, ` +
+        `${report.catalog.grantsCreated} vínculos criados, ` +
+        `${report.catalog.grantsRemoved} vínculos removidos\n`,
+    );
+
+    process.stdout.write(
+      `conta inicial de administrador de sistema: ` +
+        `${report.systemAdmin.created ? 'criada' : 'já existente'}, ` +
+        `identificador ${report.systemAdmin.id}\n`,
     );
   } finally {
     await context.close();

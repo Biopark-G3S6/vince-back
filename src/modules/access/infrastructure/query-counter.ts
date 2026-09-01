@@ -42,3 +42,52 @@ export function createQueryCounter(prisma: PrismaClient): QueryCounter {
     },
   };
 }
+
+/** Uma operação emitida contra um model, como o Prisma a nomeia. */
+export interface RecordedOperation {
+  readonly model: string;
+  readonly operation: string;
+}
+
+export interface OperationLog {
+  readonly client: PrismaClient;
+  operations(): readonly RecordedOperation[];
+  /** As operações emitidas contra um model, na ordem em que ocorreram. */
+  against(model: string): readonly string[];
+  reset(): void;
+}
+
+/**
+ * Registro do que foi emitido, e não apenas de quanto.
+ *
+ * Sustenta a verificação de que a trilha de auditoria não recebe escrita destrutiva
+ * (`ADR-0014` §18, `ADR-0027` §5): a ausência de método no repositório é promessa de
+ * tipo, e some na primeira conversão; o que a torna verificável é observar, em execução,
+ * quais operações de fato alcançaram o model.
+ */
+export function createOperationLog(prisma: PrismaClient): OperationLog {
+  const recorded: RecordedOperation[] = [];
+
+  const instrumented = prisma.$extends({
+    name: 'operation-log',
+    query: {
+      $allModels: {
+        $allOperations({ model, operation, args, query }) {
+          recorded.push({ model, operation });
+
+          return query(args);
+        },
+      },
+    },
+  });
+
+  return {
+    client: instrumented as unknown as PrismaClient,
+    operations: () => recorded,
+    against: (model) =>
+      recorded.filter((entry) => entry.model === model).map((entry) => entry.operation),
+    reset: () => {
+      recorded.length = 0;
+    },
+  };
+}

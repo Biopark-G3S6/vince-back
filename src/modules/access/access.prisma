@@ -28,6 +28,7 @@ model Role {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   permissions RolePermission[]
+  users       UserRole[]
 
   @@map("role")
   @@schema("access")
@@ -49,5 +50,98 @@ model RolePermission {
   @@id([roleId, permissionId])
   @@index([permissionId])
   @@map("role_permission")
+  @@schema("access")
+}
+
+/// A conta de usuário e seu perfil (ADR-0027 §5).
+///
+/// O e-mail é o identificador único global (URS §1.4.1, RF-ACS-001 RN1) e é gravado já
+/// normalizado — sem espaços nas extremidades e em minúsculas —, o que faz de `@unique`
+/// a própria regra de unicidade, sem índice funcional nem colação especial.
+///
+/// `active` NÃO é exclusão lógica (ADR-0018 §18): RF-ACS-001 E2 lhe dá significado de
+/// negócio — conta desativada não autentica —, e por isso nenhuma consulta o filtra
+/// implicitamente. Também não é enumeração de negócio no sentido de ADR-0018 §19: o
+/// estado tem exatamente dois valores, e o booleano é a sua forma direta.
+model User {
+  id                String  @id @db.Uuid
+  email             String  @unique
+  name              String
+  /// A área em que o professor atua ou pesquisa (RF-ACS-005 RN2). Ausente é estado
+  /// válido; nunca texto vazio.
+  expertiseArea     String? @map("expertise_area")
+  /// Etiqueta de idioma BCP 47, restrita aos idiomas suportados pelo sistema
+  /// (RF-INT-001 E1). Ausente é estado válido e NÃO recebe valor padrão gravado
+  /// (ADR-0026 §26: a inferência é do cliente, não do banco).
+  preferredLanguage String? @map("preferred_language")
+  active            Boolean @default(true)
+
+  /// A instituição de vínculo. Coluna de identificador indexada, sem chave estrangeira,
+  /// porque o registro pertence a outro módulo (ADR-0027 §8, ADR-0018 §13, §14). Nula
+  /// apenas para a conta de papel `SYSTEM_ADMIN`, que atua sobre todas as instituições
+  /// (URS §1.4.1 item 3) — regra de caso de uso, não de schema.
+  institutionId String? @map("institution_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  roles UserRole[]
+
+  @@index([institutionId])
+  @@map("user")
+  @@schema("access")
+}
+
+/// A atribuição de papel a uma conta. Referência dentro do próprio módulo, logo com
+/// chave estrangeira declarada (ADR-0018 §12) e chave primária composta (§11).
+///
+/// A cardinalidade admite mais de um papel por conta (ADR-0014 §5): RF-TUR-002 RN1 e
+/// RF-INS-002 RN1 descrevem designações independentes que produziriam a combinação.
+model UserRole {
+  userId    String   @map("user_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  // `userId` é a coluna líder da chave primária e já está indexada por ela;
+  // `roleId` exige índice próprio (ADR-0018 §20).
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@map("user_role")
+  @@schema("access")
+}
+
+/// A trilha imutável de atribuição e revogação de papel (ADR-0027 §5, ADR-0014 §18,
+/// ADR-0018 §6).
+///
+/// Gravada na mesma transação da operação que a origina (ADR-0019 §1), e sem operação
+/// de alteração ou remoção exposta pelo repositório. Não há chave estrangeira para
+/// `user` nem para `role`: a trilha precisa sobreviver à remoção do que documenta, e
+/// `ON DELETE CASCADE` a apagaria junto. Guarda também os códigos textuais, para que o
+/// registro permaneça legível se o catálogo mudar.
+///
+/// `operation` é enumeração de negócio em texto, nunca `ENUM` nativo (ADR-0018 §19).
+model RoleAssignmentAudit {
+  id String @id @db.Uuid
+
+  /// Quem executou a operação. Nulo quando a origem é a carga inicial, que não tem ator.
+  actorId   String? @map("actor_id") @db.Uuid
+  /// A conta afetada.
+  subjectId String  @map("subject_id") @db.Uuid
+  roleId    String  @map("role_id") @db.Uuid
+  roleCode  String  @map("role_code")
+  /// `ASSIGNED` ou `REVOKED`.
+  operation String
+
+  /// O instante da operação. ADR-0018 §17 já exige `created_at`, que é esse instante;
+  /// uma segunda coluna de data seria a mesma informação em dois lugares.
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([subjectId, createdAt])
+  @@map("role_assignment_audit")
   @@schema("access")
 }

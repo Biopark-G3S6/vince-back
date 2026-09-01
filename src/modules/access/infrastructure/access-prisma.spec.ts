@@ -13,7 +13,7 @@ describe('cliente Prisma escopado ao módulo `access`', () => {
     expect(absent).toBe(true);
   });
 
-  it('expõe exatamente os três models próprios em execução', () => {
+  it('expõe exatamente os models próprios em execução', () => {
     const scoped = createAccessPrisma(new PrismaClient());
 
     expect(Object.keys(scoped).sort()).toEqual([...OWNED_MODELS, 'transaction'].sort());
@@ -21,11 +21,21 @@ describe('cliente Prisma escopado ao módulo `access`', () => {
   });
 
   it('reconhece como próprios apenas os models do módulo', () => {
-    for (const model of ['Permission', 'Role', 'RolePermission', 'permission', 'rolePermission']) {
+    for (const model of [
+      'Permission',
+      'Role',
+      'RolePermission',
+      'User',
+      'UserRole',
+      'RoleAssignmentAudit',
+      'permission',
+      'rolePermission',
+      'roleAssignmentAudit',
+    ]) {
       expect(isOwnedModel(model)).toBe(true);
     }
 
-    for (const model of ['AssinaturaErro', 'assinaturaErro', 'User']) {
+    for (const model of ['AssinaturaErro', 'assinaturaErro', 'Invitation']) {
       expect(isOwnedModel(model)).toBe(false);
     }
   });
