@@ -113,13 +113,19 @@
 ## 7. Fechamento
 
 - [ ] 7.1 Comunicar ao repositório do frontend os códigos de resposta que esta vertical passa a emitir,
-      para que ganhem chave no catálogo de tradução (`PAD-NOM-008`, decisão D5). Verificação: a lista
-      de códigos está registrada na issue ou no pull request correspondente em `vince-front`.
+      para que ganhem chave no catálogo de tradução (`PAD-NOM-008`, decisão D5). A comunicação DEVE
+      ser um **documento de especificação para o frontend**, versionado, e não uma mensagem avulsa:
+      a lista é contrato de integração e precisa sobreviver à conversa que a originou. Verificação: o
+      documento existe em `vince-front`, enumera cada código e diz o que a interface deve fazer com
+      ele.
 - [ ] 7.2 Atualizar `src/shared/README.md` e `src/modules/access/README.md` com o que passou a viver em
       cada um. Verificação: os arquivos descrevem sessão, guarda, envelope e correlação em `shared/`,
       e a credencial no módulo.
 - [ ] 7.3 Registrar as duas questões em aberto do `design.md` — limitação de taxa e rotação do segredo
-      anti-CSRF — como pendências rastreáveis. Verificação: constam de issue própria ou da lista de
-      pendências do repositório de documentação.
+      anti-CSRF — como pendências rastreáveis. Ambas têm efeito observável no cliente: a limitação de
+      taxa produz resposta que a interface precisa tratar, e o token anti-CSRF é consumido por ela.
+      O que as alcança DEVE, portanto, constar também do **documento de especificação para o
+      frontend** da tarefa 7.1. Verificação: as duas pendências estão registradas, e o documento de
+      7.1 declara o comportamento esperado da interface diante de cada uma.
 - [ ] 7.4 Executar `pnpm run verify` inteiro e a jornada de ponta a ponta da autenticação
       (`ADR-0024` §8). Verificação: tudo passa com o Compose ativo.
