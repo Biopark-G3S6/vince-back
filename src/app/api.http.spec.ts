@@ -177,7 +177,7 @@ function header(cookies: Cookies): string {
 
 describe('contrato da API', () => {
   let moduleRef: TestingModule;
-  let app: INestApplication;
+  let app: INestApplication | undefined;
   let facade: AccessFacade;
   let server: unknown;
 
@@ -233,20 +233,26 @@ describe('contrato da API', () => {
       imports: [AppModule.forRole('api', []), ProbeModule],
     }).compile();
 
-    app = moduleRef.createNestApplication();
-    configureApi(app);
-    await app.init();
+    const created = moduleRef.createNestApplication();
+    configureApi(created);
+    await created.init();
 
-    facade = app.get(AccessFacade);
-    server = app.getHttpServer();
+    app = created;
+    facade = created.get(AccessFacade);
+    server = created.getHttpServer();
   });
 
+  // Guarda deliberada: falha em `beforeAll` deixa `app` indefinido, e um `close()`
+  // cru sobre ele produziria um `TypeError` que aparece DEPOIS da causa real e a
+  // esconde na saída. O `?.` faz o relatório mostrar o que de fato quebrou.
   afterAll(async () => {
-    await app.close();
+    await app?.close();
   });
 
+  // A carga entra pelo contexto do módulo, e não pela aplicação: semear é operação de
+  // contêiner, não de HTTP, e os dois compartilham o mesmo container.
   beforeEach(async () => {
-    await AccessModule.seed(app);
+    await AccessModule.seed(moduleRef);
   });
 
   describe('envelope de resposta', () => {

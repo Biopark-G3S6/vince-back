@@ -42,9 +42,33 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
+    # A aplicação recusa subir sem configuração, e a mensagem nomeia a variável que
+    # falta — o teste de contrato de API monta a aplicação inteira, então o runner
+    # precisa das mesmas variáveis que `.env.example` declara.
+    #
+    # Os valores abaixo são de teste, e é por isso que podem ser versionados: nenhum
+    # é segredo real. `CSRF_TOKEN_SECRET` é o único que em produção NÃO DEVE nascer
+    # daqui — lá ele vem do cofre de segredos do ambiente.
     env:
       DATABASE_URL: postgresql://vince:vince@localhost:5432/vince
       REDIS_URL: redis://localhost:6379
+      CORS_ORIGINS: http://localhost:5173
+
+      SESSION_COOKIE_NAME: vince_session
+      SESSION_IDLE_TTL_SECONDS: 28800
+      SESSION_ABSOLUTE_TTL_SECONDS: 604800
+
+      CSRF_TOKEN_SECRET: segredo-de-verificacao-sem-valor-em-producao
+      CSRF_COOKIE_NAME: vince_csrf
+
+      # Custo reduzido: o que a verificação exercita é a regra da credencial, não o
+      # custo do algoritmo, e os parâmetros de produção fariam cada asserção de senha
+      # custar dezenas de milissegundos sem verificar mais nada.
+      PASSWORD_HASH_MEMORY_KIB: 8192
+      PASSWORD_HASH_TIME_COST: 1
+      PASSWORD_HASH_PARALLELISM: 1
+
+      PASSWORD_RESET_TTL_SECONDS: 3600
 
     steps:
       # Sem o submódulo: nada em `verify` lê docs/, que está fora do tsconfig,
