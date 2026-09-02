@@ -102,9 +102,19 @@ cabeçalhos e o que ficou por fazer — está em
 Ele depende do Compose ativo: os repositórios são exercitados contra PostgreSQL real
 (`ADR-0024 §9`), em uma base por processo de teste.
 
-`pnpm run docs:check-catalog` fica **fora** de `verify`: confronta o catálogo de permissões
-declarado no código com a URS §2.3 e §2.3.1, e por isso depende do submódulo `docs/`, que a
+`pnpm run docs:check-catalog` fica **fora** de `verify`: depende do submódulo `docs/`, que a
 verificação não busca (`ADR-0027 §19`). É ferramenta de revisão, e roda deliberadamente.
+
+Ele confronta **duas** listas duplicadas com a URS, e relata as diferenças nos dois sentidos:
+
+| Do código                                                     | Contra            |
+| :------------------------------------------------------------ | :---------------- |
+| `modules/access/domain/` — permissões e composição dos papéis | URS §2.3 e §2.3.1 |
+| `shared/http/response-code.ts` — códigos de resposta          | URS §2.4          |
+
+**Execute-o na revisão de qualquer alteração de qualquer um dos dois.** É a única proteção contra a
+divergência — e ela já aconteceu: `SUCCESS` e `INTERNAL_ERROR` entraram no código antes de entrarem
+na URS, e nada reclamou, porque a conferência de §2.4 ainda não existia.
 
 ## O que o lint impede
 

@@ -47,6 +47,8 @@ export class UrsFormatError extends Error {
 const PERMISSIONS_HEADING = '### 2.3 Catálogo de permissões';
 const COMPOSITION_HEADING = '#### 2.3.1 Composição dos papéis padrão';
 const NEXT_HEADING = '### 2.4 ';
+const RESPONSE_CODES_HEADING = '### 2.4 Catálogo de códigos de resposta';
+const AFTER_RESPONSE_CODES = '## 3. ';
 
 const CODE_ROW = /^\|\s*`([^`]+)`\s*\|/;
 const BACKTICKED = /`([^`]+)`/g;
@@ -124,19 +126,46 @@ export function parseUrsCatalog(markdown: string): CatalogSnapshot {
   return { permissions, roles };
 }
 
-export function readUrsCatalog(path: string): CatalogSnapshot {
-  let markdown: string;
+/**
+ * Os códigos da URS §2.4, na ordem em que ela os declara.
+ *
+ * A coluna de origem também traz texto entre crases — `ADR-0025` §4 —, e por isso só a
+ * primeira coluna é lida: `CODE_ROW` ancora no início da linha.
+ */
+export function parseUrsResponseCodes(markdown: string): readonly string[] {
+  const section = sectionBetween(markdown, RESPONSE_CODES_HEADING, AFTER_RESPONSE_CODES);
 
+  const codes: string[] = [];
+
+  for (const line of section.split('\n')) {
+    const match = CODE_ROW.exec(line);
+
+    if (match?.[1] !== undefined) {
+      codes.push(match[1]);
+    }
+  }
+
+  if (codes.length === 0) {
+    throw new UrsFormatError('a tabela de §2.4 veio vazia');
+  }
+
+  return codes;
+}
+
+/** O texto da URS. Lê uma vez; quem chama decide o que extrair dele. */
+export function readUrs(path: string): string {
   try {
-    markdown = readFileSync(path, 'utf8');
+    return readFileSync(path, 'utf8');
   } catch (error: unknown) {
     throw new DocumentationUnavailableError(
       path,
       error instanceof Error ? error.message : String(error),
     );
   }
+}
 
-  return parseUrsCatalog(markdown);
+export function readUrsCatalog(path: string): CatalogSnapshot {
+  return parseUrsCatalog(readUrs(path));
 }
 
 export interface RoleDifference {
@@ -236,6 +265,59 @@ export function describeComparison(
   for (const role of comparison.roleDifferences) {
     report(`papel \`${role.code}\` — permissões a mais no repositório`, role.surplus);
     report(`papel \`${role.code}\` — permissões da URS ausentes`, role.missing);
+  }
+
+  return `${lines.join('\n')}\n`;
+}
+
+/**
+ * Conferência do catálogo de códigos de resposta contra a URS §2.4 (`ADR-0025` §20,
+ * `PAD-REQ-008`).
+ *
+ * Existe pelo mesmo motivo que a conferência do catálogo de permissões: `src/shared/http/
+ * response-code.ts` e a URS §2.4 são duas cópias da mesma lista, e sem isto elas divergem
+ * sem que nada reclame. `PAD-NOM-008` depende dessa lista estar certa — cada código
+ * precisa de chave no catálogo de tradução do cliente, e um código que só existe em um
+ * dos lados não ganha chave nenhuma.
+ *
+ * A função recebe os códigos em vez de importá-los pelo mesmo motivo que `CatalogSnapshot`
+ * repete a forma de `CatalogDeclaration`: manter este módulo confrontando duas listas, e
+ * nada além disso.
+ */
+export interface ResponseCodeComparison {
+  /** Declarados na URS e ausentes do repositório. */
+  readonly missing: readonly string[];
+  /** Declarados no repositório e ausentes da URS. */
+  readonly surplus: readonly string[];
+}
+
+export function compareResponseCodes(
+  declared: readonly string[],
+  urs: readonly string[],
+): ResponseCodeComparison {
+  return { missing: difference(urs, declared), surplus: difference(declared, urs) };
+}
+
+export function isResponseCodeMatch(comparison: ResponseCodeComparison): boolean {
+  return comparison.missing.length === 0 && comparison.surplus.length === 0;
+}
+
+export function describeResponseCodes(
+  comparison: ResponseCodeComparison,
+  declared: readonly string[],
+): string {
+  if (isResponseCodeMatch(comparison)) {
+    return `códigos de resposta em correspondência com a URS §2.4: ${declared.length} códigos\n`;
+  }
+
+  const lines: string[] = ['códigos de resposta divergentes da URS §2.4:'];
+
+  if (comparison.surplus.length > 0) {
+    lines.push(`  códigos do repositório sem origem na URS: ${comparison.surplus.join(', ')}`);
+  }
+
+  if (comparison.missing.length > 0) {
+    lines.push(`  códigos da URS ausentes do repositório: ${comparison.missing.join(', ')}`);
   }
 
   return `${lines.join('\n')}\n`;
