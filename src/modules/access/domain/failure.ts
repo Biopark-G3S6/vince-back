@@ -18,6 +18,8 @@
 
 /** Os códigos do catálogo da URS §2.4 que esta vertical produz. */
 export const FAILURE = {
+  AUTHENTICATION_FAILED: 'AUTHENTICATION_FAILED',
+  INVITATION_EXPIRED: 'INVITATION_EXPIRED',
   VALIDATION_FAILED: 'VALIDATION_FAILED',
   PERMISSION_DENIED: 'PERMISSION_DENIED',
   EMAIL_ALREADY_REGISTERED: 'EMAIL_ALREADY_REGISTERED',
@@ -35,8 +37,11 @@ export type FailureCode = (typeof FAILURE)[keyof typeof FAILURE];
 export const VIOLATION = {
   REQUIRED: 'REQUIRED',
   MALFORMED: 'MALFORMED',
+  TOO_SHORT: 'TOO_SHORT',
   TOO_LONG: 'TOO_LONG',
   NOT_EDITABLE: 'NOT_EDITABLE',
+  /** O valor está bem formado e não confere — a senha atual, notadamente. */
+  INCORRECT: 'INCORRECT',
 } as const;
 
 export type ViolationCode = (typeof VIOLATION)[keyof typeof VIOLATION];

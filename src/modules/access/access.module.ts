@@ -2,11 +2,17 @@ import { Module, type DynamicModule, type INestApplicationContext } from '@nestj
 import type { PrismaClient } from '@prisma/client';
 import type Redis from 'ioredis';
 
+import type { PasswordHashingConfig } from '@shared/config/environment';
+import { SessionStore } from '@shared/auth/session-store';
+
 import { AccessFacadeImpl } from './application/access.facade.impl';
 import { AssignRoleUseCase } from './application/assign-role.use-case';
+import { ChangePasswordUseCase } from './application/change-password.use-case';
 import { CreateUserUseCase } from './application/create-user.use-case';
 import { FindRolePermissionsUseCase } from './application/find-role-permissions.use-case';
 import { FindUserProfileUseCase } from './application/find-user-profile.use-case';
+import { RequestPasswordResetUseCase } from './application/request-password-reset.use-case';
+import { ResetPasswordUseCase } from './application/reset-password.use-case';
 import { ResolveEffectivePermissionsUseCase } from './application/resolve-effective-permissions.use-case';
 import { SeedCatalogUseCase } from './application/seed-catalog.use-case';
 import {
@@ -15,9 +21,14 @@ import {
 } from './application/seed-system-admin.use-case';
 import { SetUserActiveUseCase } from './application/set-user-active.use-case';
 import { UpdateUserProfileUseCase } from './application/update-user-profile.use-case';
+import { VerifyCredentialUseCase } from './application/verify-credential.use-case';
 import { AccessFacade } from './contracts/access.facade';
 import { DECLARED_CATALOG, type CatalogDeclaration } from './domain/catalog';
 import { CatalogRepository, type CatalogReconciliation } from './domain/ports/catalog-repository';
+import { CredentialRepository } from './domain/ports/credential-repository';
+import { CredentialSettings } from './domain/ports/credential-settings';
+import { InvitationRepository } from './domain/ports/invitation-repository';
+import { PasswordHasher } from './domain/ports/password-hasher';
 import { PermissionCache } from './domain/ports/permission-cache';
 import {
   RoleAssignmentAuditRepository,
@@ -25,13 +36,31 @@ import {
 } from './domain/ports/role-assignment-repository';
 import { UserRepository } from './domain/ports/user-repository';
 import { AccessPrisma, createAccessPrisma } from './infrastructure/access-prisma';
+import { Argon2PasswordHasher } from './infrastructure/argon2-password-hasher';
 import { PrismaCatalogRepository } from './infrastructure/prisma-catalog.repository';
+import { PrismaCredentialRepository } from './infrastructure/prisma-credential.repository';
+import { PrismaInvitationRepository } from './infrastructure/prisma-invitation.repository';
 import {
   PrismaRoleAssignmentAuditRepository,
   PrismaRoleAssignmentRepository,
 } from './infrastructure/prisma-role-assignment.repository';
 import { PrismaUserRepository } from './infrastructure/prisma-user.repository';
 import { RedisPermissionCache } from './infrastructure/redis-permission-cache';
+import { PasswordController } from './presentation/password.controller';
+import { ProfileController } from './presentation/profile.controller';
+
+/**
+ * O que o composition root fornece ao módulo além das conexões.
+ *
+ * A configuração da derivação e o prazo do meio de redefinição chegam de fora porque são
+ * decisão de operação, e o repositório de sessões porque é mecanismo transversal de
+ * `shared/`: o módulo o **usa**, e é `ADR-0013` §18 que o proíbe de ter um próprio.
+ */
+export interface AccessModuleOptions {
+  readonly passwordHashing: PasswordHashingConfig;
+  readonly passwordResetTtlSeconds: number;
+  readonly sessions: SessionStore;
+}
 
 /** O que a carga inicial do módulo alterou. */
 export interface AccessSeedReport {
@@ -55,10 +84,19 @@ export interface AccessSeedReport {
  */
 @Module({})
 export class AccessModule {
-  static forRoot(prisma: PrismaClient, redis: Redis): DynamicModule {
+  static forRoot(prisma: PrismaClient, redis: Redis, options: AccessModuleOptions): DynamicModule {
     return {
       module: AccessModule,
+      controllers: [ProfileController, PasswordController],
       providers: [
+        { provide: SessionStore, useValue: options.sessions },
+        {
+          provide: CredentialSettings,
+          useValue: { passwordResetTtlSeconds: options.passwordResetTtlSeconds },
+        },
+        { provide: PasswordHasher, useValue: new Argon2PasswordHasher(options.passwordHashing) },
+        { provide: CredentialRepository, useClass: PrismaCredentialRepository },
+        { provide: InvitationRepository, useClass: PrismaInvitationRepository },
         { provide: AccessPrisma, useValue: createAccessPrisma(prisma) },
         { provide: PermissionCache, useValue: new RedisPermissionCache(redis) },
         { provide: CatalogRepository, useClass: PrismaCatalogRepository },
@@ -75,6 +113,10 @@ export class AccessModule {
         SetUserActiveUseCase,
         AssignRoleUseCase,
         ResolveEffectivePermissionsUseCase,
+        VerifyCredentialUseCase,
+        ChangePasswordUseCase,
+        RequestPasswordResetUseCase,
+        ResetPasswordUseCase,
         SeedCatalogUseCase,
         SeedSystemAdminUseCase,
         { provide: AccessFacade, useClass: AccessFacadeImpl },

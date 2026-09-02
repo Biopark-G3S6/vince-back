@@ -85,10 +85,69 @@ model User {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  roles UserRole[]
+  roles       UserRole[]
+  credential  PasswordCredential?
+  invitations Invitation[]
 
   @@index([institutionId])
   @@map("user")
+  @@schema("access")
+}
+
+/// A credencial de senha da conta (ADR-0027 §5, RF-ACS-004).
+///
+/// **Não existe coluna que admita texto puro.** `hash` guarda a derivação Argon2id, que
+/// já embute algoritmo, parâmetros e sal na própria cadeia — por isso não há coluna de
+/// sal nem de parâmetros: recalibrar o custo não exige migração, e a linha antiga
+/// continua verificável com os parâmetros com que nasceu.
+///
+/// A relação é um-para-um e a chave primária é a própria conta: uma conta tem no máximo
+/// uma senha, e `user_id` como PK é o que torna isso regra do banco em vez de convenção.
+///
+/// A ausência de linha é estado válido e significativo: conta criada por fluxo interno
+/// nasce **sem senha definida** (RF-TUR-003 RN3, RF-ACS-001 E4).
+model PasswordCredential {
+  userId    String   @id @map("user_id") @db.Uuid
+  hash      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_credential")
+  @@schema("access")
+}
+
+/// O convite: a via de uso único e com prazo por onde alguém entra ou reentra na conta
+/// (ADR-0027 §5).
+///
+/// **É esta tabela que guarda o meio de redefinição de senha**, e não uma tabela própria:
+/// ADR-0027 §6 proíbe tabela não enumerada em §5, e a URS confirma o parentesco ao dar a
+/// RF-ACS-003 e a RF-ACS-004 o mesmo `INVITATION_EXPIRED` que dá a RF-TUR-005. `purpose`
+/// distingue os usos — enumeração de negócio em texto, nunca ENUM nativo (ADR-0018 §19).
+///
+/// O valor entregue ao usuário **não é persistido**: persiste-se a sua derivação
+/// (decisão D7). Vazamento desta tabela não entrega acesso a ninguém.
+///
+/// `used_at` nulo é "ainda não usado", e é o que o consumo verifica na mesma instrução em
+/// que grava — é assim que o uso único sobrevive a duas requisições simultâneas.
+model Invitation {
+  id        String    @id @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  /// `PASSWORD_RESET`. `ACCOUNT_CREATION` entra com RF-TUR-005.
+  purpose   String
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // `token_hash` já está indexado pela unicidade; a consulta por conta e propósito é a
+  // que a emissão faz para não acumular meios vivos (ADR-0018 §20).
+  @@index([userId, purpose])
+  @@map("invitation")
   @@schema("access")
 }
 

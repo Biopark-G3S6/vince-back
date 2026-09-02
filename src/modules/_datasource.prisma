@@ -6,7 +6,7 @@
 // ADR-0010 §7  uma única instância de PrismaClient por processo
 
 generator client {
-  provider        = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {

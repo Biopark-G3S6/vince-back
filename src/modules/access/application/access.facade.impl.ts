@@ -1,6 +1,14 @@
 import { Injectable } from '@nestjs/common';
 
 import { AccessFacade } from '../contracts/access.facade';
+import type {
+  ChangeOwnPasswordCommand,
+  PasswordResetIssued,
+  PasswordResetResult,
+  RequestPasswordResetCommand,
+  ResetPasswordCommand,
+  VerifyCredentialQuery,
+} from '../contracts/credential.dto';
 import type { AccessResult } from '../contracts/result.dto';
 import type {
   RolePermissionsQuery,
@@ -19,12 +27,16 @@ import type {
 import type { Result } from '../domain/failure';
 import type { UserAccountWithRoles } from '../domain/ports/user-repository';
 import { AssignRoleUseCase } from './assign-role.use-case';
+import { ChangePasswordUseCase } from './change-password.use-case';
 import { CreateUserUseCase } from './create-user.use-case';
 import { FindRolePermissionsUseCase } from './find-role-permissions.use-case';
 import { FindUserProfileUseCase } from './find-user-profile.use-case';
+import { RequestPasswordResetUseCase } from './request-password-reset.use-case';
+import { ResetPasswordUseCase } from './reset-password.use-case';
 import { ResolveEffectivePermissionsUseCase } from './resolve-effective-permissions.use-case';
 import { SetUserActiveUseCase } from './set-user-active.use-case';
 import { UpdateUserProfileUseCase } from './update-user-profile.use-case';
+import { VerifyCredentialUseCase } from './verify-credential.use-case';
 
 /**
  * Implementação da fachada. Orquestra casos de uso e mapeia DTOs; nenhuma regra de
@@ -45,6 +57,10 @@ export class AccessFacadeImpl extends AccessFacade {
     private readonly setUserActive: SetUserActiveUseCase,
     private readonly assignRoleUseCase: AssignRoleUseCase,
     private readonly resolveEffectivePermissions: ResolveEffectivePermissionsUseCase,
+    private readonly verifyCredentialUseCase: VerifyCredentialUseCase,
+    private readonly changePassword: ChangePasswordUseCase,
+    private readonly requestPasswordResetUseCase: RequestPasswordResetUseCase,
+    private readonly resetPasswordUseCase: ResetPasswordUseCase,
   ) {
     super();
   }
@@ -109,6 +125,30 @@ export class AccessFacadeImpl extends AccessFacade {
     query: EffectivePermissionsQuery,
   ): Promise<EffectivePermissionsResult> {
     return { permissions: await this.resolveEffectivePermissions.execute(query.userId) };
+  }
+
+  async verifyCredential(query: VerifyCredentialQuery): Promise<string | null> {
+    return this.verifyCredentialUseCase.execute(query.email, query.password);
+  }
+
+  async changeOwnPassword(command: ChangeOwnPasswordCommand): Promise<AccessResult<void>> {
+    return toResult(
+      await this.changePassword.execute(
+        command.userId,
+        command.currentPassword,
+        command.newPassword,
+      ),
+    );
+  }
+
+  async requestPasswordReset(
+    command: RequestPasswordResetCommand,
+  ): Promise<PasswordResetIssued | null> {
+    return this.requestPasswordResetUseCase.execute(command.email);
+  }
+
+  async resetPassword(command: ResetPasswordCommand): Promise<AccessResult<PasswordResetResult>> {
+    return toResult(await this.resetPasswordUseCase.execute(command.token, command.password));
   }
 }
 

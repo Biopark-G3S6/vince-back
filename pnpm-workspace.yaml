@@ -10,6 +10,10 @@
 allowBuilds:
   '@prisma/client': true
   '@prisma/engines': true
+  # Telemetria de instalação, arrastada por `@nestjs/swagger`. `false` porque o seu
+  # script existe para reportar a instalação a um serviço externo — não é build, e
+  # bloqueá-lo não quebra nada.
+  '@scarf/scarf': false
   '@swc/core': true
   esbuild: true
   lefthook: true

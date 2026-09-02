@@ -27,6 +27,14 @@ if (existsSync('.env')) {
   process.loadEnvFile('.env');
 }
 
+/**
+ * O log estruturado é silenciado na suíte. Não é desinteresse pelo que ele diz: é que
+ * uma linha por requisição, vezes centenas de requisições, esconde a saída do teste que
+ * de fato importa. O teste do próprio log declara o seu nível explicitamente e não
+ * depende desta variável.
+ */
+process.env.LOG_LEVEL = 'silent';
+
 const poolId = process.env.VITEST_POOL_ID ?? '1';
 
 /** Os schemas que as migrações criam. Truncados entre testes e removidos ao final. */

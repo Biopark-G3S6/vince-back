@@ -20,9 +20,35 @@ Schema `access` no PostgreSQL. Tabelas declaradas em `access.prisma`:
 | `user`                  | a conta de usuário e seu perfil                      |
 | `user_role`             | a atribuição de papel a uma conta                    |
 | `role_assignment_audit` | a trilha imutável de atribuição e revogação de papel |
+| `password_credential`   | a credencial de senha da conta                       |
+| `invitation`            | a via de uso único e com prazo por onde alguém entra |
 
-`ADR-0027 §5` enumera também as tabelas das verticais seguintes — `password_credential`,
-`permission_grant`, `invitation`. Tabela fora dessa lista **não** nasce aqui sem reescrever o ADR.
+`ADR-0027 §5` enumera ainda `permission_grant`, da vertical de delegação. Tabela fora dessa lista
+**não** nasce aqui sem reescrever o ADR (`§6`).
+
+### A credencial e o convite
+
+`password_credential` tem a conta como chave primária: uma conta tem no máximo uma senha, e isso é
+regra do banco, não convenção. **Não existe coluna que admita texto puro** — `hash` guarda a
+derivação Argon2id, que já embute algoritmo, parâmetros e sal na própria cadeia. Por isso não há
+coluna de sal nem de parâmetros: recalibrar o custo não exige migração, e a linha antiga continua
+verificável com os parâmetros com que nasceu.
+
+**A ausência de linha é estado válido e significativo:** conta criada por fluxo interno nasce sem
+senha definida (`RF-TUR-003 RN3`, `RF-ACS-001 E4`).
+
+**O meio de redefinição de senha vive em `invitation`**, e não em tabela própria. Não é acomodação:
+`ADR-0027 §6` proíbe tabela não enumerada em §5, e a URS §2.4 dá a `RF-ACS-003` e a `RF-ACS-004` o
+mesmo `INVITATION_EXPIRED` que dá ao convite de criação de conta — o parentesco está declarado lá.
+`purpose` distingue os usos: `PASSWORD_RESET` hoje, `ACCOUNT_CREATION` com `RF-TUR-005`.
+
+O valor entregue ao usuário **não é persistido**: persiste-se a sua derivação. Vazamento da tabela
+não entrega acesso a ninguém. A derivação é SHA-256, e não Argon2id — o segredo tem 256 bits de
+aleatoriedade, que nenhuma força bruta alcança, e a derivação lenta usaria sal por linha, o que
+impediria procurar pelo valor derivado e obrigaria a percorrer a tabela a cada tentativa de uso.
+
+`used_at` nulo é "ainda não usado", e é o que o consumo verifica **na mesma instrução em que grava**:
+é assim que o uso único sobrevive a duas requisições simultâneas.
 
 ### A conta
 
@@ -68,6 +94,10 @@ para permanecer legível se o catálogo mudar.
 | `deactivateUser` / `activateUser`     | leva a conta ao estado, preservando vínculos e e-mail          |
 | `assignRole` / `revokeRole`           | atribui e revoga papel, **idempotentes**, com trilha           |
 | `effectivePermissions`                | apura as permissões efetivas da conta, com cache               |
+| `verifyCredential`                    | confere e-mail e senha; devolve a conta, ou `null`             |
+| `changeOwnPassword`                   | altera a senha do titular, exigindo a atual                    |
+| `requestPasswordReset`                | emite o meio de redefinição, ou `null` se não houver a quem    |
+| `resetPassword`                       | define a senha por meio de redefinição, sem exigir a atual     |
 
 Os códigos de papel, de permissão e de falha atravessam a fronteira como **texto opaco**
 (`ADR-0027 §14`). O tipo estreito — `PermissionCode`, `RoleCode`, `FailureCode` — vive em
@@ -86,10 +116,50 @@ não declara permissão alguma sobre o recurso de usuário — criá-la violaria
 `PAD-SEG-008`. `createUser` é operação de **consumidor interno**, para os fluxos que a URS já
 especifica: a carga inicial, `RF-TUR-003` e `RF-TUR-005`.
 
-**Não há rota HTTP neste módulo.** Toda rota que esta vertical publicaria — a começar pelo perfil
-próprio de `RF-ACS-005` — tem "sessão ativa" como pré-condição, e a sessão nasce em
-`add-session-authentication`. Quem revisar deve esperar isso, e não procurar endpoint: a
-verificação está em `access.module.spec.ts`, na fronteira que `ADR-0024 §2` fixa.
+### A senha e o tempo
+
+`verifyCredential` devolve `null` para conta inexistente, senha incorreta, conta desativada e conta
+sem senha definida — **os quatro casos, sem distinção** (`RF-ACS-001 E1`, `E2`). E o custo dos quatro
+é o mesmo: o caso de uso deriva **exatamente uma vez** em todos os caminhos, contra a derivação de
+referência quando não há hash contra que conferir.
+
+Responder depressa é responder. Sair do caminho antes de gastar o tempo entregaria, pelo relógio, a
+existência da conta — que é a informação que o texto da resposta se esforça por esconder. O mesmo
+vale para `requestPasswordReset`, que gasta o custo de uma derivação antes de qualquer decisão.
+
+A verificação disso não é por relógio — `ADR-0024 §24` proíbe teste por limiar de tempo no comando de
+verificação, e ele seria intermitente. O que o teste conta é a **causa**: uma derivação por caminho.
+Um retorno antecipado derruba a contagem a zero e reprova.
+
+## As rotas deste módulo
+
+| Rota                      | Acesso  | Requisito                  |
+| :------------------------ | :------ | :------------------------- |
+| `GET /profile`            | sessão  | `RF-ACS-005`               |
+| `PATCH /profile`          | sessão  | `RF-ACS-005`, `RF-INT-001` |
+| `PUT /password`           | sessão  | `RF-ACS-004`               |
+| `POST /password/recovery` | público | `RF-ACS-003`               |
+| `POST /password/reset`    | público | `RF-ACS-004`               |
+
+**Nenhuma exige permissão**, e isso é a regra e não a falta dela: os requisitos de origem declaram
+"Permissões geradas: —". A titularidade é verificada dentro do caso de uso (`ADR-0014 §12`) e não é
+modelada como permissão (§13); inventar `USER:READ_SELF` produziria permissão sem requisito que a
+origine (§7).
+
+**A revogação de sessões acontece na apresentação, não no caso de uso.** Sessão é mecanismo
+transversal de `shared/`, e `ADR-0013 §18` proíbe módulo de criá-la, lê-la ou invalidá-la por conta
+própria. O módulo altera a credencial; a borda, que conhece o mecanismo, encerra o que a alteração
+invalidou — e sempre nessa ordem: inverter derrubaria as sessões de quem, no fim, não conseguiu
+trocar a senha.
+
+O que cada uma derruba: `PUT /password` encerra as **demais** sessões e preserva a corrente
+(`RF-ACS-004 RN2`); `POST /password/reset` encerra **todas**.
+
+**Dívida declarada:** `POST /password/recovery` cria o meio de redefinição e ele **não chega ao
+destinatário**. O envio depende de correio eletrônico, que depende de outbox (`ADR-0021`), fila
+(`ADR-0020`) e catálogo de mensagens (`ADR-0026 §18`) — nada disso existe. `RF-ACS-003` fica entregue
+**exceto pelo envio**. O valor emitido volta pela fachada para que a vertical de notificação o
+entregue, e **não** é devolvido em resposta HTTP nem escrito em log.
 
 ## Titularidade não é permissão
 

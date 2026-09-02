@@ -23,6 +23,11 @@ pnpm run start:dev
 
 Já clonou sem os submódulos? `git submodule update --init --recursive`.
 
+Toda variável de `.env.example` é **obrigatória**: a aplicação recusa subir sem ela, e a mensagem
+nomeia a que falta. Configuração ausente que assume um padrão silencioso é o modo de falha que só
+aparece em produção — e `CSRF_TOKEN_SECRET` é exatamente o caso em que um padrão embutido seria pior
+que a parada.
+
 ## Papéis de execução
 
 O artefato de build é único; o papel vem do ambiente (`ADR-0008`).
@@ -41,7 +46,13 @@ gargalo — antes de considerar extrair um módulo para serviço próprio.
 ```
 src/
   app/                    composition root — conhece só a lista de módulos
-  shared/                 kernel transversal: log, erros, autenticação de borda, config
+  shared/                 kernel transversal
+    config/               leitura da configuração, em ponto único
+    correlation/          o identificador de correlação da requisição
+    logging/              log estruturado e a lista de permissão de campos
+    http/                 envelope, catálogo de códigos, declaração de acesso da rota
+    errors/               falha esperada e tratador global de exceções
+    auth/                 sessão opaca, guarda de borda, CSRF, identidade
   modules/<modulo>/
     contracts/            ÚNICA superfície pública
     domain/               entidades, value objects, regras, ports
@@ -65,6 +76,27 @@ Cada diretório tem um README com as regras que valem ali.
 | `pnpm run db:migrate`  | Cria e aplica migração                                                   |
 | `pnpm run db:seed`     | Carga inicial: o catálogo de permissões e os cinco papéis                |
 | `pnpm run docs:update` | Atualiza o submódulo de documentação para o último commit                |
+
+## A API
+
+Prefixo de versão `/api/v1` (`ADR-0017 §7`). Com a aplicação em execução:
+
+| Recurso                    | Caminho             |
+| :------------------------- | :------------------ |
+| Especificação OpenAPI      | `/api/openapi.json` |
+| Navegador da especificação | `/api/docs`         |
+
+A especificação é **gerada do código** (`ADR-0017 §1`): endpoint novo consta dela sem que ninguém
+edite documento algum, e é dela que o frontend deriva os seus tipos (§2).
+
+**Toda rota declara o seu acesso**, e o esquecimento reprova a inicialização — `@PublicRoute()`,
+`@AuthenticatedRoute()` ou `@RequiresPermission(...)`. A falha típica da guarda por rota não é a
+regra errada: é a rota nova que não declara nada, e essa falha é aberta e silenciosa. Aqui ela é
+fechada, e acontece antes de a aplicação escutar em porta alguma.
+
+O que o **frontend** precisa saber a cada vertical entregue — códigos de resposta, cookies,
+cabeçalhos e o que ficou por fazer — está em
+[`docs/front-end-implementations.md`](docs/front-end-implementations.md).
 
 `pnpm run verify` é a mesma definição que o GitHub Actions executa. Se passa aqui, passa lá.
 Ele depende do Compose ativo: os repositórios são exercitados contra PostgreSQL real
