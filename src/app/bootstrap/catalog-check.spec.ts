@@ -2,11 +2,16 @@ import { describe, expect, it } from 'vitest';
 
 import {
   compareCatalogs,
+  compareResponseCodes,
   describeComparison,
+  describeResponseCodes,
   DocumentationUnavailableError,
   isMatch,
+  isResponseCodeMatch,
   parseUrsCatalog,
+  parseUrsResponseCodes,
   readUrsCatalog,
+  UrsFormatError,
   type CatalogSnapshot,
 } from './catalog-check';
 
@@ -27,6 +32,18 @@ const URS = [
   '| `STUDENT` | `ARTICLE:READ` |',
   '',
   '### 2.4 Catálogo de códigos de resposta',
+  '',
+  'Em maiúsculas, sem acento. A tradução ocorre no cliente, a partir de `status.code`.',
+  '',
+  '| Código | Origem |',
+  '| :--- | :--- |',
+  '| `SUCCESS` | `ADR-0025` §4, §9 |',
+  '| `AUTHENTICATION_FAILED` | RF-ACS-001 |',
+  '| `VALIDATION_FAILED` | RF-ACS-004 |',
+  '',
+  '---',
+  '',
+  '## 3. Pendências',
 ].join('\n');
 
 const DECLARED: CatalogSnapshot = {
@@ -112,3 +129,71 @@ describe('conferência do catálogo com a URS', () => {
 // A conferência contra a URS real NÃO é testada aqui: `verify` não busca o submódulo
 // `docs/` (ADR-0027 §19), e um teste que o lesse reprovaria no workflow. Ela é o
 // comando `pnpm run docs:check-catalog`, executado deliberadamente na revisão.
+
+describe('conferência dos códigos de resposta com a URS §2.4', () => {
+  const DECLARED_CODES = ['SUCCESS', 'AUTHENTICATION_FAILED', 'VALIDATION_FAILED'];
+
+  it('lê a tabela de §2.4 sem confundi-la com o parágrafo que a antecede', () => {
+    // O texto acima da tabela também traz crases — `status.code` —, e a coluna de
+    // origem traz `ADR-0025`. Nem um nem outro é código de resposta.
+    expect(parseUrsResponseCodes(URS)).toEqual(DECLARED_CODES);
+  });
+
+  it('não confunde a origem em crases com um código', () => {
+    expect(parseUrsResponseCodes(URS)).not.toContain('ADR-0025');
+    expect(parseUrsResponseCodes(URS)).not.toContain('status.code');
+  });
+
+  it('reconhece a correspondência quando as duas cópias batem', () => {
+    const comparison = compareResponseCodes(DECLARED_CODES, parseUrsResponseCodes(URS));
+
+    expect(isResponseCodeMatch(comparison)).toBe(true);
+    expect(describeResponseCodes(comparison, DECLARED_CODES)).toContain('3 códigos');
+  });
+
+  /**
+   * O caso que motivou o comando: um código entra no repositório antes de entrar na
+   * URS. Aconteceu com `SUCCESS` e `INTERNAL_ERROR`, e nada reclamou.
+   */
+  it('acusa código do repositório sem origem na URS', () => {
+    const comparison = compareResponseCodes(
+      [...DECLARED_CODES, 'INTERNAL_ERROR'],
+      parseUrsResponseCodes(URS),
+    );
+
+    expect(isResponseCodeMatch(comparison)).toBe(false);
+    expect(comparison.surplus).toEqual(['INTERNAL_ERROR']);
+    expect(describeResponseCodes(comparison, DECLARED_CODES)).toContain(
+      'sem origem na URS: INTERNAL_ERROR',
+    );
+  });
+
+  it('acusa código da URS ausente do repositório', () => {
+    const comparison = compareResponseCodes(['SUCCESS'], parseUrsResponseCodes(URS));
+
+    expect(isResponseCodeMatch(comparison)).toBe(false);
+    expect(comparison.missing).toEqual(['AUTHENTICATION_FAILED', 'VALIDATION_FAILED']);
+  });
+
+  it('acusa divergência nos dois sentidos de uma vez', () => {
+    const comparison = compareResponseCodes(
+      ['SUCCESS', 'CODIGO_INVENTADO'],
+      parseUrsResponseCodes(URS),
+    );
+
+    expect(comparison.surplus).toEqual(['CODIGO_INVENTADO']);
+    expect(comparison.missing).toEqual(['AUTHENTICATION_FAILED', 'VALIDATION_FAILED']);
+  });
+
+  it('recusa a URS sem a seção §2.4, em vez de relatar correspondência', () => {
+    expect(() => parseUrsResponseCodes('### 2.3 Catálogo de permissões\n')).toThrow(UrsFormatError);
+  });
+
+  it('recusa a tabela de §2.4 vazia', () => {
+    const semLinhas = ['### 2.4 Catálogo de códigos de resposta', '', '## 3. Pendências'].join(
+      '\n',
+    );
+
+    expect(() => parseUrsResponseCodes(semLinhas)).toThrow(/§2.4 veio vazia/);
+  });
+});

@@ -232,7 +232,8 @@ exigir uma permissão referencia o símbolo, nunca o literal.
 
 A URS continua sendo a origem: nenhuma permissão existe sem requisito funcional que a produza
 (`ADR-0014 §7`), e o requisito de origem de cada uma está no comentário ao lado dela. A
-correspondência entre as duas cópias é conferida por `pnpm run docs:check-catalog`, que fica
+correspondência entre as duas cópias é conferida por `pnpm run docs:check-catalog` — que confere
+também o catálogo de códigos de resposta de `shared/` contra a URS §2.4 —, e que fica
 fora de `pnpm run verify` porque depende do submódulo `docs/` (`ADR-0027 §19`). **Execute-o na
 revisão de qualquer alteração do catálogo** — é a única proteção contra a divergência.
 
