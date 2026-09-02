@@ -28,14 +28,20 @@ describe('cliente Prisma escopado ao módulo `access`', () => {
       'User',
       'UserRole',
       'RoleAssignmentAudit',
+      'PasswordCredential',
+      'Invitation',
       'permission',
       'rolePermission',
       'roleAssignmentAudit',
+      'passwordCredential',
+      'invitation',
     ]) {
       expect(isOwnedModel(model)).toBe(true);
     }
 
-    for (const model of ['AssinaturaErro', 'assinaturaErro', 'Invitation']) {
+    // `PermissionGrant` consta de ADR-0027 §5 e ainda não existe; o model de outro
+    // módulo continua fora, que é o que esta asserção guarda.
+    for (const model of ['AssinaturaErro', 'assinaturaErro', 'PermissionGrant']) {
       expect(isOwnedModel(model)).toBe(false);
     }
   });

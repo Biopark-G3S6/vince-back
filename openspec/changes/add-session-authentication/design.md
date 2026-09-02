@@ -119,6 +119,18 @@ _Por quê:_ o meio de redefinição é equivalente a uma senha temporária — v
 entregar acesso. Guardá-lo no banco, e não no Redis, o mantém auditável e sobrevive a reinício do
 cache; e o volume é desprezível.
 
+_A tabela é `invitation`, e não uma tabela própria._ Apurado na implementação: `ADR-0027` §6 proíbe
+tabela não enumerada em §5, e `password_reset_token` não está lá. A URS confirma o parentesco em vez
+de apenas tolerar a acomodação — §2.4 dá a RF-ACS-003 e a RF-ACS-004 o **mesmo** `INVITATION_EXPIRED`
+que dá ao convite de criação de conta de RF-TUR-005. `purpose` distingue os usos, como enumeração de
+negócio em texto (`ADR-0018` §19): `PASSWORD_RESET` agora, `ACCOUNT_CREATION` quando RF-TUR-005
+existir. Não altera comportamento observável, e por isso não altera spec alguma.
+
+_A derivação guardada é SHA-256, e não Argon2id._ Argon2id existe para encarecer o ataque a segredo
+de baixa entropia — uma senha escolhida por alguém. Aqui o segredo tem 256 bits de aleatoriedade:
+força bruta não o alcança, e a derivação lenta usa sal por linha, o que impediria procurar pelo valor
+derivado e obrigaria a percorrer a tabela a cada tentativa de uso.
+
 ## Risks / Trade-offs
 
 - **RF-ACS-003 fica entregue sem o envio da mensagem.** → Consequência aceita e nomeada na proposta. O
@@ -146,9 +158,20 @@ cache; e o volume é desprezível.
 
 ## Open Questions
 
+Ambas ficaram **registradas como pendências rastreáveis** ao fim da implementação, em
+`docs/ADR/README.md` — "Decisões pendentes" —, que é onde o repositório as procura. Ambas têm efeito
+observável no cliente, e o comportamento esperado da interface diante de cada uma está declarado em
+`docs/front-end-implementations.md`.
+
 - **Limitação de taxa** na autenticação e na solicitação de recuperação. Nenhum ADR a trata e nenhum
-  requisito a pede; sem ela, os dois endpoints são meio de enumeração e de exaustão. Não altera as
-  specs desta mudança — é acréscimo na borda —, mas deve virar decisão registrada antes de o sistema
-  ser exposto.
-- **Chave de assinatura do token anti-CSRF**: origem e rotação. Não altera comportamento observável;
-  entra na configuração.
+  requisito a pede; sem ela, os dois endpoints são meio de enumeração e de exaustão — agravado pela
+  decisão D6, que gasta de propósito o custo de uma derivação Argon2id por requisição em ambos. Não
+  altera as specs desta mudança — é acréscimo na borda —, mas deve virar decisão registrada antes de
+  o sistema ser exposto. Enquanto não existir, a interface não deve repetir automaticamente, e
+  precisa recair em `status.message` diante de código não reconhecido, para que a limitação entre em
+  produção sem quebrá-la.
+- **Chave de assinatura do token anti-CSRF**: origem e rotação. Não altera comportamento observável
+  em regime; entra na configuração. A rotação, porém, invalida o token de **todas** as sessões vivas
+  de uma vez, sem desautenticá-las: requisições de alteração passam a responder `403` enquanto as de
+  leitura seguem. A interface reconsulta o endpoint de identidade — que reemite o cookie do token — e
+  repete a requisição **uma** vez.

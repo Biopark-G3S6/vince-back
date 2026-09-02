@@ -1,12 +1,17 @@
-import { readdirSync } from 'node:fs';
-import { join } from 'node:path';
-
+import { PATH_METADATA } from '@nestjs/common/constants';
 import { PrismaClient } from '@prisma/client';
 import { Test, type TestingModule } from '@nestjs/testing';
 import Redis from 'ioredis';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { AccessModule } from './access.module';
+import { RedisSessionStore } from '@shared/auth/redis-session-store';
+import {
+  ROUTE_AUTHENTICATED_KEY,
+  ROUTE_PERMISSION_KEY,
+  ROUTE_PUBLIC_KEY,
+} from '@shared/http/route-access';
+
+import { AccessModule, type AccessModuleOptions } from './access.module';
 import { AccessFacade } from './contracts/access.facade';
 import type { AccessResult } from './contracts/result.dto';
 import type { CreateUserCommand, UserProfileDto } from './contracts/user.dto';
@@ -14,7 +19,11 @@ import type { CatalogDeclaration } from './domain/catalog';
 import { INITIAL_SYSTEM_ADMIN } from './domain/initial-account';
 import { DEFAULT_LANGUAGE } from './domain/language';
 import { NAME_MAX_LENGTH } from './domain/user';
+import { PasswordHasher } from './domain/ports/password-hasher';
+import { Argon2PasswordHasher } from './infrastructure/argon2-password-hasher';
 import { createOperationLog, createQueryCounter } from './infrastructure/query-counter';
+import { PasswordController } from './presentation/password.controller';
+import { ProfileController } from './presentation/profile.controller';
 
 /**
  * Teste do módulo pela sua fachada (`ADR-0024` §2): o interno — repositório, caso de uso,
@@ -22,13 +31,39 @@ import { createOperationLog, createQueryCounter } from './infrastructure/query-c
  * inicial entra pelo método estático do módulo, que é a única via que ela tem
  * (`ADR-0027` §21).
  *
- * Esta vertical não publica rota, e é deliberado: toda rota que ela publicaria tem
- * "sessão ativa" como pré-condição, e a sessão nasce em `add-session-authentication`.
- * A verificação se dá aqui, na fronteira que `ADR-0024` §2 fixa, e não por exercício
- * manual de endpoint.
+ * As rotas que o módulo publica — perfil próprio e senha — são exercitadas por HTTP em
+ * `access.http.spec.ts`, que sobe a aplicação inteira com a borda. Aqui a fronteira é a
+ * fachada, e continua sendo: o que este arquivo verifica é o comportamento do módulo,
+ * independentemente de haver HTTP à frente dele.
  */
 
+/**
+ * Parâmetros de derivação **reduzidos**, para o teste. Não é atalho: o que se verifica
+ * aqui é a regra da credencial, não o custo do algoritmo, e os parâmetros de produção
+ * fariam cada asserção de senha custar dezenas de milissegundos sem verificar mais nada.
+ */
+const TEST_HASHING = { memoryCostKib: 8192, timeCost: 1, parallelism: 1 } as const;
+
+const TEST_SESSION = {
+  cookieName: 'vince_session',
+  idleTtlSeconds: 28_800,
+  absoluteTtlSeconds: 604_800,
+} as const;
+
 const DECLARED = AccessModule.declaredCatalog();
+
+/** Os métodos de um controlador que são de fato rota — os que têm metadado de caminho. */
+function handlersOf(controller: new (...args: never[]) => object): object[] {
+  const prototype = controller.prototype as Record<string, unknown>;
+
+  return Object.getOwnPropertyNames(prototype)
+    .filter((name) => name !== 'constructor')
+    .map((name) => prototype[name])
+    .filter(
+      (handler): handler is object =>
+        typeof handler === 'function' && Reflect.getMetadata(PATH_METADATA, handler) !== undefined,
+    );
+}
 
 const permissionsOf = (role: string): readonly string[] =>
   DECLARED.roles.find((declared) => declared.code === role)?.permissions ?? [];
@@ -112,6 +147,12 @@ describe('módulo access', () => {
   let moduleRef: TestingModule;
   let facade: AccessFacade;
 
+  const moduleOptions = (): AccessModuleOptions => ({
+    passwordHashing: TEST_HASHING,
+    passwordResetTtlSeconds: 3_600,
+    sessions: new RedisSessionStore(redis, TEST_SESSION),
+  });
+
   const createUser = async (overrides: Partial<CreateUserCommand> = {}): Promise<UserProfileDto> =>
     valueOf(await facade.createUser(aUser(overrides)));
 
@@ -119,7 +160,7 @@ describe('módulo access', () => {
     prisma = new PrismaClient();
     redis = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379');
     moduleRef = await Test.createTestingModule({
-      imports: [AccessModule.forRoot(prisma, redis)],
+      imports: [AccessModule.forRoot(prisma, redis, moduleOptions())],
     }).compile();
     facade = moduleRef.get(AccessFacade);
   });
@@ -672,10 +713,22 @@ describe('módulo access', () => {
       expect(aboutUser).toEqual([]);
     });
 
-    it('o módulo não tem camada de apresentação, e portanto não publica rota', () => {
-      // A ausência do diretório é a verificação: rota só existe em `presentation/`
-      // (ADR-0003 §3), e é ali que a análise de fronteiras a procura.
-      expect(readdirSync(join('src', 'modules', 'access'))).not.toContain('presentation');
+    it('toda rota do módulo declara acesso, e nenhuma exige permissão', () => {
+      // RF-ACS-004 e RF-ACS-005 declaram "Permissões geradas: —". Uma permissão aqui
+      // seria permissão sem requisito que a origine (ADR-0014 §7) e titularidade
+      // modelada como permissão (§13) — as duas coisas que o catálogo não admite.
+      const routes = [ProfileController, PasswordController].flatMap(handlersOf);
+
+      expect(routes.length).toBeGreaterThan(0);
+
+      for (const handler of routes) {
+        const declared =
+          Reflect.getMetadata(ROUTE_PUBLIC_KEY, handler) !== undefined ||
+          Reflect.getMetadata(ROUTE_AUTHENTICATED_KEY, handler) !== undefined;
+
+        expect(declared).toBe(true);
+        expect(Reflect.getMetadata(ROUTE_PERMISSION_KEY, handler)).toBeUndefined();
+      }
     });
 
     it('a fachada não expõe operação que liste ou remova conta de terceiro', () => {
@@ -876,7 +929,7 @@ describe('módulo access', () => {
       // alcançaram o model (ADR-0014 §18, ADR-0027 §5).
       const log = createOperationLog(prisma);
       const logged = await Test.createTestingModule({
-        imports: [AccessModule.forRoot(log.client, redis)],
+        imports: [AccessModule.forRoot(log.client, redis, moduleOptions())],
       }).compile();
 
       try {
@@ -960,7 +1013,7 @@ describe('módulo access', () => {
     it('apuração repetida: mesmo resultado, e a segunda não consulta o banco', async () => {
       const counter = createQueryCounter(prisma);
       const counted = await Test.createTestingModule({
-        imports: [AccessModule.forRoot(counter.client, redis)],
+        imports: [AccessModule.forRoot(counter.client, redis, moduleOptions())],
       }).compile();
 
       try {
@@ -1039,7 +1092,7 @@ describe('módulo access', () => {
       unreachable.on('error', () => undefined);
 
       const degraded = await Test.createTestingModule({
-        imports: [AccessModule.forRoot(prisma, unreachable)],
+        imports: [AccessModule.forRoot(prisma, unreachable, moduleOptions())],
       }).compile();
 
       try {
@@ -1059,7 +1112,7 @@ describe('módulo access', () => {
 
       const counter = createQueryCounter(prisma);
       const counted = await Test.createTestingModule({
-        imports: [AccessModule.forRoot(counter.client, redis)],
+        imports: [AccessModule.forRoot(counter.client, redis, moduleOptions())],
       }).compile();
 
       try {
@@ -1086,7 +1139,7 @@ describe('módulo access', () => {
 
       const counter = createQueryCounter(prisma);
       const counted = await Test.createTestingModule({
-        imports: [AccessModule.forRoot(counter.client, redis)],
+        imports: [AccessModule.forRoot(counter.client, redis, moduleOptions())],
       }).compile();
 
       try {
@@ -1110,6 +1163,193 @@ describe('módulo access', () => {
         expect(forOneRole).toBeGreaterThan(0);
       } finally {
         await counted.close();
+      }
+    });
+  });
+
+  describe('credencial de senha', () => {
+    const aPassword = 'senha-de-teste-conforme';
+
+    const withCredential = async (): Promise<UserProfileDto> => {
+      await AccessModule.seed(moduleRef);
+
+      const account = await createUser();
+      const issued = await facade.requestPasswordReset({ email: account.email });
+
+      if (issued === null) {
+        throw new Error('nenhum meio de redefinição foi emitido');
+      }
+
+      valueOf(await facade.resetPassword({ token: issued.token, password: aPassword }));
+
+      return account;
+    };
+
+    it('a senha não é persistida em texto puro (ADR-0027 §5)', async () => {
+      const account = await withCredential();
+
+      const stored = await prisma.passwordCredential.findUnique({
+        where: { userId: account.id },
+      });
+
+      expect(stored?.hash).toMatch(/^\$argon2id\$/);
+      expect(stored?.hash).not.toContain(aPassword);
+      expect(JSON.stringify(stored)).not.toContain(aPassword);
+    });
+
+    it('o meio de redefinição não é persistido em texto puro (decisão D7)', async () => {
+      await AccessModule.seed(moduleRef);
+
+      const account = await createUser();
+      const issued = await facade.requestPasswordReset({ email: account.email });
+
+      const stored = await prisma.invitation.findFirst({ where: { userId: account.id } });
+
+      expect(issued?.token).toBeDefined();
+      expect(stored?.tokenHash).not.toBe(issued?.token);
+      expect(JSON.stringify(stored)).not.toContain(issued?.token ?? 'x');
+      expect(stored?.purpose).toBe('PASSWORD_RESET');
+    });
+
+    it('emitir um meio novo invalida os anteriores', async () => {
+      await AccessModule.seed(moduleRef);
+
+      const account = await createUser();
+      const first = await facade.requestPasswordReset({ email: account.email });
+      const second = await facade.requestPasswordReset({ email: account.email });
+
+      const reused = await facade.resetPassword({
+        token: first?.token,
+        password: aPassword,
+      });
+
+      expect(reused.ok).toBe(false);
+      expect(failureOf(reused).code).toBe('INVITATION_EXPIRED');
+
+      expect(
+        valueOf(await facade.resetPassword({ token: second?.token, password: aPassword })),
+      ).toHaveProperty('userId', account.id);
+    });
+
+    it('conta desativada não recebe meio de redefinição', async () => {
+      await AccessModule.seed(moduleRef);
+
+      const account = await createUser();
+      await facade.deactivateUser({ userId: account.id });
+
+      expect(await facade.requestPasswordReset({ email: account.email })).toBeNull();
+      expect(await prisma.invitation.count({ where: { userId: account.id } })).toBe(0);
+    });
+
+    /**
+     * A indistinguibilidade da decisão D6 é **de tempo**, e o que a produz é o caminho caro
+     * ser percorrido também no caso negativo. Verificá-la por relógio seria teste por
+     * limiar de tempo, que `ADR-0024` §24 proíbe no comando de verificação — e seria
+     * intermitente, que §22 também proíbe.
+     *
+     * O que se verifica, então, é a **causa**: em todos os caminhos, exatamente uma
+     * derivação. Se alguém acrescentar um retorno antecipado, a contagem cai a zero e o
+     * teste reprova — que é exatamente quando a diferença de tempo apareceria.
+     */
+    it('a autenticação deriva exatamente uma vez em todos os caminhos (decisão D6)', async () => {
+      const calls = { verify: 0, reference: 0 };
+      const real = new Argon2PasswordHasher(TEST_HASHING);
+
+      const counting: PasswordHasher = {
+        hash: (password: string) => real.hash(password),
+        verify: (hash: string, password: string) => {
+          calls.verify += 1;
+
+          return real.verify(hash, password);
+        },
+        verifyAgainstReference: (password: string) => {
+          calls.reference += 1;
+
+          return real.verifyAgainstReference(password);
+        },
+      };
+
+      const instrumented = await Test.createTestingModule({
+        imports: [AccessModule.forRoot(prisma, redis, moduleOptions())],
+      })
+        .overrideProvider(PasswordHasher)
+        .useValue(counting)
+        .compile();
+
+      try {
+        const scoped = instrumented.get(AccessFacade);
+
+        await AccessModule.seed(instrumented);
+
+        const account = valueOf(await scoped.createUser(aUser()));
+        const issued = await scoped.requestPasswordReset({ email: account.email });
+        valueOf(await scoped.resetPassword({ token: issued?.token, password: aPassword }));
+
+        const withoutPassword = valueOf(await scoped.createUser(aUser()));
+
+        const attempts: readonly { readonly name: string; readonly email: string }[] = [
+          { name: 'senha correta', email: account.email },
+          { name: 'senha incorreta', email: account.email },
+          { name: 'conta inexistente', email: 'ninguem@exemplo.test' },
+          { name: 'conta sem senha definida', email: withoutPassword.email },
+        ];
+
+        for (const [index, attempt] of attempts.entries()) {
+          calls.verify = 0;
+          calls.reference = 0;
+
+          await scoped.verifyCredential({
+            email: attempt.email,
+            password: index === 0 ? aPassword : 'senha-completamente-errada',
+          });
+
+          expect(
+            calls.verify + calls.reference,
+            `caminho "${attempt.name}" deveria derivar exatamente uma vez`,
+          ).toBe(1);
+        }
+      } finally {
+        await instrumented.close();
+      }
+    });
+
+    it('a solicitação de recuperação deriva também quando não há conta (decisão D6)', async () => {
+      const calls = { reference: 0 };
+      const real = new Argon2PasswordHasher(TEST_HASHING);
+
+      const counting: PasswordHasher = {
+        hash: (password: string) => real.hash(password),
+        verify: (hash: string, password: string) => real.verify(hash, password),
+        verifyAgainstReference: (password: string) => {
+          calls.reference += 1;
+
+          return real.verifyAgainstReference(password);
+        },
+      };
+
+      const instrumented = await Test.createTestingModule({
+        imports: [AccessModule.forRoot(prisma, redis, moduleOptions())],
+      })
+        .overrideProvider(PasswordHasher)
+        .useValue(counting)
+        .compile();
+
+      try {
+        const scoped = instrumented.get(AccessFacade);
+
+        await AccessModule.seed(instrumented);
+
+        const account = valueOf(await scoped.createUser(aUser()));
+
+        for (const email of [account.email, 'ninguem@exemplo.test']) {
+          calls.reference = 0;
+
+          await scoped.requestPasswordReset({ email });
+
+          expect(calls.reference).toBe(1);
+        }
+      } finally {
+        await instrumented.close();
       }
     });
   });

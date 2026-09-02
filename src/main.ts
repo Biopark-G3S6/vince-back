@@ -3,6 +3,7 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from './app/app.module';
+import { configureApi } from './app/bootstrap/http';
 import { resolveModules, resolveRole } from './app/bootstrap/role';
 
 /**
@@ -22,15 +23,7 @@ async function bootstrap(): Promise<void> {
   });
 
   if (role === 'api') {
-    app.enableCors({
-      // Lista explícita de origens; curinga é proibido (ADR-0017 §10).
-      origin: (process.env.CORS_ORIGINS ?? '').split(',').filter(Boolean),
-      // A credencial de sessão trafega em cookie (ADR-0013 §8).
-      credentials: true,
-    });
-
-    // Versionamento por prefixo de caminho (ADR-0017 §7).
-    app.setGlobalPrefix('api/v1');
+    configureApi(app);
   }
 
   const port =
