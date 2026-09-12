@@ -33,41 +33,44 @@ Atualizar a documentação: `pnpm run docs:update`.
 
 ## 2. Índice dos ADRs
 
-27 decisões, todas em `Aceito`. O índice canônico, com status e datas, está em
+29 decisões, todas em `Aceito`. O índice canônico, com status e datas, está em
 [`docs/ADR/README.md`](docs/ADR/README.md); a coluna abaixo diz **quando abrir cada uma**.
 
-| ADR                                                                    | Decide                                       | Abra quando                                         |
-| :--------------------------------------------------------------------- | :------------------------------------------- | :-------------------------------------------------- |
-| [0000](docs/ADR/0000-adocao-de-adrs.md)                                | Adoção e processo de ADR                     | For registrar ou revisar uma decisão                |
-| [0001](docs/ADR/0001-monolito-modular.md)                              | Monolito modular                             | Alguém sugerir extrair um serviço                   |
-| [0002](docs/ADR/0002-stack-backend-nestjs.md)                          | NestJS + TypeScript estrito                  | Questionar framework ou configuração de compilador  |
-| [0003](docs/ADR/0003-fronteira-e-estrutura-de-modulo.md)               | Fronteira e camadas do módulo                | Criar módulo ou colocar um arquivo em alguma camada |
-| [0004](docs/ADR/0004-fachada-como-superficie-publica.md)               | Fachada abstrata em `contracts/`             | Expor algo de um módulo para outro                  |
-| [0005](docs/ADR/0005-comunicacao-entre-modulos.md)                     | Evento como padrão; síncrono só via fachada  | Um módulo precisar falar com outro                  |
-| [0006](docs/ADR/0006-propriedade-de-dados-por-modulo.md)               | Propriedade exclusiva de dados               | Precisar de dado que é de outro módulo              |
-| [0007](docs/ADR/0007-enforcement-de-fronteiras.md)                     | Fronteira imposta por análise estática       | O lint reprovar uma importação                      |
-| [0008](docs/ADR/0008-escalabilidade-por-papel-de-processo.md)          | Papéis `api`, `worker`, `relay`              | Mexer no bootstrap ou pensar em escala              |
-| [0009](docs/ADR/0009-dry-e-shared-kernel.md)                           | Escopo de `shared/`, DRY com limite          | Sentir vontade de extrair código repetido           |
-| [0010](docs/ADR/0010-camada-http-e-orm.md)                             | Express e Prisma                             | Mexer em controller, schema Prisma ou migração      |
-| [0011](docs/ADR/0011-desempenho-e-prevencao-de-n-mais-1.md)            | Metas de desempenho, N+1                     | Escrever consulta em laço ou paginação              |
-| [0012](docs/ADR/0012-retentativa-e-dead-letter-queue.md)               | Retentativa e DLQ                            | Escrever consumidor de fila                         |
-| [0013](docs/ADR/0013-autenticacao-por-sessao-opaca.md)                 | Sessão opaca em cookie                       | Tocar em login, sessão ou cookie                    |
-| [0014](docs/ADR/0014-autorizacao-rbac-e-delegacao.md)                  | RBAC e delegação de permissões               | Proteger uma rota ou criar permissão                |
-| [0015](docs/ADR/0015-arquitetura-do-frontend.md)                       | Arquitetura do frontend                      | Precisar do outro lado do contrato de integração    |
-| [0016](docs/ADR/0016-stack-do-frontend.md)                             | React, Vite, Tailwind                        | Precisar do outro lado do contrato de integração    |
-| [0017](docs/ADR/0017-contrato-de-integracao-frontend-backend.md)       | Contrato, CORS, CSRF, versionamento          | Criar ou alterar endpoint público                   |
-| [0018](docs/ADR/0018-organizacao-fisica-do-banco-de-dados.md)          | Schemas, nomes, ausência de FK entre módulos | Escrever `.prisma` ou migração                      |
-| [0019](docs/ADR/0019-transacoes-e-gestao-de-conexoes.md)               | Transação, pool, outbox na transação         | Abrir transação ou configurar pool                  |
-| [0020](docs/ADR/0020-transporte-de-mensagens-e-isolamento-de-filas.md) | BullMQ sobre Redis, isolamento de fila       | Criar fila ou publicar mensagem                     |
-| [0021](docs/ADR/0021-outbox-transacional-e-relay-de-eventos.md)        | Outbox e relay                               | Publicar evento de domínio                          |
-| [0022](docs/ADR/0022-observabilidade-e-registro-de-erros.md)           | Log estruturado, correlação, erros em tabela | Tratar erro, logar ou instrumentar                  |
-| [0023](docs/ADR/0023-ambiente-de-desenvolvimento-e-verificacao.md)     | `verify`, ganchos, CI                        | Mexer em ferramenta, gancho ou workflow             |
-| [0024](docs/ADR/0024-estrategia-de-testes.md)                          | Níveis de teste e suas fronteiras            | Escrever qualquer teste                             |
-| [0025](docs/ADR/0025-formato-de-resposta-da-api.md)                    | Envelope de resposta e código de erro        | Retornar sucesso ou erro de um endpoint             |
-| [0026](docs/ADR/0026-estrategia-de-internacionalizacao.md)             | Idioma do código, fronteira de tradução      | Nomear símbolo ou produzir texto exibível           |
+| ADR                                                                    | Decide                                        | Abra quando                                           |
+| :--------------------------------------------------------------------- | :-------------------------------------------- | :---------------------------------------------------- |
+| [0000](docs/ADR/0000-adocao-de-adrs.md)                                | Adoção e processo de ADR                      | For registrar ou revisar uma decisão                  |
+| [0001](docs/ADR/0001-monolito-modular.md)                              | Monolito modular                              | Alguém sugerir extrair um serviço                     |
+| [0002](docs/ADR/0002-stack-backend-nestjs.md)                          | NestJS + TypeScript estrito                   | Questionar framework ou configuração de compilador    |
+| [0003](docs/ADR/0003-fronteira-e-estrutura-de-modulo.md)               | Fronteira e camadas do módulo                 | Criar módulo ou colocar um arquivo em alguma camada   |
+| [0004](docs/ADR/0004-fachada-como-superficie-publica.md)               | Fachada abstrata em `contracts/`              | Expor algo de um módulo para outro                    |
+| [0005](docs/ADR/0005-comunicacao-entre-modulos.md)                     | Evento como padrão; síncrono só via fachada   | Um módulo precisar falar com outro                    |
+| [0006](docs/ADR/0006-propriedade-de-dados-por-modulo.md)               | Propriedade exclusiva de dados                | Precisar de dado que é de outro módulo                |
+| [0007](docs/ADR/0007-enforcement-de-fronteiras.md)                     | Fronteira imposta por análise estática        | O lint reprovar uma importação                        |
+| [0008](docs/ADR/0008-escalabilidade-por-papel-de-processo.md)          | Papéis `api`, `worker`, `relay`               | Mexer no bootstrap ou pensar em escala                |
+| [0009](docs/ADR/0009-dry-e-shared-kernel.md)                           | Escopo de `shared/`, DRY com limite           | Sentir vontade de extrair código repetido             |
+| [0010](docs/ADR/0010-camada-http-e-orm.md)                             | Express e Prisma                              | Mexer em controller, schema Prisma ou migração        |
+| [0011](docs/ADR/0011-desempenho-e-prevencao-de-n-mais-1.md)            | Metas de desempenho, N+1                      | Escrever consulta em laço ou paginação                |
+| [0012](docs/ADR/0012-retentativa-e-dead-letter-queue.md)               | Retentativa e DLQ                             | Escrever consumidor de fila                           |
+| [0013](docs/ADR/0013-autenticacao-por-sessao-opaca.md)                 | Sessão opaca em cookie                        | Tocar em login, sessão ou cookie                      |
+| [0014](docs/ADR/0014-autorizacao-rbac-e-delegacao.md)                  | RBAC e delegação de permissões                | Proteger uma rota ou criar permissão                  |
+| [0015](docs/ADR/0015-arquitetura-do-frontend.md)                       | Arquitetura do frontend                       | Precisar do outro lado do contrato de integração      |
+| [0016](docs/ADR/0016-stack-do-frontend.md)                             | React, Vite, Tailwind                         | Precisar do outro lado do contrato de integração      |
+| [0017](docs/ADR/0017-contrato-de-integracao-frontend-backend.md)       | Contrato, CORS, CSRF, versionamento           | Criar ou alterar endpoint público                     |
+| [0018](docs/ADR/0018-organizacao-fisica-do-banco-de-dados.md)          | Schemas, nomes, ausência de FK entre módulos  | Escrever `.prisma` ou migração                        |
+| [0019](docs/ADR/0019-transacoes-e-gestao-de-conexoes.md)               | Transação, pool, outbox na transação          | Abrir transação ou configurar pool                    |
+| [0020](docs/ADR/0020-transporte-de-mensagens-e-isolamento-de-filas.md) | BullMQ sobre Redis, isolamento de fila        | Criar fila ou publicar mensagem                       |
+| [0021](docs/ADR/0021-outbox-transacional-e-relay-de-eventos.md)        | Outbox e relay                                | Publicar evento de domínio                            |
+| [0022](docs/ADR/0022-observabilidade-e-registro-de-erros.md)           | Log estruturado, correlação, erros em tabela  | Tratar erro, logar ou instrumentar                    |
+| [0023](docs/ADR/0023-ambiente-de-desenvolvimento-e-verificacao.md)     | `verify`, ganchos, CI                         | Mexer em ferramenta, gancho ou workflow               |
+| [0024](docs/ADR/0024-estrategia-de-testes.md)                          | Níveis de teste e suas fronteiras             | Escrever qualquer teste                               |
+| [0025](docs/ADR/0025-formato-de-resposta-da-api.md)                    | Envelope de resposta e código de erro         | Retornar sucesso ou erro de um endpoint               |
+| [0026](docs/ADR/0026-estrategia-de-internacionalizacao.md)             | Idioma do código, fronteira de tradução       | Nomear símbolo ou produzir texto exibível             |
+| [0027](docs/ADR/0027-modulo-access.md)                                 | Módulo `access`: identidade e autorização     | Mexer em conta, papel, permissão ou credencial        |
+| [0028](docs/ADR/0028-modulo-institution.md)                            | Módulo `institution`: fronteira de isolamento | Mexer em instituição, ou fazer um módulo chamar outro |
 
-**Decisões pendentes** (`docs/ADR/README.md`): decomposição em módulos, carga de referência,
-infraestrutura de implantação, conformidade legal de dados pessoais. Criar um módulo **exige ADR
+**Decisões pendentes** (`docs/ADR/README.md`): decomposição em módulos — `access` e `institution`
+já decididos, os demais não —, carga de referência, infraestrutura de implantação, conformidade
+legal de dados pessoais, limitação de taxa e rotação da chave anti-CSRF. Criar um módulo **exige ADR
 próprio** declarando sua capacidade e as tabelas sob sua propriedade (`ADR-0003 §12`).
 
 ---
