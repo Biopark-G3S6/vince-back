@@ -6,13 +6,18 @@ import type { PasswordHashingConfig } from '@shared/config/environment';
 import { SessionStore } from '@shared/auth/session-store';
 
 import { AccessFacadeImpl } from './application/access.facade.impl';
+import { AcceptInvitationUseCase } from './application/accept-invitation.use-case';
 import { AssignRoleUseCase } from './application/assign-role.use-case';
 import { ChangePasswordUseCase } from './application/change-password.use-case';
 import { CreateUserUseCase } from './application/create-user.use-case';
 import { FindRolePermissionsUseCase } from './application/find-role-permissions.use-case';
 import { FindUserProfileUseCase } from './application/find-user-profile.use-case';
+import { FindInvitationUseCase } from './application/find-invitation.use-case';
+import { IssueInvitationUseCase } from './application/issue-invitation.use-case';
+import { ListInvitationsUseCase } from './application/list-invitations.use-case';
 import { RequestPasswordResetUseCase } from './application/request-password-reset.use-case';
 import { ResetPasswordUseCase } from './application/reset-password.use-case';
+import { RevokeInvitationUseCase } from './application/revoke-invitation.use-case';
 import { ResolveEffectivePermissionsUseCase } from './application/resolve-effective-permissions.use-case';
 import { SeedCatalogUseCase } from './application/seed-catalog.use-case';
 import {
@@ -48,6 +53,7 @@ import { PrismaUserRepository } from './infrastructure/prisma-user.repository';
 import { RedisPermissionCache } from './infrastructure/redis-permission-cache';
 import { PasswordController } from './presentation/password.controller';
 import { ProfileController } from './presentation/profile.controller';
+import { InvitationController } from './presentation/invitation.controller';
 
 /**
  * O que o composition root fornece ao módulo além das conexões.
@@ -87,7 +93,7 @@ export class AccessModule {
   static forRoot(prisma: PrismaClient, redis: Redis, options: AccessModuleOptions): DynamicModule {
     return {
       module: AccessModule,
-      controllers: [ProfileController, PasswordController],
+      controllers: [ProfileController, PasswordController, InvitationController],
       providers: [
         { provide: SessionStore, useValue: options.sessions },
         {
@@ -107,8 +113,12 @@ export class AccessModule {
           useClass: PrismaRoleAssignmentAuditRepository,
         },
         FindRolePermissionsUseCase,
+        AcceptInvitationUseCase,
         CreateUserUseCase,
         FindUserProfileUseCase,
+        FindInvitationUseCase,
+        IssueInvitationUseCase,
+        ListInvitationsUseCase,
         UpdateUserProfileUseCase,
         SetUserActiveUseCase,
         AssignRoleUseCase,
@@ -117,6 +127,7 @@ export class AccessModule {
         ChangePasswordUseCase,
         RequestPasswordResetUseCase,
         ResetPasswordUseCase,
+        RevokeInvitationUseCase,
         SeedCatalogUseCase,
         SeedSystemAdminUseCase,
         { provide: AccessFacade, useClass: AccessFacadeImpl },

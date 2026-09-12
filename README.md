@@ -17,9 +17,14 @@ cp .env.example .env
 docker compose up -d          # PostgreSQL e Redis
 pnpm install
 pnpm run db:migrate
-pnpm run db:seed              # papéis e permissões — sem isso não há autorização
+pnpm run db:seed              # catálogo e conta inicial; imprime o link de primeiro acesso
 pnpm run start:dev
 ```
+
+Na primeira carga, o comando imprime uma URL de uso único para definir a senha do
+`SYSTEM_ADMIN`. Use o token dessa URL em `POST /api/v1/password/reset` com um corpo contendo
+`{"token":"...","password":"..."}`; depois autentique-se pelo fluxo comum. O link não volta a
+ser emitido quando a senha já estiver definida e nunca é configurado por variável de ambiente.
 
 Já clonou sem os submódulos? `git submodule update --init --recursive`.
 

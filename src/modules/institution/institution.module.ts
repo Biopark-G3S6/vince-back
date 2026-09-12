@@ -7,8 +7,11 @@ import { CreateInstitutionUseCase } from './application/create-institution.use-c
 import { FindInstitutionUseCase } from './application/find-institution.use-case';
 import { InstitutionFacadeImpl } from './application/institution.facade.impl';
 import { ListInstitutionsUseCase } from './application/list-institutions.use-case';
+import { ListInvitationsUseCase } from './application/list-invitations.use-case';
+import { IssueInvitationUseCase } from './application/issue-invitation.use-case';
 import { ReadInstitutionStateUseCase } from './application/read-institution-state.use-case';
 import { SetInstitutionActiveUseCase } from './application/set-institution-active.use-case';
+import { RevokeInvitationUseCase } from './application/revoke-invitation.use-case';
 import { UpdateInstitutionUseCase } from './application/update-institution.use-case';
 import { InstitutionFacade } from './contracts/institution.facade';
 import { InstitutionAdminRepository } from './domain/ports/institution-admin-repository';
@@ -63,8 +66,11 @@ export class InstitutionModule {
         CreateInstitutionUseCase,
         FindInstitutionUseCase,
         ListInstitutionsUseCase,
+        ListInvitationsUseCase,
+        IssueInvitationUseCase,
         UpdateInstitutionUseCase,
         SetInstitutionActiveUseCase,
+        RevokeInvitationUseCase,
         ReadInstitutionStateUseCase,
         AssignInstitutionAdminUseCase,
         { provide: InstitutionFacade, useClass: InstitutionFacadeImpl },

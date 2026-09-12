@@ -6,6 +6,16 @@ import type {
   ResetPasswordCommand,
   VerifyCredentialQuery,
 } from './credential.dto';
+import type {
+  AcceptInvitationCommand,
+  AcceptInvitationResult,
+  InvitationDetails,
+  InvitationIssued,
+  InvitationPage,
+  IssueInvitationCommand,
+  ListInvitationsQuery,
+  RevokeInvitationCommand,
+} from './invitation.dto';
 import type { AccessResult } from './result.dto';
 import type { RolePermissionsQuery, RolePermissionsResult } from './role-permissions.dto';
 import type {
@@ -89,4 +99,18 @@ export abstract class AccessFacade {
 
   /** Define a senha por meio de redefinição, sem exigir a atual (RF-ACS-004 RN1). */
   abstract resetPassword(command: ResetPasswordCommand): Promise<AccessResult<PasswordResetResult>>;
+
+  abstract issueInvitation(
+    command: IssueInvitationCommand,
+  ): Promise<AccessResult<InvitationIssued>>;
+
+  abstract findInvitation(token: string): Promise<AccessResult<InvitationDetails>>;
+
+  abstract acceptInvitation(
+    command: AcceptInvitationCommand,
+  ): Promise<AccessResult<AcceptInvitationResult>>;
+
+  abstract listInvitations(query: ListInvitationsQuery): Promise<InvitationPage>;
+
+  abstract revokeInvitation(command: RevokeInvitationCommand): Promise<AccessResult<void>>;
 }

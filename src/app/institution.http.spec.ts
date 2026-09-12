@@ -77,6 +77,7 @@ describe('contrato da API — instituição', () => {
   let access: AccessFacade;
   let institutions: InstitutionFacade;
   let server: unknown;
+  let seedReport: Awaited<ReturnType<typeof AccessModule.seed>>;
 
   let sequence = 0;
 
@@ -146,6 +147,18 @@ describe('contrato da API — instituição', () => {
     return { id: created.value.id, code: created.value.code };
   };
 
+  const anInstitutionAs = async (cookies: Cookies): Promise<{ readonly id: string }> => {
+    sequence += 1;
+    const response = await request(server as never)
+      .post(`${PREFIX}/institutions`)
+      .set('Cookie', header(cookies))
+      .set('X-CSRF-Token', cookies.csrf)
+      .send({ name: `Instituição ${sequence}`, code: `API${sequence}${Date.now() % 100000}` })
+      .expect(201);
+
+    return { id: (bodyOf(response).data as { id: string }).id };
+  };
+
   beforeAll(async () => {
     moduleRef = await Test.createTestingModule({
       imports: [AppModule.forRole('api', [])],
@@ -166,7 +179,7 @@ describe('contrato da API — instituição', () => {
   });
 
   beforeEach(async () => {
-    await AccessModule.seed(moduleRef);
+    seedReport = await AccessModule.seed(moduleRef);
   });
 
   describe('cadastro (RF-INS-001)', () => {
@@ -556,6 +569,195 @@ describe('contrato da API — instituição', () => {
         .set('X-CSRF-Token', cookies.csrf)
         .send({ email: anEmail(), name: 'Alguém', roleCode: 'STUDENT', institutionId: uuidv7() })
         .expect(404);
+    });
+  });
+
+  describe('convites de ingresso (RF-ACS-009)', () => {
+    const issue = async (
+      cookies: Cookies,
+      institutionId: string,
+      body: Record<string, unknown>,
+    ): Promise<string> => {
+      const response = await request(server as never)
+        .post(`${PREFIX}/institutions/${institutionId}/invitations`)
+        .set('Cookie', header(cookies))
+        .set('X-CSRF-Token', cookies.csrf)
+        .send(body)
+        .expect(201);
+
+      return (bodyOf(response).data as { url: string }).url;
+    };
+
+    it('emite, consulta e aceita convite dirigido sem criar sessão', async () => {
+      const cookies = await asSystemAdmin();
+      const institution = await anInstitution();
+      const email = anEmail();
+      const url = await issue(cookies, institution.id, {
+        roleCode: 'INSTITUTION_ADMIN',
+        targetEmail: email,
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      });
+      const token = url.split('/').pop();
+
+      const details = await request(server as never)
+        .get(`${PREFIX}${url}`)
+        .expect(200);
+
+      expect((bodyOf(details).data as { targetEmail: string }).targetEmail).toBe(email);
+
+      const accepted = await request(server as never)
+        .post(`${PREFIX}/invitations/${token}/acceptance`)
+        .send({ name: 'Administradora Convidada', password: PASSWORD })
+        .expect(201);
+
+      expect((bodyOf(accepted).data as { email: string }).email).toBe(email);
+
+      await request(server as never)
+        .get(`${PREFIX}/profile`)
+        .expect(401);
+    });
+
+    it('percorre a cadeia desde o primeiro acesso sem intervenção no banco', async () => {
+      const resetUrl = seedReport.systemAdmin.passwordResetUrl as string;
+      const token = new URL(resetUrl, 'http://localhost').searchParams.get('token');
+
+      await request(server as never)
+        .post(`${PREFIX}/password/reset`)
+        .send({ token, password: PASSWORD })
+        .expect(204);
+
+      const systemAdmin = await authenticate('admin@vinceart.local');
+      const institution = await anInstitutionAs(systemAdmin);
+      const adminEmail = anEmail();
+      const adminUrl = await issue(systemAdmin, institution.id, {
+        roleCode: 'INSTITUTION_ADMIN',
+        targetEmail: adminEmail,
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      });
+
+      const adminToken = adminUrl.split('/').pop();
+      await request(server as never)
+        .post(`${PREFIX}/invitations/${adminToken}/acceptance`)
+        .send({ name: 'Administrador Institucional', password: PASSWORD })
+        .expect(201);
+
+      const institutionAdmin = await authenticate(adminEmail);
+      const coordinatorEmail = anEmail();
+
+      await issue(institutionAdmin, institution.id, {
+        roleCode: 'COORDINATOR',
+        targetEmail: coordinatorEmail,
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      });
+
+      expect(coordinatorEmail).toContain('@exemplo.test');
+    });
+
+    it('convite aberto respeita limite de usos', async () => {
+      const cookies = await asSystemAdmin();
+      const institution = await anInstitution();
+      const url = await issue(cookies, institution.id, {
+        roleCode: 'INSTITUTION_ADMIN',
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+        maxUses: 1,
+      });
+      const token = url.split('/').pop();
+
+      await request(server as never)
+        .post(`${PREFIX}/invitations/${token}/acceptance`)
+        .send({ name: 'Primeiro Aluno', email: anEmail(), password: PASSWORD })
+        .expect(201);
+
+      const second = await request(server as never)
+        .post(`${PREFIX}/invitations/${token}/acceptance`)
+        .send({ name: 'Segundo Aluno', email: anEmail(), password: PASSWORD })
+        .expect(422);
+
+      expect(bodyOf(second).status.code).toBe('INVITATION_LIMIT_REACHED');
+    });
+
+    it('duas aceitações simultâneas de convite dirigido criam exatamente uma conta', async () => {
+      const cookies = await asSystemAdmin();
+      const institution = await anInstitution();
+      const email = anEmail();
+      const url = await issue(cookies, institution.id, {
+        roleCode: 'INSTITUTION_ADMIN',
+        targetEmail: email,
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      });
+      const token = url.split('/').pop();
+
+      const responses = await Promise.all(
+        ['Primeira tentativa', 'Segunda tentativa'].map((name) =>
+          request(server as never)
+            .post(`${PREFIX}/invitations/${token}/acceptance`)
+            .send({ name, password: PASSWORD }),
+        ),
+      );
+
+      expect(responses.map((response) => response.status).sort()).toEqual([201, 422]);
+      expect(responses.filter((response) => response.status === 201).length).toBe(1);
+    });
+
+    it('revogação é idempotente e impede aceitação posterior', async () => {
+      const cookies = await asSystemAdmin();
+      const institution = await anInstitution();
+      const url = await issue(cookies, institution.id, {
+        roleCode: 'INSTITUTION_ADMIN',
+        targetEmail: anEmail(),
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      });
+      const token = url.split('/').pop();
+      const invitationId = (
+        bodyOf(
+          await request(server as never)
+            .get(`${PREFIX}${url}`)
+            .expect(200),
+        ).data as { readonly id: string }
+      ).id;
+
+      await request(server as never)
+        .post(`${PREFIX}/institutions/${institution.id}/invitations/${invitationId}/revocation`)
+        .set('Cookie', header(cookies))
+        .set('X-CSRF-Token', cookies.csrf)
+        .expect(204);
+      await request(server as never)
+        .post(`${PREFIX}/institutions/${institution.id}/invitations/${invitationId}/revocation`)
+        .set('Cookie', header(cookies))
+        .set('X-CSRF-Token', cookies.csrf)
+        .expect(204);
+
+      const response = await request(server as never)
+        .post(`${PREFIX}/invitations/${token}/acceptance`)
+        .send({ name: 'Não Aceito', password: PASSWORD })
+        .expect(422);
+
+      expect(bodyOf(response).status.code).toBe('INVITATION_REVOKED');
+    });
+
+    it('lista somente os convites da instituição e informa paginação', async () => {
+      const cookies = await asSystemAdmin();
+      const first = await anInstitution();
+      const second = await anInstitution();
+
+      await issue(cookies, first.id, {
+        roleCode: 'INSTITUTION_ADMIN',
+        targetEmail: anEmail(),
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      });
+      await issue(cookies, second.id, {
+        roleCode: 'INSTITUTION_ADMIN',
+        targetEmail: anEmail(),
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      });
+
+      const response = await request(server as never)
+        .get(`${PREFIX}/institutions/${first.id}/invitations`)
+        .set('Cookie', header(cookies))
+        .expect(200);
+
+      expect((bodyOf(response).data as readonly unknown[]).length).toBe(1);
+      expect(bodyOf(response).pagination).toEqual({ page: 1, pageSize: 20, hasNext: false });
     });
   });
 });

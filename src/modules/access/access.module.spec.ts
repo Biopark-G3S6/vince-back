@@ -733,7 +733,9 @@ describe('módulo access', () => {
 
     it('a fachada não expõe operação que liste ou remova conta de terceiro', () => {
       for (const name of surfaceOf(facade)) {
-        expect(name).not.toMatch(/^(list|delete|remove|findAll|search)/i);
+        if (name !== 'listInvitations') {
+          expect(name).not.toMatch(/^(list|delete|remove|findAll|search)/i);
+        }
       }
     });
 

@@ -118,8 +118,7 @@ model PasswordCredential {
   @@schema("access")
 }
 
-/// O convite: a via de uso único e com prazo por onde alguém entra ou reentra na conta
-/// (ADR-0027 §5).
+/// O convite: a via de entrada de uma conta ou de redefinição de senha (ADR-0027 §5).
 ///
 /// **É esta tabela que guarda o meio de redefinição de senha**, e não uma tabela própria:
 /// ADR-0027 §6 proíbe tabela não enumerada em §5, e a URS confirma o parentesco ao dar a
@@ -129,25 +128,58 @@ model PasswordCredential {
 /// O valor entregue ao usuário **não é persistido**: persiste-se a sua derivação
 /// (decisão D7). Vazamento desta tabela não entrega acesso a ninguém.
 ///
-/// `used_at` nulo é "ainda não usado", e é o que o consumo verifica na mesma instrução em
-/// que grava — é assim que o uso único sobrevive a duas requisições simultâneas.
+/// Convites `PASSWORD_RESET` e dirigidos usam `used_at`; convites abertos usam `use_count`.
+/// `revoked_at` é separado porque revogação não é consumo e deve ser distinguível na aceitação.
 model Invitation {
-  id        String    @id @db.Uuid
-  userId    String    @map("user_id") @db.Uuid
-  /// `PASSWORD_RESET`. `ACCOUNT_CREATION` entra com RF-TUR-005.
-  purpose   String
-  tokenHash String    @unique @map("token_hash")
-  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
-  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id              String    @id @db.Uuid
+  /// Preenchido somente para `PASSWORD_RESET`; convites de criação ainda não têm conta.
+  userId          String?   @map("user_id") @db.Uuid
+  /// `PASSWORD_RESET` ou `ACCOUNT_CREATION`.
+  purpose         String
+  tokenHash       String    @unique @map("token_hash")
+  /// Preenchido em convite dirigido; ausente identifica o convite aberto.
+  targetEmail     String?   @map("target_email")
+  roleCode        String?   @map("role_code")
+  institutionId   String?   @map("institution_id") @db.Uuid
+  institutionName String?   @map("institution_name")
+  actorId         String?   @map("actor_id") @db.Uuid
+  expiresAt       DateTime  @map("expires_at") @db.Timestamptz(3)
+  maxUses         Int?      @map("max_uses")
+  useCount        Int       @default(0) @map("use_count")
+  usedAt          DateTime? @map("used_at") @db.Timestamptz(3)
+  revokedAt       DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // `token_hash` já está indexado pela unicidade; a consulta por conta e propósito é a
-  // que a emissão faz para não acumular meios vivos (ADR-0018 §20).
+  // `token_hash` já está indexado pela unicidade; a consulta por instituição e propósito é a
+  // que a emissão e a listagem fazem (ADR-0018 §20).
   @@index([userId, purpose])
+  @@index([institutionId, purpose, createdAt])
   @@map("invitation")
+  @@schema("access")
+}
+
+/// Trilha imutável de emissão, aceitação e revogação de convite (ADR-0027 §5).
+///
+/// Não há chaves estrangeiras: a trilha sobrevive ao convite e à conta que documenta.
+/// `operation` é enumeração de negócio em texto, nunca ENUM nativo (ADR-0018 §19).
+model InvitationAudit {
+  id              String    @id @db.Uuid
+  invitationId    String    @map("invitation_id") @db.Uuid
+  actorId         String?   @map("actor_id") @db.Uuid
+  accountId       String?   @map("account_id") @db.Uuid
+  roleCode        String    @map("role_code")
+  institutionId   String    @map("institution_id") @db.Uuid
+  institutionName String    @map("institution_name")
+  /// `ISSUED`, `ACCEPTED` ou `REVOKED`.
+  operation String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([invitationId, createdAt])
+  @@map("invitation_audit")
   @@schema("access")
 }
 

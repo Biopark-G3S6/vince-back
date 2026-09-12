@@ -4,11 +4,14 @@ import { INITIAL_SYSTEM_ADMIN } from '../domain/initial-account';
 import { normalizeEmail } from '../domain/user';
 import { CreateUserUseCase } from './create-user.use-case';
 import { UserRepository } from '../domain/ports/user-repository';
+import { CredentialRepository } from '../domain/ports/credential-repository';
+import { RequestPasswordResetUseCase } from './request-password-reset.use-case';
 
 /** O que a carga fez com a conta inicial. `created: false` é reexecução. */
 export interface SystemAdminSeedReport {
   readonly id: string;
   readonly created: boolean;
+  readonly passwordResetUrl?: string;
 }
 
 /**
@@ -27,35 +30,55 @@ export class SeedSystemAdminUseCase {
   constructor(
     private readonly users: UserRepository,
     private readonly createUser: CreateUserUseCase,
+    private readonly credentials: CredentialRepository,
+    private readonly requestPasswordReset: RequestPasswordResetUseCase,
   ) {}
 
   async execute(): Promise<SystemAdminSeedReport> {
     const email = normalizeEmail(INITIAL_SYSTEM_ADMIN.email);
     const existing = await this.users.findByEmail(email);
 
+    let accountId: string;
+    let created: boolean;
+
     if (existing !== null) {
-      return { id: existing.id, created: false };
+      accountId = existing.id;
+      created = false;
+    } else {
+      const createdAccount = await this.createUser.execute({
+        email,
+        name: INITIAL_SYSTEM_ADMIN.name,
+        roleCode: INITIAL_SYSTEM_ADMIN.roleCode,
+        // Sem vínculo institucional e sem ator: a carga não tem quem a execute.
+        institutionId: null,
+        actorId: null,
+      });
+
+      if (!createdAccount.ok) {
+        throw new Error(
+          `A carga inicial não pôde criar a conta de \`${INITIAL_SYSTEM_ADMIN.roleCode}\`: ` +
+            `${createdAccount.failure.code}.`,
+        );
+      }
+
+      accountId = createdAccount.value.account.id;
+      created = true;
     }
 
-    const created = await this.createUser.execute({
-      email,
-      name: INITIAL_SYSTEM_ADMIN.name,
-      roleCode: INITIAL_SYSTEM_ADMIN.roleCode,
-      // Sem vínculo institucional e sem ator: a carga não tem quem a execute.
-      institutionId: null,
-      actorId: null,
-    });
+    if ((await this.credentials.findHash(accountId)) === null) {
+      const issued = await this.requestPasswordReset.execute(email);
 
-    if (!created.ok) {
-      // A conta inicial é declarada aqui e não vem de entrada externa: falha só pode ser
-      // defeito de declaração ou corrida com outra carga, e nenhuma das duas é resultado
-      // que a carga possa relatar como normal.
-      throw new Error(
-        `A carga inicial não pôde criar a conta de \`${INITIAL_SYSTEM_ADMIN.roleCode}\`: ` +
-          `${created.failure.code}.`,
-      );
+      if (issued === null) {
+        throw new Error('A carga inicial não pôde emitir o meio de definição de senha.');
+      }
+
+      return {
+        id: accountId,
+        created,
+        passwordResetUrl: `/password/reset?token=${issued.token}`,
+      };
     }
 
-    return { id: created.value.account.id, created: true };
+    return { id: accountId, created };
   }
 }

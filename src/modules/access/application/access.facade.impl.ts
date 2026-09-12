@@ -11,6 +11,16 @@ import type {
 } from '../contracts/credential.dto';
 import type { AccessResult } from '../contracts/result.dto';
 import type {
+  AcceptInvitationCommand,
+  AcceptInvitationResult,
+  InvitationDetails,
+  InvitationIssued,
+  InvitationPage,
+  IssueInvitationCommand,
+  ListInvitationsQuery,
+  RevokeInvitationCommand,
+} from '../contracts/invitation.dto';
+import type {
   RolePermissionsQuery,
   RolePermissionsResult,
 } from '../contracts/role-permissions.dto';
@@ -26,13 +36,18 @@ import type {
 } from '../contracts/user.dto';
 import type { Result } from '../domain/failure';
 import type { UserAccountWithRoles } from '../domain/ports/user-repository';
+import { AcceptInvitationUseCase } from './accept-invitation.use-case';
 import { AssignRoleUseCase } from './assign-role.use-case';
 import { ChangePasswordUseCase } from './change-password.use-case';
 import { CreateUserUseCase } from './create-user.use-case';
 import { FindRolePermissionsUseCase } from './find-role-permissions.use-case';
 import { FindUserProfileUseCase } from './find-user-profile.use-case';
+import { FindInvitationUseCase } from './find-invitation.use-case';
+import { IssueInvitationUseCase } from './issue-invitation.use-case';
+import { ListInvitationsUseCase } from './list-invitations.use-case';
 import { RequestPasswordResetUseCase } from './request-password-reset.use-case';
 import { ResetPasswordUseCase } from './reset-password.use-case';
+import { RevokeInvitationUseCase } from './revoke-invitation.use-case';
 import { ResolveEffectivePermissionsUseCase } from './resolve-effective-permissions.use-case';
 import { SetUserActiveUseCase } from './set-user-active.use-case';
 import { UpdateUserProfileUseCase } from './update-user-profile.use-case';
@@ -61,6 +76,11 @@ export class AccessFacadeImpl extends AccessFacade {
     private readonly changePassword: ChangePasswordUseCase,
     private readonly requestPasswordResetUseCase: RequestPasswordResetUseCase,
     private readonly resetPasswordUseCase: ResetPasswordUseCase,
+    private readonly issueInvitationUseCase: IssueInvitationUseCase,
+    private readonly findInvitationUseCase: FindInvitationUseCase,
+    private readonly acceptInvitationUseCase: AcceptInvitationUseCase,
+    private readonly listInvitationsUseCase: ListInvitationsUseCase,
+    private readonly revokeInvitationUseCase: RevokeInvitationUseCase,
   ) {
     super();
   }
@@ -149,6 +169,30 @@ export class AccessFacadeImpl extends AccessFacade {
 
   async resetPassword(command: ResetPasswordCommand): Promise<AccessResult<PasswordResetResult>> {
     return toResult(await this.resetPasswordUseCase.execute(command.token, command.password));
+  }
+
+  async issueInvitation(command: IssueInvitationCommand): Promise<AccessResult<InvitationIssued>> {
+    return toResult(await this.issueInvitationUseCase.execute(command));
+  }
+
+  async findInvitation(token: string): Promise<AccessResult<InvitationDetails>> {
+    return toResult(await this.findInvitationUseCase.execute(token));
+  }
+
+  async acceptInvitation(
+    command: AcceptInvitationCommand,
+  ): Promise<AccessResult<AcceptInvitationResult>> {
+    return toResult(await this.acceptInvitationUseCase.execute(command));
+  }
+
+  async listInvitations(query: ListInvitationsQuery): Promise<InvitationPage> {
+    return this.listInvitationsUseCase.execute(query);
+  }
+
+  async revokeInvitation(command: RevokeInvitationCommand): Promise<AccessResult<void>> {
+    await this.revokeInvitationUseCase.execute(command);
+
+    return { ok: true, value: undefined };
   }
 }
 

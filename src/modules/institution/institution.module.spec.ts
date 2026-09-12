@@ -133,6 +133,26 @@ class SubstituteAccessFacade extends AccessFacade {
   resetPassword(): never {
     return expect.unreachable('`institution` não redefine senha');
   }
+
+  issueInvitation(): never {
+    return expect.unreachable('`institution` não emite convite');
+  }
+
+  findInvitation(): never {
+    return expect.unreachable('`institution` não consulta convite público');
+  }
+
+  acceptInvitation(): never {
+    return expect.unreachable('`institution` não aceita convite');
+  }
+
+  listInvitations(): never {
+    return expect.unreachable('`institution` não lista convites');
+  }
+
+  revokeInvitation(): never {
+    return expect.unreachable('`institution` não revoga convite');
+  }
 }
 
 @Module({})
