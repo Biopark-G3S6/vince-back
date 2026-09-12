@@ -4,12 +4,19 @@ import { DiscoveryModule } from '@nestjs/core';
 import { AuthModule } from '@shared/auth/auth.module';
 import { CredentialVerifier } from '@shared/auth/credential-verifier';
 import { IdentityResolver } from '@shared/auth/identity';
+import { InstitutionAccess } from '@shared/auth/institution-access';
 import { RedisSessionStore } from '@shared/auth/redis-session-store';
 import { loadAuthConfig } from '@shared/config/environment';
 
 import { AccessModule } from '@modules/access/access.module';
+import { InstitutionModule } from '@modules/institution/institution.module';
 
-import { AccessCredentialVerifier, AccessIdentityResolver } from './auth/access-auth-ports';
+import {
+  AccessCredentialVerifier,
+  AccessIdentityResolver,
+  ComposedInstitutionAccess,
+  InstitutionStateGate,
+} from './auth/access-auth-ports';
 import type { Role } from './bootstrap/role';
 import { getPrismaClient } from './prisma/prisma-client';
 import { getRedisClient } from './redis/redis-client';
@@ -71,8 +78,16 @@ export class AppModule {
         })
       : null;
 
+    // `institution` depende da fachada de `access` para atribuir o papel
+    // `INSTITUTION_ADMIN` (`ADR-0028` §16, §17). A dependência é de mão única e sem
+    // `access` ativo não há a quem pedir o papel — daí a conjunção.
+    const institution =
+      active('institution') && access !== null
+        ? InstitutionModule.forRoot(getPrismaClient(), getRedisClient(), { imports: [access] })
+        : null;
+
     if (role !== 'api') {
-      return [access].filter((entry) => entry !== null);
+      return [access, institution].filter((entry) => entry !== null);
     }
 
     const registry = [
@@ -81,10 +96,14 @@ export class AppModule {
         : AuthModule.forRoot({
             config,
             sessions,
-            imports: [access],
+            // A borda enxerga as duas fachadas: é o que permite compor "permissões
+            // efetivas" com "estado da instituição" sem que um módulo chame o outro.
+            imports: [access, ...(institution === null ? [] : [institution])],
             ports: [
+              InstitutionStateGate,
               { provide: CredentialVerifier, useClass: AccessCredentialVerifier },
               { provide: IdentityResolver, useClass: AccessIdentityResolver },
+              { provide: InstitutionAccess, useClass: ComposedInstitutionAccess },
             ],
           }),
     ];

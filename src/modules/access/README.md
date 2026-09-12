@@ -8,6 +8,16 @@ titularidade do registro é verificada dentro do caso de uso do módulo dono daq
 É **módulo folha** na dependência síncrona (`ADR-0027 §9`): todo módulo pode chamar a fachada
 dele, e ele não chama a de ninguém. É o que impede ciclo com um módulo para o qual todos apontam.
 
+A regra deixou de ser teórica em `add-institution-management`: o módulo
+[`institution`](../institution/README.md) chama esta fachada para atribuir e revogar
+`INSTITUTION_ADMIN`, e **esta fachada não chama a dele**. A consequência prática está em
+`ADR-0028 §25` — o identificador de instituição que chega aqui vem **já validado por quem o
+forneceu**, e este módulo não o valida. Conta com vínculo para instituição inexistente é defeito do
+módulo emissor, e é no teste dele que se verifica.
+
+Quando este módulo precisar de fato conhecer um fato produzido por outro, a saída é **evento**, e
+nunca chamada síncrona (`ADR-0027 §10`).
+
 ## O que ele possui
 
 Schema `access` no PostgreSQL. Tabelas declaradas em `access.prisma`:
