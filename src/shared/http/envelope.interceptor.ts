@@ -61,6 +61,6 @@ function toEnvelope(value: unknown): ResponseEnvelope<unknown> | undefined {
   }
 
   return value instanceof EnvelopeResult
-    ? successEnvelope(value.data, value.code)
+    ? successEnvelope(value.data, value.code, value.pagination)
     : successEnvelope(value);
 }
