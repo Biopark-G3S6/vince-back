@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { PERMISSION_SOURCE, uniteSources } from '../domain/effective-permissions';
 import { CatalogRepository } from '../domain/ports/catalog-repository';
-import { PermissionCache } from '../domain/ports/permission-cache';
+import { PermissionCache, type ResolvedPermissions } from '../domain/ports/permission-cache';
 import { UserRepository } from '../domain/ports/user-repository';
 
 /**
@@ -17,6 +17,10 @@ import { UserRepository } from '../domain/ports/user-repository';
  * **Conjunto vazio, e não falha**, para conta inexistente e para conta inativa: quem
  * pergunta é a borda de autorização, e um conjunto vazio já nega tudo que houver a negar.
  *
+ * **Devolve também o vínculo institucional**, porque quem chama precisa dos dois no mesmo
+ * instante (`ADR-0028` §13) e uma segunda consulta pelo vínculo poria mais uma ida ao
+ * banco no caminho crítico. Este módulo não o interpreta: guarda e devolve (§25).
+ *
  * **Contagem de consultas constante** em relação à quantidade de papéis (`ADR-0011` §9):
  * uma apuração de conta com três papéis emite as mesmas consultas que a de conta com um.
  * Não há consulta por papel nem por permissão.
@@ -29,7 +33,7 @@ export class ResolveEffectivePermissionsUseCase {
     private readonly cache: PermissionCache,
   ) {}
 
-  async execute(userId: string): Promise<readonly string[]> {
+  async execute(userId: string): Promise<ResolvedPermissions> {
     // O cache vem primeiro, e a sua indisponibilidade sobe como erro: `ADR-0013` §16 e a
     // implicação 3 de `ADR-0014` equiparam a queda do cache à do sistema, e não existe
     // modo degradado que conceda permissão sem base íntegra.
@@ -45,20 +49,23 @@ export class ResolveEffectivePermissionsUseCase {
     // guardá-la deixaria resíduo que a criação de uma conta de mesmo identificador
     // herdaria. Conta inativa vai, porque desativação e reativação invalidam.
     if (found === null) {
-      return [];
+      return { permissions: [], institutionId: null };
     }
 
-    const permissions = found.account.active
-      ? uniteSources([
-          {
-            source: PERMISSION_SOURCE.ROLE,
-            permissions: await this.catalog.findPermissionsOfRoles(found.roleCodes),
-          },
-        ])
-      : [];
+    const resolved: ResolvedPermissions = {
+      permissions: found.account.active
+        ? uniteSources([
+            {
+              source: PERMISSION_SOURCE.ROLE,
+              permissions: await this.catalog.findPermissionsOfRoles(found.roleCodes),
+            },
+          ])
+        : [],
+      institutionId: found.account.institutionId,
+    };
 
-    await this.cache.write(userId, permissions);
+    await this.cache.write(userId, resolved);
 
-    return permissions;
+    return resolved;
   }
 }

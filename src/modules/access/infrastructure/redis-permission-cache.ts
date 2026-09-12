@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type Redis from 'ioredis';
 
-import { PermissionCache } from '../domain/ports/permission-cache';
+import { PermissionCache, type ResolvedPermissions } from '../domain/ports/permission-cache';
 
 /**
  * Cache das permissões efetivas em Redis (decisão D3, `ADR-0014` §10).
@@ -23,8 +23,16 @@ import { PermissionCache } from '../domain/ports/permission-cache';
  * íntegra. Resta deixar o erro subir.
  */
 
-/** `ADR-0020` §6: toda chave do módulo carrega o seu nome. */
-const KEY_PREFIX = 'access:permissions:';
+/**
+ * `ADR-0020` §6: toda chave do módulo carrega o seu nome.
+ *
+ * O sufixo de versão existe porque o **conteúdo** da chave mudou quando o vínculo
+ * institucional passou a acompanhar as permissões (`ADR-0028` §13). A entrada antiga é um
+ * vetor; a nova, um objeto. Ler a antiga com o decodificador novo a acusaria de corrompida
+ * e derrubaria toda requisição autenticada durante a implantação. Mudar o prefixo aposenta
+ * as antigas sem apagá-las: ninguém as lê, e elas expiram sozinhas.
+ */
+const KEY_PREFIX = 'access:permissions:v2:';
 
 /** Rede de segurança, não mecanismo de invalidação. Uma hora. */
 const TTL_SECONDS = 3600;
@@ -39,7 +47,7 @@ export class RedisPermissionCache extends PermissionCache {
     super();
   }
 
-  async read(userId: string): Promise<readonly string[] | null> {
+  async read(userId: string): Promise<ResolvedPermissions | null> {
     const raw = await this.redis.get(permissionCacheKey(userId));
 
     if (raw === null) {
@@ -50,18 +58,35 @@ export class RedisPermissionCache extends PermissionCache {
     // esconderia o defeito e produziria uma apuração que ora bate no banco, ora não.
     const parsed: unknown = JSON.parse(raw);
 
-    if (!Array.isArray(parsed) || parsed.some((item) => typeof item !== 'string')) {
+    if (typeof parsed !== 'object' || parsed === null) {
       throw new Error(`Cache de permissões corrompido na chave \`${permissionCacheKey(userId)}\`.`);
     }
 
-    return parsed as string[];
+    const { permissions, institutionId } = parsed as {
+      permissions?: unknown;
+      institutionId?: unknown;
+    };
+
+    const wellFormed =
+      Array.isArray(permissions) &&
+      permissions.every((item) => typeof item === 'string') &&
+      (institutionId === null || typeof institutionId === 'string');
+
+    if (!wellFormed) {
+      throw new Error(`Cache de permissões corrompido na chave \`${permissionCacheKey(userId)}\`.`);
+    }
+
+    return { permissions, institutionId };
   }
 
   /** O conjunto vazio é valor legítimo — conta inativa —, e não ausência de valor. */
-  async write(userId: string, permissions: readonly string[]): Promise<void> {
+  async write(userId: string, resolved: ResolvedPermissions): Promise<void> {
     await this.redis.set(
       permissionCacheKey(userId),
-      JSON.stringify(permissions),
+      JSON.stringify({
+        permissions: resolved.permissions,
+        institutionId: resolved.institutionId,
+      }),
       'EX',
       TTL_SECONDS,
     );

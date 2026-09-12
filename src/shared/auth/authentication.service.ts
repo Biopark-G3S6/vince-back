@@ -4,6 +4,7 @@ import { ApiFailure } from '../errors/api-failure';
 import { StructuredLogger } from '../logging/logger';
 import { CredentialVerifier } from './credential-verifier';
 import { IdentityResolver, type AuthenticatedIdentity } from './identity';
+import { InstitutionAccess } from './institution-access';
 import { SessionStore, type Session, type SessionOrigin } from './session-store';
 
 /**
@@ -18,6 +19,11 @@ import { SessionStore, type Session, type SessionOrigin } from './session-store'
  * desativada e conta sem senha definida produzem a mesma resposta. O tempo também precisa
  * ser o mesmo, e essa metade é obrigação de quem implementa `CredentialVerifier`
  * (decisão D6).
+ *
+ * **`INSTITUTION_INACTIVE` só depois da credencial** (RF-ACS-001 E3, RF-INS-001 RN2,
+ * `ADR-0028` §15): a ordem inversa transformaria o código de resposta em oráculo —
+ * bastaria tentar um e-mail qualquer para descobrir se existe conta e a que instituição
+ * ela pertence. Conceder a distinção a quem já provou a credencial não vaza nada.
  */
 @Injectable()
 export class AuthenticationService {
@@ -27,6 +33,7 @@ export class AuthenticationService {
     private readonly credentials: CredentialVerifier,
     private readonly identities: IdentityResolver,
     private readonly sessions: SessionStore,
+    private readonly institutions: InstitutionAccess,
   ) {}
 
   async authenticate(
@@ -41,6 +48,14 @@ export class AuthenticationService {
       this.logger.info('AUTHENTICATION_FAILED', { responseCode: 'AUTHENTICATION_FAILED' });
 
       throw new ApiFailure('AUTHENTICATION_FAILED');
+    }
+
+    // A credencial já foi provada. **Só agora** o motivo da recusa pode ser específico
+    // sem virar oráculo de existência de conta.
+    if (!(await this.institutions.allows(userId))) {
+      this.logger.info('INSTITUTION_INACTIVE', { userId, responseCode: 'INSTITUTION_INACTIVE' });
+
+      throw new ApiFailure('INSTITUTION_INACTIVE');
     }
 
     const identity = await this.identities.identityOf(userId);

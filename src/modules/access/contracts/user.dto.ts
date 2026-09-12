@@ -84,4 +84,16 @@ export interface EffectivePermissionsQuery {
 export interface EffectivePermissionsResult {
   /** União das origens, sem repetição e em ordem estável. */
   readonly permissions: readonly string[];
+  /**
+   * A instituição de vínculo da conta, ou `null` — `SYSTEM_ADMIN`, e conta inexistente.
+   *
+   * Viaja **junto** com as permissões, e não numa segunda consulta, porque quem as
+   * recebe precisa dos dois no mesmo instante: a composição de borda zera o conjunto
+   * quando a instituição está inativa (`ADR-0028` §13), e uma segunda ida ao módulo pelo
+   * vínculo poria uma consulta a mais no caminho crítico de toda requisição autenticada.
+   *
+   * O módulo `access` **não interpreta** este identificador: ele o guarda e o devolve.
+   * Quem sabe se a instituição existe e está ativa é o módulo dono dela (`ADR-0028` §25).
+   */
+  readonly institutionId: string | null;
 }
