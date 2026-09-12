@@ -136,7 +136,18 @@ para essa costura, o que `ADR-0003` §15 desautoriza por ele não ter dados pró
 
 ## Open Questions
 
-- **Quais campos compõem os "dados de identificação" da instituição** de RF-INS-001. A URS não os
-  enumera. Não altera spec, desenho nem tarefas — altera colunas —, mas convém decidir com a parte
-  interessada antes de gerar a migração, porque acrescentar campo obrigatório depois exige valor para
-  as linhas existentes.
+- ~~**Quais campos compõem os "dados de identificação" da instituição** de RF-INS-001.~~ **Decidido
+  em 2026-09-02**, com a parte interessada, antes de a migração ser gerada. A URS não os enumera, e
+  a decisão não altera spec, desenho nem tarefas — altera colunas.
+
+  | Campo          | Obrigatório | Observação                                        |
+  | :------------- | :---------: | :------------------------------------------------ |
+  | `name`         |     sim     | razão social ou nome de exibição da instituição   |
+  | `code`         |     sim     | sigla curta, única no sistema                     |
+  | `cnpj`         |     não     | único quando informado                            |
+  | `website`      |     não     | sítio institucional                               |
+  | `contactEmail` |     não     | endereço de contato administrativo da instituição |
+
+  O núcleo obrigatório é deliberadamente pequeno: acrescentar coluna opcional depois é barato,
+  enquanto acrescentar coluna obrigatória exige valor para as linhas existentes. `cnpj`, `website` e
+  `contactEmail` entram já opcionais por não serem conhecidos em toda carga inicial.
