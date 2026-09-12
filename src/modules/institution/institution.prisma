@@ -1,0 +1,79 @@
+/// Módulo de negócio: a instituição como fronteira de isolamento (ADR-0028 §1).
+///
+/// Duas tabelas, e nenhuma além delas sem reescrever o ADR (ADR-0028 §5, §6).
+///
+/// ADR-0018 §9, §10  chave primária UUID v7, gerado pela aplicação
+/// ADR-0018 §11      tabela de associação pode ter chave primária composta
+/// ADR-0018 §15, §17 timestamptz; toda tabela registra criação e atualização
+/// ADR-0018 §20      coluna de ordenação recorrente possui índice
+
+/// A instituição: sua identificação e o seu estado (ADR-0028 §5).
+///
+/// Os dados de identificação são os decididos com a parte interessada em 2026-09-02,
+/// registrados no `design.md` da mudança `add-institution-management`: `name` e `code`
+/// obrigatórios, o restante opcional. O núcleo obrigatório é pequeno de propósito —
+/// acrescentar coluna opcional depois é barato, acrescentar coluna obrigatória exige
+/// valor para toda linha existente (ADR-0028 §7).
+///
+/// `active` NÃO é exclusão lógica (ADR-0018 §18, ADR-0028 §9): RF-INS-001 RN2 lhe dá
+/// significado de negócio — usuário de instituição inativa não autentica —, a instituição
+/// inativa continua a ser consultada e listada, e nenhuma consulta a filtra
+/// implicitamente. Também não é enumeração de negócio no sentido de ADR-0018 §19: o
+/// estado tem exatamente dois valores, e o booleano é a sua forma direta.
+model Institution {
+  id String @id @db.Uuid
+
+  /// Razão social ou nome de exibição. Obrigatório (RF-INS-001, fluxo principal 1).
+  name String
+  /// A sigla curta, única no sistema. É o identificador humano estável da instituição —
+  /// o que aparece em relatório e em conversa, onde o UUID não serve.
+  code String @unique
+
+  /// Único quando informado. Opcional porque a carga inicial e a instituição de teste
+  /// nem sempre o conhecem, e um valor obrigatório aqui obrigaria a inventá-lo.
+  cnpj         String? @unique
+  website      String?
+  contactEmail String? @map("contact_email")
+
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  admins InstitutionAdmin[]
+
+  // A listagem ordena por nome, e a ordenação é recorrente (ADR-0018 §20).
+  @@index([name])
+  @@map("institution")
+  @@schema("institution")
+}
+
+/// O vínculo de administração entre uma conta e uma instituição (ADR-0028 §5).
+///
+/// **É o vínculo que dá escopo ao papel, e não o contrário.** `INSTITUTION_ADMIN` é papel
+/// global (ADR-0027 §16, RF-INS-002 RN2): quem diz *de qual* instituição alguém é
+/// administrador é esta linha. Uma instituição admite mais de um administrador, e um
+/// administrador, mais de uma instituição (RF-INS-002 RN1) — daí a cardinalidade N:N e a
+/// chave primária composta pelas duas referências (ADR-0018 §11).
+///
+/// `institution_id` referencia registro do próprio módulo, logo com chave estrangeira
+/// declarada (ADR-0018 §12). `user_id` referencia a conta, que é do módulo `access`:
+/// coluna de identificador indexada, **sem** chave estrangeira (ADR-0028 §8,
+/// ADR-0006 §4, ADR-0018 §13, §14). O índice não é formalidade: a revogação pergunta se
+/// resta outro vínculo daquele usuário (RF-INS-002 RN3), e essa consulta filtra por ele.
+model InstitutionAdmin {
+  institutionId String @map("institution_id") @db.Uuid
+  userId        String @map("user_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  // `institutionId` é a coluna líder da chave primária e já está indexada por ela;
+  // `userId` exige índice próprio (ADR-0018 §14, §20).
+  @@id([institutionId, userId])
+  @@index([userId])
+  @@map("institution_admin")
+  @@schema("institution")
+}

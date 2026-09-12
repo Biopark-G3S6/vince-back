@@ -11,6 +11,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuthModule } from '@shared/auth/auth.module';
 import { CredentialVerifier } from '@shared/auth/credential-verifier';
 import { IdentityResolver } from '@shared/auth/identity';
+import { InstitutionAccess } from '@shared/auth/institution-access';
 import { RedisSessionStore } from '@shared/auth/redis-session-store';
 import type { SessionStore } from '@shared/auth/session-store';
 import { loadAuthConfig } from '@shared/config/environment';
@@ -20,9 +21,15 @@ import { AuthenticatedRoute, PublicRoute, RequiresPermission } from '@shared/htt
 
 import { AccessModule } from '@modules/access/access.module';
 import { AccessFacade } from '@modules/access/contracts/access.facade';
+import { InstitutionFacade } from '@modules/institution/contracts/institution.facade';
 
 import { AppModule } from './app.module';
-import { AccessCredentialVerifier, AccessIdentityResolver } from './auth/access-auth-ports';
+import {
+  AccessCredentialVerifier,
+  AccessIdentityResolver,
+  ComposedInstitutionAccess,
+  InstitutionStateGate,
+} from './auth/access-auth-ports';
 import { configureApi } from './bootstrap/http';
 import { getPrismaClient } from './prisma/prisma-client';
 import { getRedisClient } from './redis/redis-client';
@@ -179,7 +186,19 @@ describe('contrato da API', () => {
   let moduleRef: TestingModule;
   let app: INestApplication | undefined;
   let facade: AccessFacade;
+  let institutions: InstitutionFacade;
   let server: unknown;
+
+  /**
+   * A instituição das contas de teste, recriada a cada teste porque o `TRUNCATE` a leva.
+   *
+   * É **real**, e não um UUID qualquer: desde `add-institution-management`, a conta cujo
+   * vínculo aponta para instituição inexistente não autentica — o vínculo que não se pode
+   * confirmar nega (`ADR-0028` §13). Um identificador inventado aqui faria toda esta
+   * suíte falhar na autenticação, e por um motivo que nada tem a ver com o que ela
+   * verifica.
+   */
+  let institutionId: string;
 
   const anEmail = (): string => `pessoa-${uuidv7()}@exemplo.test`;
 
@@ -194,7 +213,7 @@ describe('contrato da API', () => {
       email,
       name: 'Pessoa de Teste',
       roleCode: 'PROFESSOR',
-      institutionId: uuidv7(),
+      institutionId,
     });
 
     if (!created.ok) {
@@ -239,6 +258,7 @@ describe('contrato da API', () => {
 
     app = created;
     facade = created.get(AccessFacade);
+    institutions = created.get(InstitutionFacade);
     server = created.getHttpServer();
   });
 
@@ -253,6 +273,17 @@ describe('contrato da API', () => {
   // contêiner, não de HTTP, e os dois compartilham o mesmo container.
   beforeEach(async () => {
     await AccessModule.seed(moduleRef);
+
+    const institution = await institutions.create({
+      name: 'Instituição das Contas de Teste',
+      code: `TEST${Date.now()}${Math.floor(Math.random() * 1000)}`,
+    });
+
+    if (!institution.ok) {
+      throw new Error(`não foi possível cadastrar a instituição: ${institution.failure.code}`);
+    }
+
+    institutionId = institution.value.id;
   });
 
   describe('envelope de resposta', () => {
@@ -527,7 +558,7 @@ describe('contrato da API', () => {
         email: anEmail(),
         name: 'Sem Senha',
         roleCode: 'STUDENT',
-        institutionId: uuidv7(),
+        institutionId,
       });
 
       if (!withoutPassword.ok) {
@@ -1127,7 +1158,7 @@ describe('contrato da API', () => {
         email: anEmail(),
         name: 'Primeira Senha',
         roleCode: 'STUDENT',
-        institutionId: uuidv7(),
+        institutionId,
       });
 
       if (!created.ok) {
@@ -1219,9 +1250,14 @@ describe('contrato da API', () => {
             config,
             sessions,
             imports: [access],
+            // Sem o módulo `institution`: `InstitutionStateGate` recebe a fachada
+            // opcional como nula e libera todo vínculo, que é o que `ADR-0003` §11
+            // exige — remover um módulo não pode quebrar os demais.
             ports: [
+              InstitutionStateGate,
               { provide: CredentialVerifier, useClass: AccessCredentialVerifier },
               { provide: IdentityResolver, useClass: AccessIdentityResolver },
+              { provide: InstitutionAccess, useClass: ComposedInstitutionAccess },
             ],
           }),
           ProbeModule,

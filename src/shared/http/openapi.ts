@@ -3,10 +3,12 @@ import {
   ApiExtraModels,
   ApiProperty,
   ApiPropertyOptional,
+  ApiQuery,
   ApiResponse,
   getSchemaPath,
 } from '@nestjs/swagger';
 
+import { MAX_PAGE_SIZE } from './pagination';
 import { httpStatusOf, RESPONSE_CODES, type ResponseCode } from './response-code';
 
 /**
@@ -50,6 +52,23 @@ export class FieldErrorDto {
     additionalProperties: true,
   })
   meta?: Record<string, string | number | boolean>;
+}
+
+export class PaginationDto {
+  @ApiProperty({ description: 'A página devolvida, 1-indexada.' })
+  page!: number;
+
+  @ApiProperty({ description: 'O tamanho efetivo, já truncado ao limite máximo.' })
+  pageSize!: number;
+
+  @ApiProperty({ description: 'Há página seguinte. Apurado sem consulta de contagem.' })
+  hasNext!: boolean;
+
+  @ApiPropertyOptional({ description: 'Só quando pedido por `withTotal` (ADR-0025 §24).' })
+  totalItems?: number;
+
+  @ApiPropertyOptional({ description: 'Só quando pedido por `withTotal` (ADR-0025 §24).' })
+  totalPages?: number;
 }
 
 /** O envelope de falha: `data` nulo, e `errors` só na validação de campos. */
@@ -114,5 +133,55 @@ export function ApiFailures(...codes: readonly ResponseCode[]): MethodDecorator 
         type: FailureEnvelopeDto,
       }),
     ),
+  );
+}
+
+/**
+ * Documenta a resposta de uma listagem: o envelope, com `data` como vetor e `pagination`
+ * ao lado dele (`ADR-0025` §6, §21, §22).
+ *
+ * Existe separado de `ApiEnvelope` porque paginação não é opcional em listagem — §21 diz
+ * "toda listagem DEVE incluir `pagination`". Um parâmetro opcional no helper único
+ * deixaria o esquecimento passar; um helper próprio o torna a escolha explícita de quem
+ * escreve a rota.
+ */
+export function ApiPagedEnvelope(
+  itemType: Type<unknown>,
+  options: { readonly description?: string } = {},
+): MethodDecorator & ClassDecorator {
+  return applyDecorators(
+    ApiExtraModels(ResponseStatusDto, PaginationDto, itemType),
+    ApiResponse({
+      status: 200,
+      description: options.description,
+      schema: {
+        type: 'object',
+        required: ['data', 'status', 'pagination'],
+        properties: {
+          data: { type: 'array', items: { $ref: getSchemaPath(itemType) } },
+          status: { $ref: getSchemaPath(ResponseStatusDto) },
+          pagination: { $ref: getSchemaPath(PaginationDto) },
+        },
+      },
+    }),
+  );
+}
+
+/** Os parâmetros de consulta da paginação (`ADR-0025` §22, §24, §25). */
+export function ApiPageQuery(): MethodDecorator & ClassDecorator {
+  return applyDecorators(
+    ApiQuery({ name: 'page', required: false, type: Number, description: '1-indexada.' }),
+    ApiQuery({
+      name: 'pageSize',
+      required: false,
+      type: Number,
+      description: `Truncado a ${MAX_PAGE_SIZE} (ADR-0011 §7).`,
+    }),
+    ApiQuery({
+      name: 'withTotal',
+      required: false,
+      enum: ['true', 'false'],
+      description: 'Pede `totalItems` e `totalPages`, que custam a segunda consulta.',
+    }),
   );
 }

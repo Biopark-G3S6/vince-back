@@ -9,10 +9,11 @@ módulo, não acima dele.
 
 ## Módulos existentes
 
-| Módulo                        | Natureza   | Capacidade                                         | ADR      |
-| :---------------------------- | :--------- | :------------------------------------------------- | :------- |
-| [`access/`](access/README.md) | Negócio    | Identidade e autorização — papel, permissão, conta | ADR-0027 |
-| `observabilidade/`            | Plataforma | Registro de erros agregado por assinatura          | ADR-0022 |
+| Módulo                                  | Natureza   | Capacidade                                         | ADR      |
+| :-------------------------------------- | :--------- | :------------------------------------------------- | :------- |
+| [`access/`](access/README.md)           | Negócio    | Identidade e autorização — papel, permissão, conta | ADR-0027 |
+| [`institution/`](institution/README.md) | Negócio    | A instituição como fronteira de isolamento         | ADR-0028 |
+| `observabilidade/`                      | Plataforma | Registro de erros agregado por assinatura          | ADR-0022 |
 
 ## Estrutura obrigatória
 
@@ -28,15 +29,16 @@ módulo, não acima dele.
 
 ## As regras que o lint impõe
 
-| Regra                                                                                            | Origem                   |
-| :----------------------------------------------------------------------------------------------- | :----------------------- |
-| `contracts/` é a única superfície pública; o `exports` do módulo contém apenas a fachada         | ADR-0004 §1, §4          |
-| A fachada é `abstract class`, nunca interface — interface some em runtime e não serve como token | ADR-0004 §2, §3          |
-| `domain/` não importa `application/`, `infrastructure/` nem `presentation/`                      | ADR-0003 §5              |
-| `application/` não importa `infrastructure/` nem `presentation/`                                 | ADR-0003 §6              |
-| `presentation/` não acessa `infrastructure/` nem `domain/` diretamente                           | ADR-0003 §7              |
-| Entre módulos, só `contracts/`                                                                   | ADR-0005 §1              |
-| Nenhum módulo lê tabela ou fila de outro                                                         | ADR-0006 §2, ADR-0020 §7 |
+| Regra                                                                                            | Origem                    |
+| :----------------------------------------------------------------------------------------------- | :------------------------ |
+| `contracts/` é a única superfície pública; o `exports` do módulo contém apenas a fachada         | ADR-0004 §1, §4           |
+| A fachada é `abstract class`, nunca interface — interface some em runtime e não serve como token | ADR-0004 §2, §3           |
+| `domain/` não importa `application/`, `infrastructure/` nem `presentation/`                      | ADR-0003 §5               |
+| `application/` não importa `infrastructure/` nem `presentation/`                                 | ADR-0003 §6               |
+| `presentation/` não acessa `infrastructure/` nem `domain/` diretamente                           | ADR-0003 §7               |
+| Entre módulos, só `contracts/`                                                                   | ADR-0005 §1               |
+| A dependência síncrona aponta sempre para `access`, que não depende de módulo algum              | ADR-0027 §9, ADR-0028 §16 |
+| Nenhum módulo lê tabela ou fila de outro                                                         | ADR-0006 §2, ADR-0020 §7  |
 
 ## Antes de criar um módulo
 

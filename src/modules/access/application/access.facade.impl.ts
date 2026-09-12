@@ -124,7 +124,7 @@ export class AccessFacadeImpl extends AccessFacade {
   async effectivePermissions(
     query: EffectivePermissionsQuery,
   ): Promise<EffectivePermissionsResult> {
-    return { permissions: await this.resolveEffectivePermissions.execute(query.userId) };
+    return this.resolveEffectivePermissions.execute(query.userId);
   }
 
   async verifyCredential(query: VerifyCredentialQuery): Promise<string | null> {

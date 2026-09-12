@@ -1,16 +1,16 @@
+import type { Pagination } from './pagination';
 import { severityOf, type ResponseCode, type Severity } from './response-code';
 
 /**
  * O envelope único de resposta (`ADR-0025` §3 a §6).
  *
- * `pagination` **não existe neste tipo**, e a ausência é deliberada: `ADR-0025` §21 a §25
- * a exigem em listagem, e esta vertical não publica listagem alguma. Declarar o campo
- * agora seria descrever um comportamento que ninguém implementou; acrescentá-lo quando a
- * primeira listagem existir é acréscimo, e acréscimo não quebra cliente.
+ * `pagination` entrou com a primeira listagem do sistema — a de instituições —, como
+ * `ADR-0025` §21 a §25 exigem. Foi acréscimo, e acréscimo não quebra cliente: quem não
+ * lista continua recebendo o envelope sem o campo.
  *
- * `errors` é opcional pelo mesmo motivo que `pagination` seria: `ADR-0025` §5 proíbe
- * enviá-los nulos, e campo opcional em TypeScript é exatamente "ausente ou presente",
- * nunca "presente e nulo".
+ * `pagination` e `errors` são opcionais pelo mesmo motivo: `ADR-0025` §5 proíbe enviá-los
+ * nulos, e campo opcional em TypeScript é exatamente "ausente ou presente", nunca
+ * "presente e nulo".
  */
 
 /** Um item por campo inválido (`ADR-0025` §16, §17). */
@@ -38,11 +38,19 @@ export interface ResponseStatus {
 export interface ResponseEnvelope<T> {
   readonly data: T | null;
   readonly status: ResponseStatus;
+  /** Presente exclusivamente em listagem (`ADR-0025` §21). */
+  readonly pagination?: Pagination;
   readonly errors?: readonly FieldError[];
 }
 
-export function successEnvelope<T>(data: T, code: ResponseCode = 'SUCCESS'): ResponseEnvelope<T> {
-  return { data, status: { code, severity: severityOf(code) } };
+export function successEnvelope<T>(
+  data: T,
+  code: ResponseCode = 'SUCCESS',
+  pagination?: Pagination,
+): ResponseEnvelope<T> {
+  const status = { code, severity: severityOf(code) };
+
+  return pagination === undefined ? { data, status } : { data, status, pagination };
 }
 
 /** Falha: `data` é nulo (`ADR-0025` §15), e `errors` só existe se houver campos. */
@@ -68,9 +76,21 @@ export class EnvelopeResult<T> {
   constructor(
     readonly data: T,
     readonly code: ResponseCode,
+    readonly pagination?: Pagination,
   ) {}
 }
 
 export function respondWith<T>(data: T, code: ResponseCode): EnvelopeResult<T> {
   return new EnvelopeResult(data, code);
+}
+
+/**
+ * O que um controlador devolve em listagem: o vetor em `data` (`ADR-0025` §6) e a
+ * paginação ao lado dele, nunca dentro (§21, §22).
+ */
+export function respondWithPage<T>(
+  items: readonly T[],
+  pagination: Pagination,
+): EnvelopeResult<readonly T[]> {
+  return new EnvelopeResult(items, 'SUCCESS', pagination);
 }
