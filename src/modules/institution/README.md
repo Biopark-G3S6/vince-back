@@ -90,6 +90,14 @@ ficou pela metade. Das duas falhas parciais possíveis, esta é a inócua — pa
 autoriza nada, porque `ADR-0014 §12` obriga a verificação de titularidade dentro do caso de uso. A
 ordem inversa produziria vínculo sem papel, que aparenta designação concluída e não funciona.
 
+## Convites
+
+`institution` é o dono das rotas de emissão, listagem e revogação de convites no escopo da
+instituição. Antes de chamar a fachada do `access`, verifica que a instituição existe e está ativa,
+que o ator atua nela (ou é `SYSTEM_ADMIN`) e fornece o retrato do nome da instituição. O `access`
+valida a cadeia de papéis, persiste o convite e cria a conta na aceitação; a direção continua sendo
+`institution` -> `access`, sem importação inversa.
+
 ## A paginação
 
 Esta é a **primeira listagem do sistema**, e a forma que ela estabelece é a que as próximas copiam

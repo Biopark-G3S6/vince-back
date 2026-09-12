@@ -40,6 +40,13 @@ async function seed(): Promise<void> {
         `${report.systemAdmin.created ? 'criada' : 'já existente'}, ` +
         `identificador ${report.systemAdmin.id}\n`,
     );
+
+    if (report.systemAdmin.passwordResetUrl !== undefined) {
+      process.stdout.write(
+        `meio inicial de definição de senha (uso único): ` +
+          `${report.systemAdmin.passwordResetUrl}\n`,
+      );
+    }
   } finally {
     await context.close();
   }

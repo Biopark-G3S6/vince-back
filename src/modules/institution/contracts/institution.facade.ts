@@ -10,6 +10,13 @@ import type {
   UpdateInstitutionCommand,
 } from './institution.dto';
 import type { InstitutionResult } from './result.dto';
+import type {
+  InvitationIssuedDto,
+  InvitationPageDto,
+  IssueInvitationCommand,
+  ListInvitationsCommand,
+  RevokeInvitationCommand,
+} from './invitation.dto';
 
 /**
  * A única superfície pública do módulo `institution` (`ADR-0004` §1, `ADR-0028` §20).
@@ -63,6 +70,16 @@ export abstract class InstitutionFacade {
    * `ADR-0028` §19).
    */
   abstract revokeAdmin(command: InstitutionAdminCommand): Promise<InstitutionResult<void>>;
+
+  abstract issueInvitation(
+    command: IssueInvitationCommand,
+  ): Promise<InstitutionResult<InvitationIssuedDto>>;
+
+  abstract listInvitations(
+    command: ListInvitationsCommand,
+  ): Promise<InstitutionResult<InvitationPageDto>>;
+
+  abstract revokeInvitation(command: RevokeInvitationCommand): Promise<InstitutionResult<void>>;
 
   /** Existência e estado, para o consumidor interno. Não falha por inexistência. */
   abstract stateOf(institutionId: string): Promise<InstitutionStateDto>;

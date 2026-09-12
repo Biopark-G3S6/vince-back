@@ -22,16 +22,17 @@ nunca chamada síncrona (`ADR-0027 §10`).
 
 Schema `access` no PostgreSQL. Tabelas declaradas em `access.prisma`:
 
-| Tabela                  | Guarda                                               |
-| :---------------------- | :--------------------------------------------------- |
-| `permission`            | o catálogo das permissões reconhecidas pelo sistema  |
-| `role`                  | os cinco papéis globais, pré-criados                 |
-| `role_permission`       | a composição de cada papel                           |
-| `user`                  | a conta de usuário e seu perfil                      |
-| `user_role`             | a atribuição de papel a uma conta                    |
-| `role_assignment_audit` | a trilha imutável de atribuição e revogação de papel |
-| `password_credential`   | a credencial de senha da conta                       |
-| `invitation`            | a via de uso único e com prazo por onde alguém entra |
+| Tabela                  | Guarda                                                         |
+| :---------------------- | :------------------------------------------------------------- |
+| `permission`            | o catálogo das permissões reconhecidas pelo sistema            |
+| `role`                  | os cinco papéis globais, pré-criados                           |
+| `role_permission`       | a composição de cada papel                                     |
+| `user`                  | a conta de usuário e seu perfil                                |
+| `user_role`             | a atribuição de papel a uma conta                              |
+| `role_assignment_audit` | a trilha imutável de atribuição e revogação de papel           |
+| `password_credential`   | a credencial de senha da conta                                 |
+| `invitation`            | a via de uso único e com prazo por onde alguém entra           |
+| `invitation_audit`      | a trilha imutável de emissão, aceitação e revogação de convite |
 
 `ADR-0027 §5` enumera ainda `permission_grant`, da vertical de delegação. Tabela fora dessa lista
 **não** nasce aqui sem reescrever o ADR (`§6`).
@@ -47,10 +48,9 @@ verificável com os parâmetros com que nasceu.
 **A ausência de linha é estado válido e significativo:** conta criada por fluxo interno nasce sem
 senha definida (`RF-TUR-003 RN3`, `RF-ACS-001 E4`).
 
-**O meio de redefinição de senha vive em `invitation`**, e não em tabela própria. Não é acomodação:
-`ADR-0027 §6` proíbe tabela não enumerada em §5, e a URS §2.4 dá a `RF-ACS-003` e a `RF-ACS-004` o
-mesmo `INVITATION_EXPIRED` que dá ao convite de criação de conta — o parentesco está declarado lá.
-`purpose` distingue os usos: `PASSWORD_RESET` hoje, `ACCOUNT_CREATION` com `RF-TUR-005`.
+**O meio de redefinição de senha e o convite de ingresso vivem em `invitation`**, e não em tabelas
+separadas (`ADR-0027 §5`). `purpose` distingue os usos: `PASSWORD_RESET` e `ACCOUNT_CREATION`.
+`invitation_audit` guarda a trilha imutável de emissão, aceitação e revogação sem token ou senha.
 
 O valor entregue ao usuário **não é persistido**: persiste-se a sua derivação. Vazamento da tabela
 não entrega acesso a ninguém. A derivação é SHA-256, e não Argon2id — o segredo tem 256 bits de
@@ -96,18 +96,21 @@ para permanecer legível se o catálogo mudar.
 
 `AccessFacade`, em `contracts/`:
 
-| Operação                              | Faz                                                            |
-| :------------------------------------ | :------------------------------------------------------------- |
-| `permissionsOfRoles`                  | a união das permissões de um conjunto de papéis, sem repetição |
-| `createUser`                          | cria conta pelos fluxos internos; nasce ativa e sem credencial |
-| `findOwnProfile` / `updateOwnProfile` | o perfil do **titular**, com papéis e vínculo (`RF-ACS-005`)   |
-| `deactivateUser` / `activateUser`     | leva a conta ao estado, preservando vínculos e e-mail          |
-| `assignRole` / `revokeRole`           | atribui e revoga papel, **idempotentes**, com trilha           |
-| `effectivePermissions`                | apura as permissões efetivas da conta, com cache               |
-| `verifyCredential`                    | confere e-mail e senha; devolve a conta, ou `null`             |
-| `changeOwnPassword`                   | altera a senha do titular, exigindo a atual                    |
-| `requestPasswordReset`                | emite o meio de redefinição, ou `null` se não houver a quem    |
-| `resetPassword`                       | define a senha por meio de redefinição, sem exigir a atual     |
+| Operação                               | Faz                                                            |
+| :------------------------------------- | :------------------------------------------------------------- |
+| `permissionsOfRoles`                   | a união das permissões de um conjunto de papéis, sem repetição |
+| `createUser`                           | cria conta pelos fluxos internos; nasce ativa e sem credencial |
+| `findOwnProfile` / `updateOwnProfile`  | o perfil do **titular**, com papéis e vínculo (`RF-ACS-005`)   |
+| `deactivateUser` / `activateUser`      | leva a conta ao estado, preservando vínculos e e-mail          |
+| `assignRole` / `revokeRole`            | atribui e revoga papel, **idempotentes**, com trilha           |
+| `effectivePermissions`                 | apura as permissões efetivas da conta, com cache               |
+| `verifyCredential`                     | confere e-mail e senha; devolve a conta, ou `null`             |
+| `changeOwnPassword`                    | altera a senha do titular, exigindo a atual                    |
+| `requestPasswordReset`                 | emite o meio de redefinição, ou `null` se não houver a quem    |
+| `resetPassword`                        | define a senha por meio de redefinição, sem exigir a atual     |
+| `issueInvitation` / `acceptInvitation` | emite ou consome convite de criação de conta                   |
+| `findInvitation`                       | consulta convite ativo sem revelar o emissor                   |
+| `listInvitations` / `revokeInvitation` | lista ou revoga convites de criação                            |
 
 Os códigos de papel, de permissão e de falha atravessam a fronteira como **texto opaco**
 (`ADR-0027 §14`). O tipo estreito — `PermissionCode`, `RoleCode`, `FailureCode` — vive em
@@ -143,13 +146,15 @@ Um retorno antecipado derruba a contagem a zero e reprova.
 
 ## As rotas deste módulo
 
-| Rota                      | Acesso  | Requisito                  |
-| :------------------------ | :------ | :------------------------- |
-| `GET /profile`            | sessão  | `RF-ACS-005`               |
-| `PATCH /profile`          | sessão  | `RF-ACS-005`, `RF-INT-001` |
-| `PUT /password`           | sessão  | `RF-ACS-004`               |
-| `POST /password/recovery` | público | `RF-ACS-003`               |
-| `POST /password/reset`    | público | `RF-ACS-004`               |
+| Rota                                  | Acesso  | Requisito                  |
+| :------------------------------------ | :------ | :------------------------- |
+| `GET /profile`                        | sessão  | `RF-ACS-005`               |
+| `PATCH /profile`                      | sessão  | `RF-ACS-005`, `RF-INT-001` |
+| `PUT /password`                       | sessão  | `RF-ACS-004`               |
+| `POST /password/recovery`             | público | `RF-ACS-003`               |
+| `POST /password/reset`                | público | `RF-ACS-004`               |
+| `GET /invitations/:token`             | público | `RF-ACS-009`               |
+| `POST /invitations/:token/acceptance` | público | `RF-ACS-009`               |
 
 **Nenhuma exige permissão**, e isso é a regra e não a falta dela: os requisitos de origem declaram
 "Permissões geradas: —". A titularidade é verificada dentro do caso de uso (`ADR-0014 §12`) e não é
@@ -164,6 +169,14 @@ trocar a senha.
 
 O que cada uma derruba: `PUT /password` encerra as **demais** sessões e preserva a corrente
 (`RF-ACS-004 RN2`); `POST /password/reset` encerra **todas**.
+
+### Convites
+
+`access` possui o mecanismo de convite, mas a emissão, a listagem e a revogação são publicadas por
+`institution`, que valida a instituição ativa e a atuação do ator. O `access` valida a cadeia de
+papéis, gera o endereço opaco e executa a aceitação transacional; ele não importa `institution`.
+Convites dirigidos têm um uso e e-mail fixo. Convites abertos não têm destinatário, podem ter limite
+de usos e aceitam múltiplas contas até o prazo ou a revogação.
 
 **Dívida declarada:** `POST /password/recovery` cria o meio de redefinição e ele **não chega ao
 destinatário**. O envio depende de correio eletrônico, que depende de outbox (`ADR-0021`), fila
@@ -220,14 +233,14 @@ Do catálogo, reconciliando o estado gravado com a declaração de `domain/`:
 Da conta inicial (`URS §1.4.1`, item 1):
 
 - existe uma conta de papel `SYSTEM_ADMIN`, **ativa, sem vínculo institucional e sem credencial
-  definida** — a senha é dado de autenticação e nasce na vertical seguinte;
+  definida**;
 - a reexecução **reencontra pelo e-mail** e preserva o identificador já gravado, em vez de criar
   a segunda conta;
 - a atribuição do papel entra na trilha de auditoria **sem ator**: a carga não tem quem a execute.
 
-Entre esta vertical e a próxima, o sistema tem um administrador que **não entra**. É deliberado:
-semear senha por variável de ambiente poria segredo no caminho da carga inicial sem necessidade.
-Não há autocadastro que produza papel administrativo, aqui nem em lugar algum.
+Enquanto a senha não estiver definida, a carga emite uma URL de redefinição de uso único e a imprime
+uma vez na saída do comando. A senha não vem de variável de ambiente, e não há autocadastro que
+produza papel administrativo.
 
 A carga entra por método estático de `AccessModule`, e não por script fora de `src/`
 (`ADR-0027 §21`): fora de `src/` a importação escaparia da análise de fronteiras do ESLint, o que

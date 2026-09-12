@@ -14,12 +14,15 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { ApiEnvelope, ApiFailures, ApiPageQuery, ApiPagedEnvelope } from '@shared/http/openapi';
+import { CurrentSession } from '@shared/auth/request-session';
+import type { Session } from '@shared/auth/session-store';
 import { pageRequestSchema, toPageRequest } from '@shared/http/pagination';
 import { respondWithPage, type EnvelopeResult } from '@shared/http/response-envelope';
 import { RequiresPermission } from '@shared/http/route-access';
 import { parseOrFail } from '@shared/http/validation';
 
 import type { InstitutionDto } from '../contracts/institution.dto';
+import type { InvitationSummaryDto } from '../contracts/invitation.dto';
 import { InstitutionFacade } from '../contracts/institution.facade';
 import {
   CreateInstitutionRequestDto,
@@ -28,6 +31,12 @@ import {
   createInstitutionSchema,
   updateInstitutionSchema,
 } from './institution.dto';
+import {
+  InvitationIssuedResponse,
+  InvitationSummaryResponse,
+  IssueInvitationRequestDto,
+  issueInvitationSchema,
+} from './invitation.dto';
 import { unwrap } from './result-mapper';
 
 /**
@@ -152,6 +161,79 @@ export class InstitutionController {
   ): Promise<InstitutionDtoResponse> {
     return toResponse(unwrap(await this.institutions.activate({ institutionId })));
   }
+
+  @Post(':institutionId/invitations')
+  @HttpCode(201)
+  @RequiresPermission('INVITATION:CREATE')
+  @ApiOperation({ summary: 'Emite um convite de ingresso na instituição' })
+  @ApiEnvelope(InvitationIssuedResponse, { status: 201 })
+  @ApiFailures(
+    'AUTHENTICATION_FAILED',
+    'PERMISSION_DENIED',
+    'VALIDATION_FAILED',
+    'RESOURCE_NOT_FOUND',
+    'INSTITUTION_INACTIVE',
+    'EMAIL_ALREADY_REGISTERED',
+  )
+  async issueInvitation(
+    @Param('institutionId', ParseUUIDPipe) institutionId: string,
+    @Body() body: IssueInvitationRequestDto,
+    @CurrentSession() session: Session,
+  ): Promise<InvitationIssuedResponse> {
+    const input = parseOrFail(issueInvitationSchema, body);
+    const result = await this.institutions.issueInvitation({
+      institutionId,
+      actorId: session.state.userId,
+      roleCode: input.roleCode,
+      targetEmail: input.targetEmail,
+      expiresAt: input.expiresAt === undefined ? undefined : new Date(input.expiresAt),
+      maxUses: input.maxUses,
+    });
+
+    return unwrap(result);
+  }
+
+  @Get(':institutionId/invitations')
+  @RequiresPermission('INVITATION:READ')
+  @ApiOperation({ summary: 'Lista os convites da instituição, paginado' })
+  @ApiPageQuery()
+  @ApiPagedEnvelope(InvitationSummaryResponse)
+  @ApiFailures('AUTHENTICATION_FAILED', 'PERMISSION_DENIED', 'RESOURCE_NOT_FOUND')
+  async listInvitations(
+    @Param('institutionId', ParseUUIDPipe) institutionId: string,
+    @Query() query: Record<string, unknown>,
+    @CurrentSession() session: Session,
+  ): Promise<EnvelopeResult<readonly InvitationSummaryResponse[]>> {
+    const request = toPageRequest(parseOrFail(pageRequestSchema, query));
+    const page = unwrap(
+      await this.institutions.listInvitations({
+        institutionId,
+        actorId: session.state.userId,
+        request,
+      }),
+    );
+
+    return respondWithPage(page.items.map(toInvitationResponse), page.pagination);
+  }
+
+  @Post(':institutionId/invitations/:invitationId/revocation')
+  @HttpCode(204)
+  @RequiresPermission('INVITATION:REVOKE')
+  @ApiOperation({ summary: 'Revoga um convite' })
+  @ApiFailures('AUTHENTICATION_FAILED', 'PERMISSION_DENIED', 'RESOURCE_NOT_FOUND')
+  async revokeInvitation(
+    @Param('institutionId', ParseUUIDPipe) institutionId: string,
+    @Param('invitationId', ParseUUIDPipe) invitationId: string,
+    @CurrentSession() session: Session,
+  ): Promise<void> {
+    unwrap(
+      await this.institutions.revokeInvitation({
+        institutionId,
+        invitationId,
+        actorId: session.state.userId,
+      }),
+    );
+  }
 }
 
 function toResponse(institution: InstitutionDto): InstitutionDtoResponse {
@@ -164,4 +246,8 @@ function toResponse(institution: InstitutionDto): InstitutionDtoResponse {
     contactEmail: institution.contactEmail,
     active: institution.active,
   };
+}
+
+function toInvitationResponse(invitation: InvitationSummaryDto): InvitationSummaryResponse {
+  return invitation;
 }

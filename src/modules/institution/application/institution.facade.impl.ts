@@ -11,6 +11,13 @@ import type {
   InstitutionStateDto,
   UpdateInstitutionCommand,
 } from '../contracts/institution.dto';
+import type {
+  InvitationIssuedDto,
+  InvitationPageDto,
+  IssueInvitationCommand,
+  ListInvitationsCommand,
+  RevokeInvitationCommand,
+} from '../contracts/invitation.dto';
 import { InstitutionFacade } from '../contracts/institution.facade';
 import type { InstitutionResult } from '../contracts/result.dto';
 import type { Result } from '../domain/failure';
@@ -19,8 +26,11 @@ import { AssignInstitutionAdminUseCase } from './assign-institution-admin.use-ca
 import { CreateInstitutionUseCase } from './create-institution.use-case';
 import { FindInstitutionUseCase } from './find-institution.use-case';
 import { ListInstitutionsUseCase } from './list-institutions.use-case';
+import { ListInvitationsUseCase } from './list-invitations.use-case';
+import { IssueInvitationUseCase } from './issue-invitation.use-case';
 import { ReadInstitutionStateUseCase } from './read-institution-state.use-case';
 import { SetInstitutionActiveUseCase } from './set-institution-active.use-case';
+import { RevokeInvitationUseCase } from './revoke-invitation.use-case';
 import { UpdateInstitutionUseCase } from './update-institution.use-case';
 
 /**
@@ -63,6 +73,9 @@ export class InstitutionFacadeImpl extends InstitutionFacade {
     private readonly setActive: SetInstitutionActiveUseCase,
     private readonly admins: AssignInstitutionAdminUseCase,
     private readonly states: ReadInstitutionStateUseCase,
+    private readonly issueInvitationUseCase: IssueInvitationUseCase,
+    private readonly listInvitationsUseCase: ListInvitationsUseCase,
+    private readonly revokeInvitationUseCase: RevokeInvitationUseCase,
   ) {
     super();
   }
@@ -105,6 +118,22 @@ export class InstitutionFacadeImpl extends InstitutionFacade {
     return toVoidResult(
       await this.admins.revoke(command.institutionId, command.userId, command.actorId),
     );
+  }
+
+  async issueInvitation(
+    command: IssueInvitationCommand,
+  ): Promise<InstitutionResult<InvitationIssuedDto>> {
+    return this.issueInvitationUseCase.execute(command);
+  }
+
+  async listInvitations(
+    command: ListInvitationsCommand,
+  ): Promise<InstitutionResult<InvitationPageDto>> {
+    return this.listInvitationsUseCase.execute(command);
+  }
+
+  async revokeInvitation(command: RevokeInvitationCommand): Promise<InstitutionResult<void>> {
+    return this.revokeInvitationUseCase.execute(command);
   }
 
   async stateOf(institutionId: string): Promise<InstitutionStateDto> {
