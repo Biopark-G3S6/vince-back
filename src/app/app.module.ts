@@ -9,6 +9,7 @@ import { RedisSessionStore } from '@shared/auth/redis-session-store';
 import { loadAuthConfig } from '@shared/config/environment';
 
 import { AccessModule } from '@modules/access/access.module';
+import { CourseModule } from '@modules/course/course.module';
 import { InstitutionModule } from '@modules/institution/institution.module';
 
 import {
@@ -86,8 +87,13 @@ export class AppModule {
         ? InstitutionModule.forRoot(getPrismaClient(), getRedisClient(), { imports: [access] })
         : null;
 
+    const course =
+      active('course') && access !== null && institution !== null
+        ? CourseModule.forRoot(getPrismaClient(), { imports: [access, institution] })
+        : null;
+
     if (role !== 'api') {
-      return [access, institution].filter((entry) => entry !== null);
+      return [access, institution, course].filter((entry) => entry !== null);
     }
 
     const registry = [
@@ -98,7 +104,11 @@ export class AppModule {
             sessions,
             // A borda enxerga as duas fachadas: é o que permite compor "permissões
             // efetivas" com "estado da instituição" sem que um módulo chame o outro.
-            imports: [access, ...(institution === null ? [] : [institution])],
+            imports: [
+              access,
+              ...(institution === null ? [] : [institution]),
+              ...(course === null ? [] : [course]),
+            ],
             ports: [
               InstitutionStateGate,
               { provide: CredentialVerifier, useClass: AccessCredentialVerifier },

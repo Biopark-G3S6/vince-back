@@ -1,0 +1,51 @@
+/// Módulo de negócio: manutenção de cursos e coordenação (ADR-0029).
+///
+/// As três tabelas abaixo são a propriedade exclusiva do módulo `course`.
+/// Referências a instituição e usuário são opacas, sem FK entre módulos.
+
+model Course {
+  id             String   @id @db.Uuid
+  institutionId  String   @map("institution_id") @db.Uuid
+  name           String
+  identification String
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  coordinator CourseCoordinator?
+  coordinatorAudits CourseCoordinatorAudit[]
+
+  @@index([institutionId, name])
+  @@map("course")
+  @@schema("course")
+}
+
+model CourseCoordinator {
+  courseId  String   @id @map("course_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("course_coordinator")
+  @@schema("course")
+}
+
+model CourseCoordinatorAudit {
+  id           String   @id @db.Uuid
+  courseId     String   @map("course_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  actorId      String   @map("actor_id") @db.Uuid
+  operation    String
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+
+  @@index([courseId, createdAt])
+  @@index([userId, createdAt])
+  @@map("course_coordinator_audit")
+  @@schema("course")
+}
