@@ -45,6 +45,8 @@ export interface InvitationRecord {
   readonly institutionId: string | null;
   readonly institutionName: string | null;
   readonly actorId: string | null;
+  readonly scopeType: string | null;
+  readonly scopeId: string | null;
   readonly expiresAt: Date;
   readonly maxUses: number | null;
   readonly useCount: number;

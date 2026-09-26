@@ -7,8 +7,10 @@ import { IdentityResolver } from '@shared/auth/identity';
 import { InstitutionAccess } from '@shared/auth/institution-access';
 import { RedisSessionStore } from '@shared/auth/redis-session-store';
 import { loadAuthConfig } from '@shared/config/environment';
+import { InMemoryDomainEventBus } from '@shared/events/event-bus';
 
 import { AccessModule } from '@modules/access/access.module';
+import { CohortModule } from '@modules/cohort/cohort.module';
 import { CourseModule } from '@modules/course/course.module';
 import { InstitutionModule } from '@modules/institution/institution.module';
 
@@ -70,12 +72,14 @@ export class AppModule {
     // Uma única instância do repositório de sessões no processo: a borda a usa para
     // resolver a sessão, e o módulo `access`, para revogá-las na troca de senha.
     const sessions = new RedisSessionStore(getRedisClient(), config.session);
+    const events = new InMemoryDomainEventBus();
 
     const access = active('access')
       ? AccessModule.forRoot(getPrismaClient(), getRedisClient(), {
           passwordHashing: config.passwordHashing,
           passwordResetTtlSeconds: config.passwordResetTtlSeconds,
           sessions,
+          events,
         })
       : null;
 
@@ -92,8 +96,16 @@ export class AppModule {
         ? CourseModule.forRoot(getPrismaClient(), { imports: [access, institution] })
         : null;
 
+    const cohort =
+      active('cohort') && access !== null && institution !== null && course !== null
+        ? CohortModule.forRoot(getPrismaClient(), {
+            imports: [access, institution, course],
+            events,
+          })
+        : null;
+
     if (role !== 'api') {
-      return [access, institution, course].filter((entry) => entry !== null);
+      return [access, institution, course, cohort].filter((entry) => entry !== null);
     }
 
     const registry = [
@@ -108,6 +120,7 @@ export class AppModule {
               access,
               ...(institution === null ? [] : [institution]),
               ...(course === null ? [] : [course]),
+              ...(cohort === null ? [] : [cohort]),
             ],
             ports: [
               InstitutionStateGate,

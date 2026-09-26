@@ -22,6 +22,8 @@ export interface NewInvitation {
   readonly institutionName?: string | null;
   readonly actorId?: string | null;
   readonly maxUses?: number | null;
+  readonly scopeType?: string | null;
+  readonly scopeId?: string | null;
 }
 
 export interface NewInvitationAudit {
@@ -74,6 +76,8 @@ export abstract class InvitationRepository {
   abstract listAccountInvitations(
     institutionId: string,
     request: PageRequest,
+    scopeType?: string | null,
+    scopeId?: string | null,
   ): Promise<InvitationRows>;
 
   abstract revokeAccountInvitation(
