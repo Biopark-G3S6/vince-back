@@ -151,12 +151,13 @@ esgotado ou desconhecido SHALL produzir resposta que não permita distinguir ess
 
 ### Requirement: Aceitação do convite
 
-O sistema SHALL permitir, sem autenticação, aceitar um convite ativo informando nome e senha, criando
-a conta com o papel e o vínculo institucional declarados no convite. Em convite dirigido, o e-mail
-SHALL ser o do convite e NÃO DEVE ser informado pelo solicitante; em convite aberto, o e-mail SHALL
-ser informado e NÃO DEVE pertencer a conta existente. A aceitação NÃO DEVE permitir escolher papel,
-instituição ou qualquer outro atributo além de nome, senha e, no convite aberto, e-mail. A aceitação
-NÃO DEVE estabelecer sessão.
+O sistema SHALL permitir, sem autenticação, aceitar um convite ativo informando nome e senha, criando a
+conta com o papel e o vínculo institucional declarados no convite. Quando o convite também declarar uma
+turma validada pelo módulo emissor, a aceitação SHALL criar a matrícula ativa nessa turma na mesma
+operação lógica. Em convite dirigido, o e-mail SHALL ser o do convite e NÃO DEVE ser informado pelo
+solicitante; em convite aberto, o e-mail SHALL ser informado e NÃO DEVE pertencer a conta existente. A
+aceitação NÃO DEVE permitir escolher papel, instituição, turma ou qualquer outro atributo além de nome,
+senha e, no convite aberto, e-mail. A aceitação NÃO DEVE estabelecer sessão.
 
 #### Scenario: Aceitação de convite dirigido
 
@@ -169,15 +170,21 @@ NÃO DEVE estabelecer sessão.
 - **WHEN** nome, e-mail livre e senha conformes são informados para convite aberto ativo
 - **THEN** a conta é criada com o e-mail informado e com o papel e a instituição do convite
 
+#### Scenario: Aceitação de convite de turma
+
+- **WHEN** nome, e-mail livre e senha conformes são informados para convite de turma ativo
+- **THEN** a conta é criada com papel `STUDENT`
+- **AND** a matrícula ativa é criada na turma declarada pelo convite
+
 #### Scenario: Papel submetido é desconsiderado
 
-- **WHEN** a aceitação inclui papel ou instituição em seu corpo
+- **WHEN** a aceitação inclui papel, instituição ou turma no corpo
 - **THEN** os valores são desconsiderados e prevalecem os do convite
 
 #### Scenario: E-mail já registrado
 
 - **WHEN** a aceitação de convite aberto informa e-mail de conta existente
-- **THEN** a operação falha com `EMAIL_ALREADY_REGISTERED` e nenhuma conta é criada
+- **THEN** a operação falha com `EMAIL_ALREADY_REGISTERED` e nenhuma conta ou matrícula é criada
 
 #### Scenario: Senha fora da política
 
