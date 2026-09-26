@@ -14,6 +14,8 @@ import { InvitationRepository } from '../domain/ports/invitation-repository';
 export interface ListInvitationsInput {
   readonly institutionId: string;
   readonly request: PageRequest;
+  readonly scopeType?: string | null;
+  readonly scopeId?: string | null;
 }
 
 export interface InvitationListItem {
@@ -27,6 +29,8 @@ export interface InvitationListItem {
   readonly expiresAt: Date;
   readonly maxUses: number | null;
   readonly useCount: number;
+  readonly scopeType: string | null;
+  readonly scopeId: string | null;
 }
 
 @Injectable()
@@ -34,7 +38,12 @@ export class ListInvitationsUseCase {
   constructor(private readonly invitations: InvitationRepository) {}
 
   async execute(input: ListInvitationsInput): Promise<Page<InvitationListItem>> {
-    const rows = await this.invitations.listAccountInvitations(input.institutionId, input.request);
+    const rows = await this.invitations.listAccountInvitations(
+      input.institutionId,
+      input.request,
+      input.scopeType,
+      input.scopeId,
+    );
     const items = rows.rows
       .filter(
         (row) =>
@@ -54,6 +63,8 @@ export class ListInvitationsUseCase {
         expiresAt: row.expiresAt,
         maxUses: row.maxUses,
         useCount: row.useCount,
+        scopeType: row.scopeType,
+        scopeId: row.scopeId,
       }));
 
     return toPage(input.request, items, rows.totalItems);

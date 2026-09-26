@@ -4,6 +4,7 @@ import type Redis from 'ioredis';
 
 import type { PasswordHashingConfig } from '@shared/config/environment';
 import { SessionStore } from '@shared/auth/session-store';
+import { DomainEventBus, InMemoryDomainEventBus } from '@shared/events/event-bus';
 
 import { AccessFacadeImpl } from './application/access.facade.impl';
 import { AcceptInvitationUseCase } from './application/accept-invitation.use-case';
@@ -66,6 +67,7 @@ export interface AccessModuleOptions {
   readonly passwordHashing: PasswordHashingConfig;
   readonly passwordResetTtlSeconds: number;
   readonly sessions: SessionStore;
+  readonly events?: DomainEventBus;
 }
 
 /** O que a carga inicial do módulo alterou. */
@@ -91,11 +93,14 @@ export interface AccessSeedReport {
 @Module({})
 export class AccessModule {
   static forRoot(prisma: PrismaClient, redis: Redis, options: AccessModuleOptions): DynamicModule {
+    const events = options.events ?? new InMemoryDomainEventBus();
+
     return {
       module: AccessModule,
       controllers: [ProfileController, PasswordController, InvitationController],
       providers: [
         { provide: SessionStore, useValue: options.sessions },
+        { provide: DomainEventBus, useValue: events },
         {
           provide: CredentialSettings,
           useValue: { passwordResetTtlSeconds: options.passwordResetTtlSeconds },

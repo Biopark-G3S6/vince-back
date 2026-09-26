@@ -36,6 +36,8 @@ const INVITATION_COLUMNS = {
   institutionId: true,
   institutionName: true,
   actorId: true,
+  scopeType: true,
+  scopeId: true,
   expiresAt: true,
   maxUses: true,
   useCount: true,
@@ -52,6 +54,8 @@ type InvitationRow = {
   institutionId: string | null;
   institutionName: string | null;
   actorId: string | null;
+  scopeType: string | null;
+  scopeId: string | null;
   expiresAt: Date;
   maxUses: number | null;
   useCount: number;
@@ -68,6 +72,8 @@ function toInvitation(row: InvitationRow): InvitationRecord {
     institutionId: row.institutionId,
     institutionName: row.institutionName,
     actorId: row.actorId,
+    scopeType: row.scopeType,
+    scopeId: row.scopeId,
     expiresAt: row.expiresAt,
     maxUses: row.maxUses,
     useCount: row.useCount,
@@ -94,6 +100,8 @@ export class PrismaInvitationRepository extends InvitationRepository {
         institutionId: invitation.institutionId ?? null,
         institutionName: invitation.institutionName ?? null,
         actorId: invitation.actorId ?? null,
+        scopeType: invitation.scopeType ?? null,
+        scopeId: invitation.scopeId ?? null,
         expiresAt: invitation.expiresAt,
         maxUses: invitation.maxUses ?? null,
       },
@@ -127,6 +135,8 @@ export class PrismaInvitationRepository extends InvitationRepository {
             institutionId: invitation.institutionId ?? null,
             institutionName: invitation.institutionName ?? null,
             actorId: invitation.actorId ?? null,
+            scopeType: invitation.scopeType ?? null,
+            scopeId: invitation.scopeId ?? null,
             expiresAt: invitation.expiresAt,
             maxUses: invitation.maxUses ?? null,
           },
@@ -268,6 +278,24 @@ export class PrismaInvitationRepository extends InvitationRepository {
             },
           });
 
+          if (invitation.scopeType !== null && invitation.scopeId !== null) {
+            await tx.accessOutbox.create({
+              data: {
+                id: uuidv7(),
+                eventType: 'InvitationAccepted',
+                eventVersion: 1,
+                payload: {
+                  invitationId: invitation.id,
+                  userId: created.id,
+                  roleCode: role.code,
+                  institutionId: invitation.institutionId,
+                  scopeType: invitation.scopeType,
+                  scopeId: invitation.scopeId,
+                },
+              },
+            });
+          }
+
           return {
             ok: true,
             account: {
@@ -297,9 +325,17 @@ export class PrismaInvitationRepository extends InvitationRepository {
   async listAccountInvitations(
     institutionId: string,
     request: PageRequest,
+    scopeType?: string | null,
+    scopeId?: string | null,
   ): Promise<InvitationRows> {
+    const where = {
+      institutionId,
+      purpose: INVITATION_PURPOSE.ACCOUNT_CREATION,
+      ...(scopeType === undefined ? {} : { scopeType }),
+      ...(scopeId === undefined ? {} : { scopeId }),
+    };
     const rows = await this.prisma.invitation.findMany({
-      where: { institutionId, purpose: INVITATION_PURPOSE.ACCOUNT_CREATION },
+      where,
       select: INVITATION_COLUMNS,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       skip: offsetOf(request),
@@ -313,9 +349,7 @@ export class PrismaInvitationRepository extends InvitationRepository {
     return request.withTotal
       ? {
           rows: invitations,
-          totalItems: await this.prisma.invitation.count({
-            where: { institutionId, purpose: INVITATION_PURPOSE.ACCOUNT_CREATION },
-          }),
+          totalItems: await this.prisma.invitation.count({ where }),
         }
       : { rows: invitations };
   }

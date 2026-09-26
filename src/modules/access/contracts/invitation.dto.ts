@@ -8,6 +8,9 @@ export interface IssueInvitationCommand {
   readonly targetEmail?: string | null;
   readonly expiresAt?: Date;
   readonly maxUses?: number | null;
+  /** Contexto opaco validado pelo módulo emissor. */
+  readonly scopeType?: string | null;
+  readonly scopeId?: string | null;
 }
 
 export interface InvitationIssued {
@@ -38,9 +41,23 @@ export interface AcceptInvitationResult {
   readonly institutionId: string;
 }
 
+/** Fato publicado depois da criação de uma conta por convite. */
+export interface InvitationAcceptedEvent {
+  readonly eventId: string;
+  readonly invitationId: string;
+  readonly userId: string;
+  readonly roleCode: string;
+  readonly institutionId: string;
+  readonly scopeType: string | null;
+  readonly scopeId: string | null;
+  readonly occurredAt: Date;
+}
+
 export interface ListInvitationsQuery {
   readonly institutionId: string;
   readonly request: PageRequest;
+  readonly scopeType?: string | null;
+  readonly scopeId?: string | null;
 }
 
 export interface InvitationSummary {
@@ -54,6 +71,8 @@ export interface InvitationSummary {
   readonly expiresAt: Date;
   readonly maxUses: number | null;
   readonly useCount: number;
+  readonly scopeType: string | null;
+  readonly scopeId: string | null;
 }
 
 export type InvitationPage = Page<InvitationSummary>;

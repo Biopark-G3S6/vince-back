@@ -143,6 +143,9 @@ model Invitation {
   institutionId   String?   @map("institution_id") @db.Uuid
   institutionName String?   @map("institution_name")
   actorId         String?   @map("actor_id") @db.Uuid
+  /// Contexto opaco fornecido pelo módulo emissor, como `COHORT`.
+  scopeType       String?   @map("scope_type")
+  scopeId         String?   @map("scope_id") @db.Uuid
   expiresAt       DateTime  @map("expires_at") @db.Timestamptz(3)
   maxUses         Int?      @map("max_uses")
   useCount        Int       @default(0) @map("use_count")
@@ -157,6 +160,7 @@ model Invitation {
   // que a emissão e a listagem fazem (ADR-0018 §20).
   @@index([userId, purpose])
   @@index([institutionId, purpose, createdAt])
+  @@index([scopeType, scopeId])
   @@map("invitation")
   @@schema("access")
 }
@@ -234,5 +238,22 @@ model RoleAssignmentAudit {
 
   @@index([subjectId, createdAt])
   @@map("role_assignment_audit")
+  @@schema("access")
+}
+
+/// Fatos produzidos pelo módulo para integração assíncrona (`ADR-0021`).
+model AccessOutbox {
+  id            String    @id @db.Uuid
+  eventType     String    @map("event_type")
+  eventVersion  Int       @map("event_version")
+  payload       Json
+  correlationId String?   @map("correlation_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt   DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts      Int       @default(0)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([publishedAt, createdAt])
+  @@map("outbox")
   @@schema("access")
 }
