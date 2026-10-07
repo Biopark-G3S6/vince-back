@@ -1,0 +1,220 @@
+/// Módulo de negócio: produção, edição e ciclo de correção do artigo.
+///
+/// Identificadores de curso, evento, equipe e usuário são referências opacas: pertencem
+/// a outros módulos e não recebem chave estrangeira neste schema (ADR-0018 §13, §14).
+model ArticleTemplate {
+  id                   String   @id @db.Uuid
+  institutionId        String   @map("institution_id") @db.Uuid
+  courseId             String?  @map("course_id") @db.Uuid
+  name                 String
+  description          String?
+  active               Boolean  @default(true)
+  currentVersionNumber Int      @map("current_version_number")
+  createdBy            String   @map("created_by") @db.Uuid
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  versions   ArticleTemplateVersion[]
+  selections ArticleTemplateSelection[]
+
+  @@index([institutionId, active, name])
+  @@index([courseId])
+  @@map("article_template")
+  @@schema("article")
+}
+
+model ArticleTemplateVersion {
+  id            String   @id @db.Uuid
+  templateId    String   @map("template_id") @db.Uuid
+  versionNumber Int      @map("version_number")
+  content       Json     @db.JsonB
+  createdBy     String   @map("created_by") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  template  ArticleTemplate            @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  articles  Article[]
+  selection ArticleTemplateSelection[]
+
+  @@unique([templateId, versionNumber])
+  @@map("article_template_version")
+  @@schema("article")
+}
+
+model ArticleTemplateSelection {
+  id                String   @id @db.Uuid
+  eventId           String   @unique @map("event_id") @db.Uuid
+  institutionId     String   @map("institution_id") @db.Uuid
+  courseId          String?  @map("course_id") @db.Uuid
+  templateId        String?  @map("template_id") @db.Uuid
+  templateVersionId String?  @map("template_version_id") @db.Uuid
+  selectedBy        String   @map("selected_by") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  template        ArticleTemplate?        @relation(fields: [templateId], references: [id])
+  templateVersion ArticleTemplateVersion? @relation(fields: [templateVersionId], references: [id])
+
+  @@index([institutionId, courseId])
+  @@map("article_template_selection")
+  @@schema("article")
+}
+
+model Article {
+  id                       String    @id @db.Uuid
+  institutionId            String    @map("institution_id") @db.Uuid
+  courseId                 String?   @map("course_id") @db.Uuid
+  eventId                  String    @map("event_id") @db.Uuid
+  teamId                   String    @unique @map("team_id") @db.Uuid
+  advisorId                String?   @map("advisor_id") @db.Uuid
+  memberIds                String[]  @map("member_ids") @db.Uuid
+  status                   String
+  currentMilestoneId       String?   @map("current_milestone_id") @db.Uuid
+  currentMilestoneOrder    Int?      @map("current_milestone_order")
+  currentMilestoneDeadline DateTime? @map("current_milestone_deadline") @db.Timestamptz(3)
+  lastMilestoneOrder       Int?      @map("last_milestone_order")
+  templateVersionId        String?   @map("template_version_id") @db.Uuid
+  content                  Json      @db.JsonB
+  formatProfile            Json      @map("format_profile") @db.JsonB
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  templateVersion ArticleTemplateVersion? @relation(fields: [templateVersionId], references: [id])
+  references      ArticleReference[]
+  citations       ArticleCitation[]
+  versions        ArticleVersion[]
+  submissions     ArticleSubmission[]
+  remarks         ArticleRemark[]
+  presence        ArticlePresence[]
+
+  @@index([institutionId, eventId])
+  @@index([courseId])
+  @@index([advisorId])
+  @@map("article")
+  @@schema("article")
+}
+
+model ArticleReference {
+  id        String   @id @db.Uuid
+  articleId String   @map("article_id") @db.Uuid
+  type      String
+  authors   Json     @db.JsonB
+  title     String
+  year      Int?
+  vehicle   String?
+  edition   String?
+  place     String?
+  publisher String?
+  pages     String?
+  doi       String?
+  url       String?
+  createdBy String   @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  article   Article           @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  citations ArticleCitation[]
+
+  @@index([articleId, title])
+  @@map("article_reference")
+  @@schema("article")
+}
+
+model ArticleCitation {
+  id          String   @id @db.Uuid
+  articleId   String   @map("article_id") @db.Uuid
+  referenceId String   @map("reference_id") @db.Uuid
+  kind        String
+  locator     Json?    @db.JsonB
+  page        String?
+  createdBy   String   @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  article   Article          @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  reference ArticleReference @relation(fields: [referenceId], references: [id], onDelete: Cascade)
+
+  @@index([articleId, referenceId])
+  @@map("article_citation")
+  @@schema("article")
+}
+
+model ArticleVersion {
+  id        String   @id @db.Uuid
+  articleId String   @map("article_id") @db.Uuid
+  kind      String
+  content   Json     @db.JsonB
+  authorId  String?  @map("author_id") @db.Uuid
+  metadata  Json     @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId, createdAt])
+  @@map("article_version")
+  @@schema("article")
+}
+
+model ArticleSubmission {
+  id             String    @id @db.Uuid
+  articleId      String    @map("article_id") @db.Uuid
+  milestoneId    String    @map("milestone_id") @db.Uuid
+  milestoneOrder Int       @map("milestone_order")
+  content        Json      @db.JsonB
+  submittedBy    String?   @map("submitted_by") @db.Uuid
+  automatic      Boolean   @default(false)
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  article Article         @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  remarks ArticleRemark[]
+
+  @@unique([articleId, milestoneId])
+  @@index([articleId, milestoneOrder])
+  @@map("article_submission")
+  @@schema("article")
+}
+
+model ArticleRemark {
+  id             String    @id @db.Uuid
+  articleId      String    @map("article_id") @db.Uuid
+  submissionId   String    @map("submission_id") @db.Uuid
+  status         String
+  anchor         Json      @db.JsonB
+  originalText   String    @map("original_text")
+  currentText    String?   @map("current_text")
+  body           String
+  visibleToTeam  Boolean   @default(false) @map("visible_to_team")
+  createdBy      String    @map("created_by") @db.Uuid
+  addressedBy    String?   @map("addressed_by") @db.Uuid
+  addressedAt    DateTime? @map("addressed_at") @db.Timestamptz(3)
+  decidedBy      String?   @map("decided_by") @db.Uuid
+  decidedAt      DateTime? @map("decided_at") @db.Timestamptz(3)
+  decisionReason String?   @map("decision_reason")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  article    Article           @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  submission ArticleSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([articleId, status])
+  @@index([submissionId])
+  @@map("article_remark")
+  @@schema("article")
+}
+
+model ArticlePresence {
+  articleId String   @map("article_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  cursor    Json     @db.JsonB
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, userId])
+  @@map("article_presence")
+  @@schema("article")
+}
