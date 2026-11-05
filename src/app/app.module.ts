@@ -9,6 +9,7 @@ import { RedisSessionStore } from '@shared/auth/redis-session-store';
 import { loadAuthConfig } from '@shared/config/environment';
 
 import { AccessModule } from '@modules/access/access.module';
+import { ArticleModule } from '@modules/article/article.module';
 import { CourseModule } from '@modules/course/course.module';
 import { InstitutionModule } from '@modules/institution/institution.module';
 
@@ -92,8 +93,15 @@ export class AppModule {
         ? CourseModule.forRoot(getPrismaClient(), { imports: [access, institution] })
         : null;
 
+    const article =
+      active('article') && access !== null && institution !== null && course !== null
+        ? ArticleModule.forRoot(getPrismaClient(), {
+            imports: [access, institution, course],
+          })
+        : null;
+
     if (role !== 'api') {
-      return [access, institution, course].filter((entry) => entry !== null);
+      return [access, institution, course, article].filter((entry) => entry !== null);
     }
 
     const registry = [
@@ -108,6 +116,7 @@ export class AppModule {
               access,
               ...(institution === null ? [] : [institution]),
               ...(course === null ? [] : [course]),
+              ...(article === null ? [] : [article]),
             ],
             ports: [
               InstitutionStateGate,
