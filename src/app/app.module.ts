@@ -10,6 +10,7 @@ import { loadAuthConfig } from '@shared/config/environment';
 import { InMemoryDomainEventBus } from '@shared/events/event-bus';
 
 import { AccessModule } from '@modules/access/access.module';
+import { ArticleModule } from '@modules/article/article.module';
 import { CohortModule } from '@modules/cohort/cohort.module';
 import { CourseModule } from '@modules/course/course.module';
 import { EventModule } from '@modules/event/event.module';
@@ -129,8 +130,20 @@ export class AppModule {
         ? TeamModule.forRoot(getPrismaClient(), { imports: [event], events })
         : null;
 
+    // `article` resolve alcance e responsabilidade por `team`, `event` e `course`
+    // (`ADR-0030` §10), e recebe de `team`, pelo barramento, o fato que cria o artigo.
+    const article =
+      active('article') && course !== null && event !== null && team !== null
+        ? ArticleModule.forRoot(getPrismaClient(), {
+            imports: [course, event, team],
+            events,
+          })
+        : null;
+
     if (role !== 'api') {
-      return [access, institution, course, cohort, event, team].filter((entry) => entry !== null);
+      return [access, institution, course, cohort, event, team, article].filter(
+        (entry) => entry !== null,
+      );
     }
 
     const registry = [
@@ -148,6 +161,7 @@ export class AppModule {
               ...(cohort === null ? [] : [cohort]),
               ...(event === null ? [] : [event]),
               ...(team === null ? [] : [team]),
+              ...(article === null ? [] : [article]),
             ],
             ports: [
               InstitutionStateGate,

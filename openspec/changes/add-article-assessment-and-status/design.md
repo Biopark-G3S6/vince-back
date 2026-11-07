@@ -47,6 +47,25 @@ Cada gravação de nota criará uma nova versão histórica dentro da transaçã
 corrente. O intervalo de nota será validado no domínio. Conflitos de atualização usarão versão ou escrita
 condicional, evitando perda silenciosa de uma avaliação.
 
+### D5 — A faixa de nota é premissa declarada, não requisito ratificado
+
+`RF-ART-002` E2 e `RF-ART-003` E2 exigem recusar nota "fora da faixa admitida" sem dizer qual é.
+Fixamos de 0 a 10, com duas casas decimais, em um lugar só: `domain/grade.ts`, com a restrição de
+verificação da migração impondo o mesmo intervalo no banco.
+
+Não é decisão de arquitetura, e por isso não vira ADR: é lacuna da URS que a implementação não pode
+contornar sem escolher. A escolha é a escala corrente nas instituições de origem da elicitação.
+**Alterá-la exige alterar a URS e a migração juntas** — e é por isso que os dois lugares citam um ao
+outro.
+
+### D6 — A publicação externa tem dois tipos, e não texto livre
+
+`RF-ART-004` reconhece "evento científico ou periódico externo", e `RF-ACP-005` RN1 consolida a
+produção por essa distinção. O campo é, portanto, `EVENT` ou `JOURNAL`, com restrição de verificação
+no banco — e não texto livre, que tornaria a consolidação uma heurística sobre o que cada pessoa
+digitou. O que continua fora de escopo é o **catálogo** de veículos (RN1): o nome do veículo é texto,
+porque é ele que não tem catálogo.
+
 ## Risks / Trade-offs
 
 - **Dados de vínculo podem estar eventualmente consistentes** → consultas por fachada com códigos

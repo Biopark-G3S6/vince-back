@@ -1,0 +1,137 @@
+/// Módulo de negócio: situação, avaliação e publicação externa do artigo (ADR-0030).
+
+model Article {
+  id String @id @db.Uuid
+  /// Um artigo por equipe (RE-05). A unicidade é o que torna o consumo de
+  /// `TeamCreated` idempotente sem tabela de controle adicional.
+  teamId        String   @unique @map("team_id") @db.Uuid
+  eventId       String   @map("event_id") @db.Uuid
+  institutionId String   @map("institution_id") @db.Uuid
+  status        String
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  grade          ArticleGrade?
+  memberGrades   MemberGrade[]
+  gradeHistory   ArticleGradeHistory[]
+  memberHistory  MemberGradeHistory[]
+  publications   Publication[]
+
+  @@index([eventId, status])
+  @@index([institutionId, status])
+  @@map("article")
+  @@schema("article")
+}
+
+model ArticleGrade {
+  articleId String   @id @map("article_id") @db.Uuid
+  value     Decimal  @db.Decimal(5, 2)
+  authorId  String   @map("author_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@map("article_grade")
+  @@schema("article")
+}
+
+model MemberGrade {
+  id        String   @id @db.Uuid
+  articleId String   @map("article_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  value     Decimal  @db.Decimal(5, 2)
+  authorId  String   @map("author_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, userId])
+  @@map("member_grade")
+  @@schema("article")
+}
+
+/// Histórico imutável da nota do artigo (ADR-0030 §7). Nunca alterado, nunca removido.
+model ArticleGradeHistory {
+  id         String   @id @db.Uuid
+  articleId  String   @map("article_id") @db.Uuid
+  value      Decimal  @db.Decimal(5, 2)
+  authorId   String   @map("author_id") @db.Uuid
+  recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Restrict)
+
+  @@index([articleId, recordedAt])
+  @@map("article_grade_history")
+  @@schema("article")
+}
+
+/// Histórico imutável das notas individuais, com o instante da participação avaliada.
+model MemberGradeHistory {
+  id         String   @id @db.Uuid
+  articleId  String   @map("article_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  value      Decimal  @db.Decimal(5, 2)
+  authorId   String   @map("author_id") @db.Uuid
+  /// Instantâneo mínimo da participação avaliada (ADR-0030 §15): o vínculo pode ter
+  /// sido encerrado depois, e a nota continua consultável.
+  memberActive Boolean  @map("member_active")
+  recordedAt   DateTime @default(now()) @map("recorded_at") @db.Timestamptz(3)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Restrict)
+
+  @@index([articleId, userId, recordedAt])
+  @@map("member_grade_history")
+  @@schema("article")
+}
+
+model Publication {
+  id          String   @id @db.Uuid
+  articleId   String   @map("article_id") @db.Uuid
+  venue       String
+  kind        String
+  publishedAt DateTime @map("published_at") @db.Timestamptz(3)
+  url         String
+  authorId    String   @map("author_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId, publishedAt])
+  @@map("publication")
+  @@schema("article")
+}
+
+model ArticleProcessedEvent {
+  id          String   @id @db.Uuid
+  eventType   String   @map("event_type")
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([processedAt])
+  @@map("processed_event")
+  @@schema("article")
+}
+
+model ArticleOutbox {
+  id            String    @id @db.Uuid
+  eventType     String    @map("event_type")
+  eventVersion  Int       @map("event_version")
+  payload       Json
+  correlationId String?   @map("correlation_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt   DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts      Int       @default(0)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([publishedAt, createdAt])
+  @@map("outbox")
+  @@schema("article")
+}
