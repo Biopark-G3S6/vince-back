@@ -8,6 +8,9 @@ import type { Cohort } from '../domain/cohort';
 import type { CohortInvitation, Enrollment } from '../domain/enrollment';
 import {
   CohortRepository,
+  type CohortLink,
+  type CohortLinkTarget,
+  type CohortScope,
   type CohortRows,
   type EnrollmentRows,
   type InvitationRows,
@@ -359,5 +362,93 @@ export class PrismaCohortRepository extends CohortRepository {
           totalItems: await this.prisma.cohortInvitation.count({ where: { cohortId } }),
         }
       : { rows: invitations };
+  }
+
+  /**
+   * Os dois vínculos, em duas consultas.
+   *
+   * Conjunto vazio de usuários não vai ao banco: `in: []` devolveria nada e a ida seria
+   * desperdício. Alvo ausente — nem turma, nem curso — também não: perguntar "quem tem
+   * vínculo com coisa alguma" não tem resposta útil, e devolver a tabela inteira seria o
+   * oposto do que se pediu.
+   */
+  async linksOf(target: CohortLinkTarget): Promise<ReadonlyMap<string, CohortLink>> {
+    const userIds = [...target.userIds];
+    const scope =
+      target.cohortId === undefined
+        ? target.courseId === undefined
+          ? null
+          : { cohort: { courseId: target.courseId } }
+        : { cohortId: target.cohortId };
+
+    if (userIds.length === 0 || scope === null) {
+      return new Map();
+    }
+
+    const [enrollments, professors] = await Promise.all([
+      this.prisma.enrollment.findMany({
+        where: { userId: { in: userIds }, status: 'ACTIVE', ...scope },
+        select: { userId: true },
+        distinct: ['userId'],
+      }),
+      this.prisma.cohortProfessor.findMany({
+        where: { userId: { in: userIds }, ...scope },
+        select: { userId: true },
+        distinct: ['userId'],
+      }),
+    ]);
+
+    const enrolled = new Set(enrollments.map((row) => row.userId));
+    const assigned = new Set(professors.map((row) => row.userId));
+    const links = new Map<string, CohortLink>();
+
+    for (const userId of new Set([...enrolled, ...assigned])) {
+      links.set(userId, { enrolled: enrolled.has(userId), professor: assigned.has(userId) });
+    }
+
+    return links;
+  }
+
+  /**
+   * Os vínculos do usuário, com o curso de cada turma.
+   *
+   * Só matrícula **ativa** conta: a matrícula encerrada preserva histórico, e não dá
+   * alcance a evento algum. A designação de professor não tem estado — existe ou não.
+   */
+  async scopesOf(userId: string): Promise<readonly CohortScope[]> {
+    const [enrollments, assignments] = await Promise.all([
+      this.prisma.enrollment.findMany({
+        where: { userId, status: 'ACTIVE' },
+        select: { cohortId: true, cohort: { select: { courseId: true } } },
+      }),
+      this.prisma.cohortProfessor.findMany({
+        where: { userId },
+        select: { cohortId: true, cohort: { select: { courseId: true } } },
+      }),
+    ]);
+
+    const scopes = new Map<string, CohortScope>();
+
+    for (const row of enrollments) {
+      scopes.set(row.cohortId, {
+        cohortId: row.cohortId,
+        courseId: row.cohort.courseId,
+        enrolled: true,
+        professor: false,
+      });
+    }
+
+    for (const row of assignments) {
+      const found = scopes.get(row.cohortId);
+
+      scopes.set(row.cohortId, {
+        cohortId: row.cohortId,
+        courseId: row.cohort.courseId,
+        enrolled: found?.enrolled ?? false,
+        professor: true,
+      });
+    }
+
+    return [...scopes.values()];
   }
 }

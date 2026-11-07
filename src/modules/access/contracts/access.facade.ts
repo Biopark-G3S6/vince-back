@@ -113,4 +113,16 @@ export abstract class AccessFacade {
   abstract listInvitations(query: ListInvitationsQuery): Promise<InvitationPage>;
 
   abstract revokeInvitation(command: RevokeInvitationCommand): Promise<AccessResult<void>>;
+
+  /**
+   * O vínculo institucional de várias contas, em lote (`ADR-0011` §9).
+   *
+   * Existe para o consumidor interno que avalia escopo — `event`, ao decidir quem um
+   * evento de escopo institucional torna elegível (`ADR-0032` §12). Conta inexistente ou
+   * desativada fica **fora** do mapa; o módulo `access` não interpreta o identificador
+   * devolvido, apenas o guarda e o devolve.
+   */
+  abstract institutionLinksOf(
+    userIds: readonly string[],
+  ): Promise<ReadonlyMap<string, string | null>>;
 }

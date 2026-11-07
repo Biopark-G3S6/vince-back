@@ -13,6 +13,7 @@ import { ChangePasswordUseCase } from './application/change-password.use-case';
 import { CreateUserUseCase } from './application/create-user.use-case';
 import { FindRolePermissionsUseCase } from './application/find-role-permissions.use-case';
 import { FindUserProfileUseCase } from './application/find-user-profile.use-case';
+import { FindInstitutionLinksUseCase } from './application/find-institution-links.use-case';
 import { FindInvitationUseCase } from './application/find-invitation.use-case';
 import { IssueInvitationUseCase } from './application/issue-invitation.use-case';
 import { ListInvitationsUseCase } from './application/list-invitations.use-case';
@@ -121,6 +122,7 @@ export class AccessModule {
         AcceptInvitationUseCase,
         CreateUserUseCase,
         FindUserProfileUseCase,
+        FindInstitutionLinksUseCase,
         FindInvitationUseCase,
         IssueInvitationUseCase,
         ListInvitationsUseCase,

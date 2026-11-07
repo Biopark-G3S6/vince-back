@@ -42,5 +42,14 @@ export abstract class CoordinatorRepository {
     actorId: string,
   ): Promise<CoordinatorWriteOutcome>;
   abstract countByUser(userId: string): Promise<number>;
+
+  /**
+   * Os cursos que o usuário coordena. Uma consulta, qualquer que seja a quantidade
+   * (`ADR-0011` §9).
+   *
+   * É a consulta inversa de `findByCourse`, e existe para quem precisa do **alcance** do
+   * coordenador — `event`, ao listar os eventos do curso dele (`ADR-0032` §21).
+   */
+  abstract findByUser(userId: string): Promise<readonly string[]>;
   abstract findAuditByCourse(courseId: string): Promise<readonly CoordinatorAuditEntry[]>;
 }

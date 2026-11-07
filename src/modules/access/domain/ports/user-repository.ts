@@ -47,4 +47,16 @@ export abstract class UserRepository {
    * `RESOURCE_NOT_FOUND` é decisão do caso de uso, não do repositório.
    */
   abstract setActive(id: string, active: boolean): Promise<UserAccount | null>;
+
+  /**
+   * O vínculo institucional de várias contas, em **uma** consulta (`ADR-0011` §9).
+   *
+   * Só conta ativa entra no mapa: quem pergunta é o escopo de outro módulo decidindo
+   * elegibilidade, e conta desativada não é elegível a nada. A ausência da chave,
+   * portanto, significa "não existe ou não está ativa" — e as duas são o mesmo caso para
+   * quem pergunta.
+   */
+  abstract institutionLinksOf(
+    userIds: readonly string[],
+  ): Promise<ReadonlyMap<string, string | null>>;
 }

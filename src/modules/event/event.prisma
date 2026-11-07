@@ -1,0 +1,111 @@
+/// Módulo de negócio: eventos, cronograma de etapas e orientação (ADR-0032).
+
+model Event {
+  id              String   @id @db.Uuid
+  institutionId   String   @map("institution_id") @db.Uuid
+  /// Ancestralidade derivada do alvo (ADR-0032 §9). Nula no escopo institucional.
+  courseId        String?  @map("course_id") @db.Uuid
+  scopeType       String   @map("scope_type")
+  scopeId         String   @map("scope_id") @db.Uuid
+  ownerId         String   @map("owner_id") @db.Uuid
+  title           String
+  theme           String
+  researchProblem String   @map("research_problem")
+  objectives      String
+  maxTeams        Int      @map("max_teams")
+  maxTeamSize     Int      @map("max_team_size")
+  /// Projeção do uso, alimentada pelos fatos de `team` (ADR-0032 §16). Não é a guarda do
+  /// limite: a recusa definitiva acontece na transação de quem possui a equipe (§17).
+  teamsInUse      Int      @default(0) @map("teams_in_use")
+  largestTeamSize Int      @default(0) @map("largest_team_size")
+  status          String
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  milestones Milestone[]
+  advisors   EventAdvisor[]
+  audits     EventAdvisorAudit[]
+
+  @@index([scopeType, scopeId, status])
+  @@index([institutionId, status])
+  @@index([courseId, status])
+  @@index([ownerId, createdAt])
+  @@map("event")
+  @@schema("event")
+}
+
+model Milestone {
+  id        String   @id @db.Uuid
+  eventId   String   @map("event_id") @db.Uuid
+  name      String
+  order     Int
+  dueAt     DateTime @map("due_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, order])
+  @@index([eventId, dueAt])
+  @@map("milestone")
+  @@schema("event")
+}
+
+model EventAdvisor {
+  eventId   String   @map("event_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, userId])
+  @@index([userId, eventId])
+  @@map("event_advisor")
+  @@schema("event")
+}
+
+model EventAdvisorAudit {
+  id        String   @id @db.Uuid
+  eventId   String   @map("event_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  actorId   String   @map("actor_id") @db.Uuid
+  operation String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Restrict)
+
+  @@index([eventId, createdAt])
+  @@index([userId, createdAt])
+  @@map("event_advisor_audit")
+  @@schema("event")
+}
+
+model EventProcessedEvent {
+  id          String   @id @db.Uuid
+  eventType   String   @map("event_type")
+  processedAt  DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([processedAt])
+  @@map("processed_event")
+  @@schema("event")
+}
+
+model EventOutbox {
+  id            String    @id @db.Uuid
+  eventType     String    @map("event_type")
+  eventVersion  Int       @map("event_version")
+  payload       Json
+  correlationId String?   @map("correlation_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt   DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts      Int       @default(0)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([publishedAt, createdAt])
+  @@map("outbox")
+  @@schema("event")
+}

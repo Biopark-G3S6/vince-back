@@ -71,4 +71,14 @@ export class PrismaInstitutionAdminRepository extends InstitutionAdminRepository
   async countByUser(userId: string): Promise<number> {
     return this.prisma.institutionAdmin.count({ where: { userId } });
   }
+
+  async findByUser(userId: string): Promise<readonly string[]> {
+    const rows = await this.prisma.institutionAdmin.findMany({
+      where: { userId },
+      select: { institutionId: true },
+      orderBy: { institutionId: 'asc' },
+    });
+
+    return rows.map((row) => row.institutionId);
+  }
 }

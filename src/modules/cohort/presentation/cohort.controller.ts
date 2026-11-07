@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentSession } from '@shared/auth/request-session';
@@ -51,6 +51,9 @@ export class CohortController {
   }
 
   @Post(':cohortId/deactivation')
+  // Nada é criado: sem isto, o `201` do Nest divergiria do `200` declarado pelo
+  // envelope em OpenAPI (`ADR-0025` §29).
+  @HttpCode(200)
   @RequiresPermission('COHORT:DEACTIVATE')
   @ApiOperation({ summary: 'Desativa a turma de forma idempotente' })
   @ApiEnvelope(CohortResponse)

@@ -112,4 +112,8 @@ export class CourseFacadeImpl extends CourseFacade {
   async coordinatorOf(courseId: string): Promise<string | null> {
     return this.readCoordinator.execute(courseId);
   }
+
+  async coordinatedBy(userId: string): Promise<readonly string[]> {
+    return this.readCoordinator.coursesOf(userId);
+  }
 }

@@ -63,6 +63,9 @@ class SubstituteAccessFacade extends AccessFacade {
     return Promise.resolve({ ok: true, value: undefined });
   }
 
+  institutionLinksOf(): never {
+    return expect.unreachable('não usado');
+  }
   permissionsOfRoles(): never {
     return expect.unreachable('não usado');
   }
@@ -122,6 +125,9 @@ class SubstituteInstitutionFacade extends InstitutionFacade {
   }
 
   statesOf(): never {
+    return expect.unreachable('não usado');
+  }
+  administeredBy(): never {
     return expect.unreachable('não usado');
   }
   create(): never {

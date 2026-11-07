@@ -167,6 +167,24 @@ export class PrismaUserRepository extends UserRepository {
     }
   }
 
+  /**
+   * O vínculo de várias contas em uma consulta (`ADR-0011` §9).
+   *
+   * `active: true` no filtro, e não na projeção: a chave ausente do mapa é a resposta para
+   * conta inexistente **e** para conta desativada, que é exatamente o que quem avalia
+   * elegibilidade precisa saber.
+   */
+  async institutionLinksOf(
+    userIds: readonly string[],
+  ): Promise<ReadonlyMap<string, string | null>> {
+    const rows = await this.prisma.user.findMany({
+      where: { id: { in: [...userIds] }, active: true },
+      select: { id: true, institutionId: true },
+    });
+
+    return new Map(rows.map((row) => [row.id, row.institutionId]));
+  }
+
   async setActive(id: string, active: boolean): Promise<UserAccount | null> {
     try {
       const row = await this.prisma.user.update({

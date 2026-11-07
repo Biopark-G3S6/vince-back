@@ -28,6 +28,7 @@ import { FindInstitutionUseCase } from './find-institution.use-case';
 import { ListInstitutionsUseCase } from './list-institutions.use-case';
 import { ListInvitationsUseCase } from './list-invitations.use-case';
 import { IssueInvitationUseCase } from './issue-invitation.use-case';
+import { ReadAdminLinksUseCase } from './read-admin-links.use-case';
 import { ReadInstitutionStateUseCase } from './read-institution-state.use-case';
 import { SetInstitutionActiveUseCase } from './set-institution-active.use-case';
 import { RevokeInvitationUseCase } from './revoke-invitation.use-case';
@@ -76,6 +77,7 @@ export class InstitutionFacadeImpl extends InstitutionFacade {
     private readonly issueInvitationUseCase: IssueInvitationUseCase,
     private readonly listInvitationsUseCase: ListInvitationsUseCase,
     private readonly revokeInvitationUseCase: RevokeInvitationUseCase,
+    private readonly adminLinks: ReadAdminLinksUseCase,
   ) {
     super();
   }
@@ -144,5 +146,9 @@ export class InstitutionFacadeImpl extends InstitutionFacade {
     institutionIds: readonly string[],
   ): Promise<ReadonlyMap<string, InstitutionStateDto>> {
     return this.states.executeMany(institutionIds);
+  }
+
+  async administeredBy(userId: string): Promise<readonly string[]> {
+    return this.adminLinks.execute(userId);
   }
 }

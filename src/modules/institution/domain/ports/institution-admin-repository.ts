@@ -28,4 +28,13 @@ export abstract class InstitutionAdminRepository {
    * que o justifique. Uma consulta, e não uma por instituição (`ADR-0011` §13).
    */
   abstract countByUser(userId: string): Promise<number>;
+
+  /**
+   * As instituições que o usuário administra. Uma consulta, qualquer que seja a
+   * quantidade (`ADR-0011` §9).
+   *
+   * Existe para quem precisa do **alcance** do administrador institucional — `event`, ao
+   * listar os eventos da instituição dele (`ADR-0032` §21).
+   */
+  abstract findByUser(userId: string): Promise<readonly string[]>;
 }

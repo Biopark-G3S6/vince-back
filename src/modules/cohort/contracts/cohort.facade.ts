@@ -1,8 +1,12 @@
 import type {
   CohortDto,
+  CohortLinkDto,
+  CohortLinkQuery,
   CohortInvitationDto,
   CohortInvitationPageDto,
   CohortPageDto,
+  CohortScopeDto,
+  CohortStateDto,
   CohortQuery,
   CreateCohortCommand,
   EnrollmentCommand,
@@ -49,4 +53,25 @@ export abstract class CohortFacade {
   ): Promise<CohortResult<CohortInvitationPageDto>>;
   abstract revokeInvitation(command: RevokeCohortInvitationCommand): Promise<CohortResult<void>>;
   abstract handleInvitationAccepted(event: InvitationAcceptedEvent): Promise<void>;
+
+  /** Existência, estado, curso e instituição da turma. Não falha por inexistência. */
+  abstract stateOf(cohortId: string): Promise<CohortStateDto>;
+
+  /**
+   * O vínculo de vários usuários com a turma, ou com qualquer turma do curso, em lote.
+   *
+   * Executa em número de consultas **independente da quantidade** de identificadores
+   * informados (`ADR-0011` §9). Usuário ausente do mapa não tem vínculo algum.
+   */
+  abstract linksOf(query: CohortLinkQuery): Promise<ReadonlyMap<string, CohortLinkDto>>;
+
+  /**
+   * As turmas a que o usuário está ligado — por matrícula ativa ou por designação —, com
+   * o curso de cada uma.
+   *
+   * É a consulta inversa de `linksOf`, e existe para quem resolve o **alcance** do ator
+   * sem conhecer de antemão as turmas a perguntar (`ADR-0032` §21). Duas consultas,
+   * qualquer que seja a quantidade de vínculos.
+   */
+  abstract scopesOf(userId: string): Promise<readonly CohortScopeDto[]>;
 }

@@ -91,4 +91,13 @@ export abstract class InstitutionFacade {
   abstract statesOf(
     institutionIds: readonly string[],
   ): Promise<ReadonlyMap<string, InstitutionStateDto>>;
+
+  /**
+   * As instituições que o usuário administra — a consulta inversa de `assignAdmin`.
+   *
+   * Existe para o consumidor que avalia escopo: o papel `INSTITUTION_ADMIN` diz o que a
+   * pessoa pode fazer, e é este vínculo que diz **onde** (RF-INS-002 RN2). Lista vazia
+   * quando ela não administra nenhuma.
+   */
+  abstract administeredBy(userId: string): Promise<readonly string[]>;
 }

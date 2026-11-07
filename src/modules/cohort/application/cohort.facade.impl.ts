@@ -2,9 +2,13 @@ import { Injectable } from '@nestjs/common';
 
 import type {
   CohortDto,
+  CohortLinkDto,
+  CohortLinkQuery,
   CohortInvitationDto,
   CohortInvitationPageDto,
   CohortPageDto,
+  CohortScopeDto,
+  CohortStateDto,
   CohortQuery,
   CreateCohortCommand,
   EnrollmentCommand,
@@ -28,6 +32,7 @@ import { ConsumeInvitationAcceptedUseCase } from './consume-invitation-accepted.
 import { CreateCohortUseCase } from './create-cohort.use-case';
 import { DeactivateCohortUseCase } from './deactivate-cohort.use-case';
 import { EnrollStudentUseCase } from './enroll-student.use-case';
+import { FindCohortLinksUseCase } from './find-cohort-links.use-case';
 import { FindCohortUseCase } from './find-cohort.use-case';
 import { IssueInvitationUseCase } from './issue-invitation.use-case';
 import { ListCohortsUseCase } from './list-cohorts.use-case';
@@ -71,6 +76,7 @@ export class CohortFacadeImpl extends CohortFacade {
     private readonly listInvitationsUseCase: ListInvitationsUseCase,
     private readonly revokeInvitationUseCase: RevokeInvitationUseCase,
     private readonly consumeInvitationAccepted: ConsumeInvitationAcceptedUseCase,
+    private readonly cohortLinks: FindCohortLinksUseCase,
   ) {
     super();
   }
@@ -144,5 +150,17 @@ export class CohortFacadeImpl extends CohortFacade {
 
   async handleInvitationAccepted(event: InvitationAcceptedEvent): Promise<void> {
     await this.consumeInvitationAccepted.execute(event);
+  }
+
+  async stateOf(cohortId: string): Promise<CohortStateDto> {
+    return this.cohortLinks.stateOf(cohortId);
+  }
+
+  async linksOf(query: CohortLinkQuery): Promise<ReadonlyMap<string, CohortLinkDto>> {
+    return this.cohortLinks.linksOf(query);
+  }
+
+  async scopesOf(userId: string): Promise<readonly CohortScopeDto[]> {
+    return this.cohortLinks.scopesOf(userId);
   }
 }

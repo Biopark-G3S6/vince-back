@@ -12,6 +12,7 @@ import { InMemoryDomainEventBus } from '@shared/events/event-bus';
 import { AccessModule } from '@modules/access/access.module';
 import { CohortModule } from '@modules/cohort/cohort.module';
 import { CourseModule } from '@modules/course/course.module';
+import { EventModule } from '@modules/event/event.module';
 import { InstitutionModule } from '@modules/institution/institution.module';
 
 import {
@@ -104,8 +105,23 @@ export class AppModule {
           })
         : null;
 
+    // `event` depende do alvo e da elegibilidade mantidos por `institution`, `course` e
+    // `cohort`, e das contas de `access` (`ADR-0032` §12). Sem os quatro não há a quem
+    // perguntar pelo escopo — daí a conjunção.
+    const event =
+      active('event') &&
+      access !== null &&
+      institution !== null &&
+      course !== null &&
+      cohort !== null
+        ? EventModule.forRoot(getPrismaClient(), {
+            imports: [access, institution, course, cohort],
+            events,
+          })
+        : null;
+
     if (role !== 'api') {
-      return [access, institution, course, cohort].filter((entry) => entry !== null);
+      return [access, institution, course, cohort, event].filter((entry) => entry !== null);
     }
 
     const registry = [
@@ -121,6 +137,7 @@ export class AppModule {
               ...(institution === null ? [] : [institution]),
               ...(course === null ? [] : [course]),
               ...(cohort === null ? [] : [cohort]),
+              ...(event === null ? [] : [event]),
             ],
             ports: [
               InstitutionStateGate,
