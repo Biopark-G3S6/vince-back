@@ -18,10 +18,19 @@ export interface InvitationRows {
   readonly totalItems?: number;
 }
 
-export interface CohortLinkTarget {
-  readonly userIds: readonly string[];
+/** O alvo de uma consulta de escopo: a turma, ou qualquer turma do curso. */
+export interface CohortScopeTarget {
   readonly cohortId?: string;
   readonly courseId?: string;
+}
+
+export interface CohortLinkTarget extends CohortScopeTarget {
+  readonly userIds: readonly string[];
+}
+
+export interface StudentRows {
+  readonly rows: readonly string[];
+  readonly totalItems?: number;
 }
 
 export interface CohortScope {
@@ -75,4 +84,7 @@ export abstract class CohortRepository {
    * por relação (`ADR-0011` §9).
    */
   abstract scopesOf(userId: string): Promise<readonly CohortScope[]>;
+
+  /** Os alunos com matrícula ativa no alvo, uma página por consulta. */
+  abstract studentsOf(target: CohortScopeTarget, request: PageRequest): Promise<StudentRows>;
 }

@@ -112,7 +112,7 @@ caso de uso, SHALL usar envelope e paginação da API e SHALL constar da especif
 #### Scenario: Orientador não designado
 
 - **WHEN** professor não orientador chama endpoint restrito de equipe
-- **THEN** a resposta tem status HTTP `403` e código `ADVISOR_NOT_ASSIGNED_TO_EVENT`
+- **THEN** a resposta tem status HTTP `422` e código `ADVISOR_NOT_ASSIGNED_TO_EVENT`
 
 #### Scenario: Aluno não elegível
 

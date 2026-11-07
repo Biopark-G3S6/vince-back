@@ -7,6 +7,7 @@ import type {
   CohortPageDto,
   CohortScopeDto,
   CohortStateDto,
+  CohortStudentQuery,
   CohortQuery,
   CreateCohortCommand,
   EnrollmentCommand,
@@ -20,6 +21,8 @@ import type {
   RevokeCohortInvitationCommand,
   UpdateCohortCommand,
 } from './cohort.dto';
+import type { Page } from '@shared/http/pagination';
+
 import type { CohortResult } from './result.dto';
 
 export interface InvitationAcceptedEvent {
@@ -74,4 +77,12 @@ export abstract class CohortFacade {
    * qualquer que seja a quantidade de vínculos.
    */
   abstract scopesOf(userId: string): Promise<readonly CohortScopeDto[]>;
+
+  /**
+   * Os alunos com matrícula ativa no alvo, paginados.
+   *
+   * Enumera o escopo — distinto de `linksOf`, que confere um conjunto já conhecido. Uma
+   * consulta por página (`ADR-0011` §6).
+   */
+  abstract studentsOf(query: CohortStudentQuery): Promise<Page<string>>;
 }

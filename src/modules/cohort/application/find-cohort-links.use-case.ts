@@ -2,11 +2,14 @@ import { Injectable } from '@nestjs/common';
 
 import { CourseFacade } from '@modules/course/contracts/course.facade';
 
+import { toPage, type Page } from '@shared/http/pagination';
+
 import type {
   CohortLinkDto,
   CohortLinkQuery,
   CohortScopeDto,
   CohortStateDto,
+  CohortStudentQuery,
 } from '../contracts/cohort.dto';
 import { CohortRepository } from '../domain/ports/cohort-repository';
 
@@ -53,5 +56,11 @@ export class FindCohortLinksUseCase {
 
   async scopesOf(userId: string): Promise<readonly CohortScopeDto[]> {
     return this.cohorts.scopesOf(userId);
+  }
+
+  async studentsOf(query: CohortStudentQuery): Promise<Page<string>> {
+    const rows = await this.cohorts.studentsOf(query, query.request);
+
+    return toPage(query.request, rows.rows, rows.totalItems);
   }
 }

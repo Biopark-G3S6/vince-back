@@ -63,6 +63,9 @@ class SubstituteAccessFacade extends AccessFacade {
     return Promise.resolve({ ok: true, value: undefined });
   }
 
+  listByRole(): never {
+    return expect.unreachable('não usado');
+  }
   institutionLinksOf(): never {
     return expect.unreachable('não usado');
   }

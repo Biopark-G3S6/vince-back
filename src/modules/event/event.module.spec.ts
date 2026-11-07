@@ -96,6 +96,10 @@ class SubstituteAccessFacade extends AccessFacade {
     return expect.unreachable('o módulo `event` não usa esta operação de `access`');
   }
 
+  listByRole(): never {
+    return expect.unreachable('o módulo `event` não usa esta operação de `access`');
+  }
+
   permissionsOfRoles(): never {
     return expect.unreachable('o módulo `event` não usa esta operação de `access`');
   }
@@ -296,6 +300,10 @@ class SubstituteCohortFacade extends CohortFacade {
     }
 
     return Promise.resolve(found);
+  }
+
+  studentsOf(): never {
+    return expect.unreachable('o escopo de turma do teste não enumera alunos');
   }
 
   scopesOf(userId: string): Promise<readonly CohortScopeDto[]> {

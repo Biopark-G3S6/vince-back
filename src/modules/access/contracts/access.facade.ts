@@ -16,10 +16,13 @@ import type {
   ListInvitationsQuery,
   RevokeInvitationCommand,
 } from './invitation.dto';
+import type { Page } from '@shared/http/pagination';
+
 import type { AccessResult } from './result.dto';
 import type { RolePermissionsQuery, RolePermissionsResult } from './role-permissions.dto';
 import type {
   CreateUserCommand,
+  RoleMembershipQuery,
   EffectivePermissionsQuery,
   EffectivePermissionsResult,
   OwnProfileQuery,
@@ -125,4 +128,14 @@ export abstract class AccessFacade {
   abstract institutionLinksOf(
     userIds: readonly string[],
   ): Promise<ReadonlyMap<string, string | null>>;
+
+  /**
+   * As contas ativas de um papel na instituição, paginadas (`ADR-0011` §6).
+   *
+   * Enumera o escopo para o consumidor interno que precisa percorrê-lo —
+   * `event`, ao listar os alunos elegíveis de um evento institucional (`RF-EQP-006`). Não
+   * é CRUD administrativo de usuário: não há rota que a exponha, e nenhuma permissão a
+   * autoriza (`ADR-0014` §7).
+   */
+  abstract listByRole(query: RoleMembershipQuery): Promise<Page<string>>;
 }

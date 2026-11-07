@@ -1,3 +1,5 @@
+import type { PageRequest } from '@shared/http/pagination';
+
 /**
  * DTOs da conta de usuário e do seu perfil.
  *
@@ -75,6 +77,18 @@ export interface RoleAssignmentCommand {
   readonly actorId?: string | null;
   readonly userId: string;
   readonly roleCode: string;
+}
+
+/**
+ * A enumeração das contas de um papel na instituição (`RF-EQP-006`).
+ *
+ * Paginada por obrigação: a quantidade de alunos de uma instituição não tem cota natural
+ * (`ADR-0025` §21, `ADR-0011` §6).
+ */
+export interface RoleMembershipQuery {
+  readonly institutionId: string;
+  readonly roleCode: string;
+  readonly request: PageRequest;
 }
 
 export interface EffectivePermissionsQuery {

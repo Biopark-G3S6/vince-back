@@ -129,6 +129,17 @@ export interface TeamUsageEvent {
   readonly occurredAt: Date;
 }
 
+/**
+ * A enumeração dos alunos elegíveis ao evento, paginada (`RF-EQP-006`).
+ *
+ * Distinta de `EligibilityQuery`, que confere um conjunto conhecido: aqui o evento
+ * **percorre** o seu escopo, pedindo a página ao módulo dono do vínculo.
+ */
+export interface EligibleStudentQuery {
+  readonly eventId: string;
+  readonly request: PageRequest;
+}
+
 export type EventPageDto = Page<EventDto>;
 export type MilestonePageDto = Page<MilestoneDto>;
 export type AdvisorPageDto = Page<AdvisorDto>;

@@ -24,8 +24,11 @@ import type {
   RolePermissionsQuery,
   RolePermissionsResult,
 } from '../contracts/role-permissions.dto';
+import type { Page } from '@shared/http/pagination';
+
 import type {
   CreateUserCommand,
+  RoleMembershipQuery,
   EffectivePermissionsQuery,
   EffectivePermissionsResult,
   OwnProfileQuery,
@@ -46,6 +49,7 @@ import { FindRolePermissionsUseCase } from './find-role-permissions.use-case';
 import { FindUserProfileUseCase } from './find-user-profile.use-case';
 import { IssueInvitationUseCase } from './issue-invitation.use-case';
 import { ListInvitationsUseCase } from './list-invitations.use-case';
+import { ListRoleMembersUseCase } from './list-role-members.use-case';
 import { RequestPasswordResetUseCase } from './request-password-reset.use-case';
 import { ResetPasswordUseCase } from './reset-password.use-case';
 import { RevokeInvitationUseCase } from './revoke-invitation.use-case';
@@ -83,6 +87,7 @@ export class AccessFacadeImpl extends AccessFacade {
     private readonly listInvitationsUseCase: ListInvitationsUseCase,
     private readonly revokeInvitationUseCase: RevokeInvitationUseCase,
     private readonly findInstitutionLinks: FindInstitutionLinksUseCase,
+    private readonly listRoleMembers: ListRoleMembersUseCase,
   ) {
     super();
   }
@@ -201,6 +206,10 @@ export class AccessFacadeImpl extends AccessFacade {
     userIds: readonly string[],
   ): Promise<ReadonlyMap<string, string | null>> {
     return this.findInstitutionLinks.execute(userIds);
+  }
+
+  async listByRole(query: RoleMembershipQuery): Promise<Page<string>> {
+    return this.listRoleMembers.execute(query);
   }
 }
 

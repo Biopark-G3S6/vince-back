@@ -1,3 +1,5 @@
+import type { PageRequest } from '@shared/http/pagination';
+
 import type { UserAccount } from '../user';
 
 /**
@@ -11,6 +13,11 @@ import type { UserAccount } from '../user';
 export interface UserAccountWithRoles {
   readonly account: UserAccount;
   readonly roleCodes: readonly string[];
+}
+
+export interface AccountIdRows {
+  readonly rows: readonly string[];
+  readonly totalItems?: number;
 }
 
 /** O que a criação grava, já validado e normalizado pelo domínio. */
@@ -59,4 +66,18 @@ export abstract class UserRepository {
   abstract institutionLinksOf(
     userIds: readonly string[],
   ): Promise<ReadonlyMap<string, string | null>>;
+
+  /**
+   * As contas ativas de um papel na instituição, paginadas.
+   *
+   * Existe para quem precisa **enumerar** o escopo, e não apenas conferir um vínculo
+   * conhecido: é o caso de um evento de escopo institucional, que lista os seus alunos
+   * elegíveis (`RF-EQP-006`). A ordem é estável por identificador, porque a paginação sem
+   * ordem total devolve a mesma linha em duas páginas.
+   */
+  abstract listByRole(
+    institutionId: string,
+    roleCode: string,
+    request: PageRequest,
+  ): Promise<AccountIdRows>;
 }

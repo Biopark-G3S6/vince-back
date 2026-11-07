@@ -732,8 +732,24 @@ describe('módulo access', () => {
     });
 
     it('a fachada não expõe operação que liste ou remova conta de terceiro', () => {
+      /**
+       * As duas exceções, e por que não ferem a regra.
+       *
+       * `listInvitations` lista convites, que não são contas.
+       *
+       * `listByRole` lista **identificadores** das contas ativas de um papel na
+       * instituição, e existe porque `RF-EQP-006` exige enumerar o escopo de um evento
+       * institucional — permissão sem requisito é o que `ADR-0014` §7 proíbe, e aqui o
+       * requisito existe. Não devolve nome nem e-mail, nenhuma rota a alcança e nenhuma
+       * permissão a autoriza: é operação de consumidor interno, como `createUser`.
+       *
+       * O que a regra continua barrando é o que não apareceu aqui: remover, buscar ou
+       * listar o **perfil** de terceiro.
+       */
+      const internalConsumerOperations = new Set(['listInvitations', 'listByRole']);
+
       for (const name of surfaceOf(facade)) {
-        if (name !== 'listInvitations') {
+        if (!internalConsumerOperations.has(name)) {
           expect(name).not.toMatch(/^(list|delete|remove|findAll|search)/i);
         }
       }

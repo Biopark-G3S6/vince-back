@@ -12,6 +12,7 @@ import { EventFacadeImpl } from './application/event.facade.impl';
 import { EventScope } from './application/event-scope';
 import { FindEventUseCase } from './application/find-event.use-case';
 import { ListAdvisorsUseCase } from './application/list-advisors.use-case';
+import { ListEligibleStudentsUseCase } from './application/list-eligible-students.use-case';
 import { ListEventsUseCase } from './application/list-events.use-case';
 import { ListMilestonesUseCase } from './application/list-milestones.use-case';
 import { ReadEventStateUseCase } from './application/read-event-state.use-case';
@@ -53,6 +54,7 @@ export class EventModule {
         { provide: EventRepository, useClass: PrismaEventRepository },
         EventScope,
         CreateEventUseCase,
+        ListEligibleStudentsUseCase,
         ListEventsUseCase,
         FindEventUseCase,
         UpdateEventUseCase,

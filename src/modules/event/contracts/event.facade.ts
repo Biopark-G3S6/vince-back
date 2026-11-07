@@ -4,6 +4,7 @@ import type {
   CreateEventCommand,
   CreateMilestoneCommand,
   EligibilityQuery,
+  EligibleStudentQuery,
   EventDto,
   EventPageDto,
   EventQuery,
@@ -18,6 +19,8 @@ import type {
   UpdateEventCommand,
   UpdateMilestoneCommand,
 } from './event.dto';
+import type { Page } from '@shared/http/pagination';
+
 import type { EventResult } from './result.dto';
 
 /**
@@ -59,12 +62,32 @@ export abstract class EventFacade {
   abstract isAdvisor(eventId: string, userId: string): Promise<boolean>;
 
   /**
+   * O ator é dono do escopo deste evento?
+   *
+   * É a pergunta de `RF-EQP-005`, que reserva ao dono do escopo a nomeação do responsável
+   * por cada equipe. A propriedade desce a hierarquia — quem administra a instituição é
+   * dono de tudo dentro dela —, e só o módulo `event` sabe resolvê-la, porque é ele que
+   * guarda o escopo e a sua ancestralidade.
+   */
+  abstract isScopeOwner(eventId: string, userId: string): Promise<boolean>;
+
+  /**
    * Quais destes usuários o escopo do evento torna elegíveis (RF-EVT-001 RN2)?
    *
    * Em lote, e em número de consultas independente da quantidade de identificadores
    * (`ADR-0032` §13). Usuário ausente do mapa não é elegível.
    */
   abstract eligibilityOf(query: EligibilityQuery): Promise<ReadonlyMap<string, boolean>>;
+
+  /**
+   * Os alunos que o escopo do evento torna elegíveis, paginados.
+   *
+   * Uma consulta por página, qualquer que seja o tamanho do escopo (`ADR-0011` §6). Não
+   * desconta quem já integra equipe: isso é fato do módulo que possui a equipe, e
+   * perguntá-lo aqui fecharia o ciclo que `ADR-0005` §6 proíbe. Evento inexistente
+   * devolve página vazia.
+   */
+  abstract eligibleStudentsOf(query: EligibleStudentQuery): Promise<Page<string>>;
 
   /** A etapa corrente do cronograma, ou `null`. Leitura para a vertical do artigo. */
   abstract currentMilestoneOf(eventId: string): Promise<MilestoneDto | null>;

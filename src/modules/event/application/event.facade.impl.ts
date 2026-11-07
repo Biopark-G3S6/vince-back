@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common';
 
+import type { Page } from '@shared/http/pagination';
+
 import type {
   AdvisorCommand,
   AdvisorPageDto,
   CreateEventCommand,
   CreateMilestoneCommand,
   EligibilityQuery,
+  EligibleStudentQuery,
   EventDto,
   EventPageDto,
   EventQuery,
@@ -32,6 +35,7 @@ import { CreateEventUseCase } from './create-event.use-case';
 import { CreateMilestoneUseCase } from './create-milestone.use-case';
 import { FindEventUseCase } from './find-event.use-case';
 import { ListAdvisorsUseCase } from './list-advisors.use-case';
+import { ListEligibleStudentsUseCase } from './list-eligible-students.use-case';
 import { ListEventsUseCase } from './list-events.use-case';
 import { ListMilestonesUseCase } from './list-milestones.use-case';
 import { ReadEventStateUseCase } from './read-event-state.use-case';
@@ -96,6 +100,7 @@ export class EventFacadeImpl extends EventFacade {
     private readonly listAdvisorsUseCase: ListAdvisorsUseCase,
     private readonly eventState: ReadEventStateUseCase,
     private readonly consumeTeamUsage: ConsumeTeamUsageUseCase,
+    private readonly listEligibleStudents: ListEligibleStudentsUseCase,
   ) {
     super();
   }
@@ -168,8 +173,16 @@ export class EventFacadeImpl extends EventFacade {
     return this.eventState.isAdvisor(eventId, userId);
   }
 
+  async isScopeOwner(eventId: string, userId: string): Promise<boolean> {
+    return this.eventState.isScopeOwner(eventId, userId);
+  }
+
   async eligibilityOf(query: EligibilityQuery): Promise<ReadonlyMap<string, boolean>> {
     return this.eventState.eligibilityOf(query.eventId, query.userIds);
+  }
+
+  async eligibleStudentsOf(query: EligibleStudentQuery): Promise<Page<string>> {
+    return this.listEligibleStudents.execute(query);
   }
 
   async currentMilestoneOf(eventId: string): Promise<MilestoneDto | null> {

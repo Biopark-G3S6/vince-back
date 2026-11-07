@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
+import type { Page } from '@shared/http/pagination';
+
 import type {
   CohortDto,
   CohortLinkDto,
@@ -9,6 +11,7 @@ import type {
   CohortPageDto,
   CohortScopeDto,
   CohortStateDto,
+  CohortStudentQuery,
   CohortQuery,
   CreateCohortCommand,
   EnrollmentCommand,
@@ -162,5 +165,9 @@ export class CohortFacadeImpl extends CohortFacade {
 
   async scopesOf(userId: string): Promise<readonly CohortScopeDto[]> {
     return this.cohortLinks.scopesOf(userId);
+  }
+
+  async studentsOf(query: CohortStudentQuery): Promise<Page<string>> {
+    return this.cohortLinks.studentsOf(query);
   }
 }

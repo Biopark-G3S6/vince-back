@@ -123,6 +123,18 @@ export interface CohortScopeDto {
   readonly professor: boolean;
 }
 
+/**
+ * A enumeração dos alunos matriculados no alvo, paginada (`RF-EQP-006`).
+ *
+ * `cohortId` pergunta pela turma; `courseId`, por qualquer turma do curso. Paginada por
+ * obrigação: a quantidade de matrículas de um curso não tem cota natural.
+ */
+export interface CohortStudentQuery {
+  readonly cohortId?: string;
+  readonly courseId?: string;
+  readonly request: PageRequest;
+}
+
 export type CohortPageDto = Page<CohortDto>;
 export type EnrollmentPageDto = Page<EnrollmentDto>;
 export type CohortInvitationPageDto = Page<CohortInvitationDto>;

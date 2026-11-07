@@ -1,0 +1,122 @@
+/// Módulo de negócio: equipes, integrantes, convites e responsabilidade (ADR-0033).
+
+model Team {
+  id             String   @id @db.Uuid
+  eventId        String   @map("event_id") @db.Uuid
+  institutionId  String   @map("institution_id") @db.Uuid
+  identification String
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  members     TeamMember[]
+  invitations TeamInvitation[]
+  advisors    TeamAdvisor[]
+  audits      TeamAdvisorAudit[]
+
+  @@unique([eventId, identification])
+  @@index([eventId, createdAt])
+  @@map("team")
+  @@schema("team")
+}
+
+model TeamMember {
+  id String @id @db.Uuid
+  /// O evento viaja junto da equipe: é por ele que a unicidade de participação é
+  /// garantida, e buscá-lo na equipe a cada escrita exigiria junção no índice.
+  eventId   String    @map("event_id") @db.Uuid
+  teamId    String    @map("team_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  status    String
+  joinedAt  DateTime  @default(now()) @map("joined_at") @db.Timestamptz(3)
+  leftAt    DateTime? @map("left_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Restrict)
+
+  @@index([teamId, status])
+  @@index([eventId, status])
+  @@index([userId, status])
+  @@map("team_member")
+  @@schema("team")
+}
+
+model TeamInvitation {
+  id        String   @id @db.Uuid
+  eventId   String   @map("event_id") @db.Uuid
+  teamId    String   @map("team_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  status    String
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Restrict)
+
+  @@index([teamId, createdAt])
+  @@index([userId, status])
+  @@map("team_invitation")
+  @@schema("team")
+}
+
+model TeamAdvisor {
+  id        String    @id @db.Uuid
+  teamId    String    @map("team_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  status    String
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId, status])
+  @@index([userId, status])
+  @@map("team_advisor")
+  @@schema("team")
+}
+
+model TeamAdvisorAudit {
+  id        String   @id @db.Uuid
+  teamId    String   @map("team_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  actorId   String   @map("actor_id") @db.Uuid
+  operation String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Restrict)
+
+  @@index([teamId, createdAt])
+  @@index([userId, createdAt])
+  @@map("team_advisor_audit")
+  @@schema("team")
+}
+
+model TeamProcessedEvent {
+  id          String   @id @db.Uuid
+  eventType   String   @map("event_type")
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([processedAt])
+  @@map("processed_event")
+  @@schema("team")
+}
+
+model TeamOutbox {
+  id            String    @id @db.Uuid
+  eventType     String    @map("event_type")
+  eventVersion  Int       @map("event_version")
+  payload       Json
+  correlationId String?   @map("correlation_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt   DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts      Int       @default(0)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([publishedAt, createdAt])
+  @@map("outbox")
+  @@schema("team")
+}

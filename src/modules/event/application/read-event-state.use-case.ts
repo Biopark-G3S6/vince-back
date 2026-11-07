@@ -61,6 +61,12 @@ export class ReadEventStateUseCase {
     return this.events.hasAdvisor(eventId, userId);
   }
 
+  async isScopeOwner(eventId: string, userId: string): Promise<boolean> {
+    const event = await this.events.findById(eventId);
+
+    return event === null ? false : this.scope.ownsEvent(userId, event);
+  }
+
   async eligibilityOf(
     eventId: string,
     userIds: readonly string[],

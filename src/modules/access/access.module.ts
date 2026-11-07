@@ -17,6 +17,7 @@ import { FindInstitutionLinksUseCase } from './application/find-institution-link
 import { FindInvitationUseCase } from './application/find-invitation.use-case';
 import { IssueInvitationUseCase } from './application/issue-invitation.use-case';
 import { ListInvitationsUseCase } from './application/list-invitations.use-case';
+import { ListRoleMembersUseCase } from './application/list-role-members.use-case';
 import { RequestPasswordResetUseCase } from './application/request-password-reset.use-case';
 import { ResetPasswordUseCase } from './application/reset-password.use-case';
 import { RevokeInvitationUseCase } from './application/revoke-invitation.use-case';
@@ -126,6 +127,7 @@ export class AccessModule {
         FindInvitationUseCase,
         IssueInvitationUseCase,
         ListInvitationsUseCase,
+        ListRoleMembersUseCase,
         UpdateUserProfileUseCase,
         SetUserActiveUseCase,
         AssignRoleUseCase,

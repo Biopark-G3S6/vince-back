@@ -47,6 +47,21 @@ todas as regras no aceite, não apenas na emissão.
 fatos para `article`. Nenhum módulo consumidor será necessário para concluir a transação de `team`; falha
 de projeção será retentada e enviada à DLQ conforme `ADR-0012` e `ADR-0021`.
 
+### D5 — Status do código de orientação não designada
+
+A spec desta mudança pedia `403` para `ADVISOR_NOT_ASSIGNED_TO_EVENT`; o catálogo executável de
+`src/shared/http/response-code.ts`, derivado da URS §2.4, o publica como `422`. Mantemos `422` e
+corrigimos a spec.
+
+O motivo é a divisão de `ADR-0014` §11 e §12, que `ADR-0025` §29 traduz em status: a borda decide
+**autorização** pela permissão do catálogo — negá-la é `403`, com `PERMISSION_DENIED` —, e o caso de
+uso decide **titularidade**, cuja violação é regra de negócio, logo `422`. O mesmo código ainda serve
+a `RF-EQP-005` E1, em que o professor recusado é o **nomeado** e não o ator: ali `403` seria
+francamente errado, porque o ator está autorizado. Um código, um status: `422` é o que cabe aos dois
+casos.
+
+Alterar o catálogo seria o caminho oposto, e `ADR-0025` §8 o desautoriza para código já publicado.
+
 ## Risks / Trade-offs
 
 - **Artigo pode ficar temporariamente ausente após equipe criada** → outbox na mesma transação,

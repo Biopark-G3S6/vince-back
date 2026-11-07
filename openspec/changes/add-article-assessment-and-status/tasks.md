@@ -1,8 +1,8 @@
 ## 1. Pré-requisitos arquiteturais
 
-- [ ] 1.1 Registrar em `vince-docs` o ADR do módulo `article`, declarando artigo, avaliações, histórico e publicação externa; verificar o índice de ADRs.
+- [x] 1.1 Registrar em `vince-docs` o ADR do módulo `article`, declarando artigo, avaliações, histórico e publicação externa; verificar o índice de ADRs.
 - [ ] 1.2 Confirmar contratos de `team`/`event` para criação inicial, leitura de etapa e verificação de alcance; verificar ausência de junções entre schemas.
-- [ ] 1.3 Conferir permissões `ARTICLE:*`, `PUBLICATION:*` e códigos de validação na URS; verificar os catálogos antes da implementação.
+- [x] 1.3 Conferir permissões `ARTICLE:*`, `PUBLICATION:*` e códigos de validação na URS; verificar os catálogos antes da implementação.
 
 ## 2. Persistência e domínio
 

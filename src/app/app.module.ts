@@ -13,6 +13,7 @@ import { AccessModule } from '@modules/access/access.module';
 import { CohortModule } from '@modules/cohort/cohort.module';
 import { CourseModule } from '@modules/course/course.module';
 import { EventModule } from '@modules/event/event.module';
+import { TeamModule } from '@modules/team/team.module';
 import { InstitutionModule } from '@modules/institution/institution.module';
 
 import {
@@ -120,8 +121,16 @@ export class AppModule {
           })
         : null;
 
+    // `team` depende apenas de `event`: estado, limites, orientação e elegibilidade vêm
+    // todos de lá (`ADR-0033` §12). A dependência é de mão única — o que volta ao evento
+    // são fatos, pelo barramento.
+    const team =
+      active('team') && event !== null
+        ? TeamModule.forRoot(getPrismaClient(), { imports: [event], events })
+        : null;
+
     if (role !== 'api') {
-      return [access, institution, course, cohort, event].filter((entry) => entry !== null);
+      return [access, institution, course, cohort, event, team].filter((entry) => entry !== null);
     }
 
     const registry = [
@@ -138,6 +147,7 @@ export class AppModule {
               ...(course === null ? [] : [course]),
               ...(cohort === null ? [] : [cohort]),
               ...(event === null ? [] : [event]),
+              ...(team === null ? [] : [team]),
             ],
             ports: [
               InstitutionStateGate,

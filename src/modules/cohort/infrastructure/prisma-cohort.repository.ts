@@ -11,6 +11,8 @@ import {
   type CohortLink,
   type CohortLinkTarget,
   type CohortScope,
+  type CohortScopeTarget,
+  type StudentRows,
   type CohortRows,
   type EnrollmentRows,
   type InvitationRows,
@@ -450,5 +452,49 @@ export class PrismaCohortRepository extends CohortRepository {
     }
 
     return [...scopes.values()];
+  }
+
+  /**
+   * Os alunos matriculados no alvo, uma página por consulta.
+   *
+   * `distinct` sobre o usuário porque o alvo por curso pode alcançar mais de uma turma do
+   * mesmo aluno; a ordem é por identificador, porque paginação sem ordem total devolve a
+   * mesma linha em duas páginas.
+   */
+  async studentsOf(target: CohortScopeTarget, request: PageRequest): Promise<StudentRows> {
+    const scope =
+      target.cohortId === undefined
+        ? target.courseId === undefined
+          ? null
+          : { cohort: { courseId: target.courseId } }
+        : { cohortId: target.cohortId };
+
+    if (scope === null) {
+      return { rows: [] };
+    }
+
+    const where = { status: 'ACTIVE', ...scope } as const;
+    const rows = await this.prisma.enrollment.findMany({
+      where,
+      select: { userId: true },
+      distinct: ['userId'],
+      orderBy: { userId: 'asc' },
+      skip: offsetOf(request),
+      take: takeOf(request),
+    });
+    const ids = rows.map((row) => row.userId);
+
+    return request.withTotal
+      ? {
+          rows: ids,
+          totalItems: (
+            await this.prisma.enrollment.findMany({
+              where,
+              select: { userId: true },
+              distinct: ['userId'],
+            })
+          ).length,
+        }
+      : { rows: ids };
   }
 }
