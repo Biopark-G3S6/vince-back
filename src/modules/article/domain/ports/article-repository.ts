@@ -109,6 +109,26 @@ export interface RemarkData {
   readonly actorId: string;
 }
 
+export interface ArticleProgressRecord {
+  readonly article: Article;
+  readonly latestSubmissionAutomatic: boolean | null;
+  readonly latestSubmissionAt: Date | null;
+  readonly latestSubmissionMilestoneOrder: number | null;
+  readonly pendingRemarkCount: number;
+  readonly lastEditedAt: Date;
+  readonly consecutiveAutomaticSubmissions: number;
+  readonly editedMemberIds: readonly string[];
+  readonly articleGrade: number | null;
+  readonly memberGrades: Readonly<Record<string, number>>;
+  readonly externalPublicationCount: number;
+}
+
+export interface ArticleCorpusRecord {
+  readonly article: Article;
+  readonly references: readonly ArticleReference[];
+  readonly citations: readonly ArticleCitation[];
+}
+
 export abstract class ArticleRepository {
   abstract createTemplate(data: TemplateCreateData): Promise<Template>;
   abstract listTemplates(
@@ -131,10 +151,23 @@ export abstract class ArticleRepository {
 
   abstract createArticle(data: ArticleCreateData): Promise<Article>;
   abstract findArticle(id: string): Promise<Article | null>;
+  abstract listProgress(
+    filters: {
+      readonly advisorId?: string;
+      readonly courseId?: string;
+      readonly institutionId?: string;
+    },
+    request: PageRequest,
+  ): Promise<Page<ArticleProgressRecord>>;
+  abstract listSimilarityCorpus(
+    institutionId: string,
+    excludeArticleId: string,
+  ): Promise<readonly ArticleCorpusRecord[]>;
   abstract saveArticleContent(
     id: string,
     content: JsonValue,
     status: Article['status'],
+    formatProfile?: JsonValue,
   ): Promise<Article | null>;
   abstract updateArticleStatus(id: string, status: Article['status']): Promise<Article | null>;
   abstract upsertPresence(
@@ -142,6 +175,26 @@ export abstract class ArticleRepository {
     userId: string,
     cursor: JsonValue,
   ): Promise<readonly ArticlePresence[]>;
+
+  abstract createAssessment(data: {
+    readonly articleId: string;
+    readonly memberId: string | null;
+    readonly score: number;
+    readonly evaluatedBy: string;
+  }): Promise<ArticleAssessment>;
+  abstract listAssessments(articleId: string): Promise<readonly ArticleAssessment[]>;
+  abstract createPublication(data: PublicationData): Promise<ExternalPublication>;
+  abstract listPublications(articleId: string): Promise<readonly ExternalPublication[]>;
+  abstract updatePublication(
+    data: Partial<PublicationData> & {
+      readonly id: string;
+      readonly articleId: string;
+      readonly updatedBy: string;
+    },
+  ): Promise<ExternalPublication | null>;
+  abstract deletePublication(articleId: string, id: string): Promise<boolean>;
+  abstract findPublication(articleId: string, id: string): Promise<ExternalPublication | null>;
+  abstract countPublications(courseId: string, periodStart: Date, periodEnd: Date): Promise<number>;
 
   abstract createReference(data: ReferenceData): Promise<ArticleReference>;
   abstract listReferences(articleId: string): Promise<readonly ArticleReference[]>;
@@ -152,6 +205,7 @@ export abstract class ArticleRepository {
   abstract deleteReference(articleId: string, referenceId: string): Promise<boolean>;
   abstract referenceHasCitations(articleId: string, referenceId: string): Promise<boolean>;
   abstract createCitation(data: CitationData): Promise<ArticleCitation>;
+  abstract listCitations(articleId: string): Promise<readonly ArticleCitation[]>;
 
   abstract createVersion(data: VersionData): Promise<ArticleVersion>;
   abstract listVersions(articleId: string): Promise<readonly ArticleVersion[]>;
@@ -182,6 +236,37 @@ export abstract class ArticleRepository {
   ): Promise<ArticleRemark | null>;
   abstract hasOpenRemarks(articleId: string): Promise<boolean>;
   abstract hasRemarksForSubmission(submissionId: string): Promise<boolean>;
+}
+
+export interface ArticleAssessment {
+  readonly id: string;
+  readonly articleId: string;
+  readonly memberId: string | null;
+  readonly score: number;
+  readonly evaluatedBy: string;
+  readonly createdAt: Date;
+}
+export interface ExternalPublication {
+  readonly id: string;
+  readonly articleId: string;
+  readonly venueName: string;
+  readonly kind: string;
+  readonly publicationDate: Date;
+  readonly url: string;
+  readonly createdBy: string;
+  readonly updatedBy: string;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+}
+export interface PublicationData {
+  readonly id: string;
+  readonly articleId: string;
+  readonly venueName: string;
+  readonly kind: string;
+  readonly publicationDate: Date;
+  readonly url: string;
+  readonly createdBy: string;
+  readonly updatedBy: string;
 }
 
 export interface ReferenceDataPick {

@@ -110,6 +110,7 @@ export class SaveContentUseCase {
       command.articleId,
       command.content,
       nextStatus,
+      command.formatProfile,
     );
 
     if (saved === null) {
@@ -122,7 +123,10 @@ export class SaveContentUseCase {
       kind: VERSION_KIND.AUTOSAVE,
       content: command.content,
       authorId: command.actorId,
-      metadata: { baseVersionId: command.baseVersionId ?? null },
+      metadata: {
+        baseVersionId: command.baseVersionId ?? null,
+        ...(command.formatProfile === undefined ? {} : { formatProfile: command.formatProfile }),
+      },
     });
 
     return ok(saved);

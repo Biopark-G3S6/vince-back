@@ -236,6 +236,7 @@ export class ArticleController {
           actorId: session.state.userId,
           articleId,
           content: input.content as JsonValue,
+          formatProfile: input.formatProfile as JsonValue | undefined,
           baseVersionId: input.baseVersionId,
         }),
       ),

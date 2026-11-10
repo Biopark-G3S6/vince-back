@@ -11,6 +11,7 @@ import { AssignRoleUseCase } from './application/assign-role.use-case';
 import { ChangePasswordUseCase } from './application/change-password.use-case';
 import { CreateUserUseCase } from './application/create-user.use-case';
 import { FindRolePermissionsUseCase } from './application/find-role-permissions.use-case';
+import { FindNotificationRecipientsUseCase } from './application/find-notification-recipients.use-case';
 import { FindUserProfileUseCase } from './application/find-user-profile.use-case';
 import { FindInvitationUseCase } from './application/find-invitation.use-case';
 import { IssueInvitationUseCase } from './application/issue-invitation.use-case';
@@ -113,6 +114,7 @@ export class AccessModule {
           useClass: PrismaRoleAssignmentAuditRepository,
         },
         FindRolePermissionsUseCase,
+        FindNotificationRecipientsUseCase,
         AcceptInvitationUseCase,
         CreateUserUseCase,
         FindUserProfileUseCase,

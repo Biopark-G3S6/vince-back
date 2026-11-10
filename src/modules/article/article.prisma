@@ -79,13 +79,15 @@ model Article {
   createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt                DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  templateVersion ArticleTemplateVersion? @relation(fields: [templateVersionId], references: [id])
+  templateVersion ArticleTemplateVersion?    @relation(fields: [templateVersionId], references: [id])
   references      ArticleReference[]
   citations       ArticleCitation[]
   versions        ArticleVersion[]
   submissions     ArticleSubmission[]
   remarks         ArticleRemark[]
   presence        ArticlePresence[]
+  assessments     ArticleAssessmentHistory[]
+  publications    ExternalPublication[]
 
   @@index([institutionId, eventId])
   @@index([courseId])
@@ -216,5 +218,39 @@ model ArticlePresence {
 
   @@id([articleId, userId])
   @@map("article_presence")
+  @@schema("article")
+}
+
+model ArticleAssessmentHistory {
+  id          String   @id @db.Uuid
+  articleId   String   @map("article_id") @db.Uuid
+  memberId    String?  @map("member_id") @db.Uuid
+  score       Float
+  evaluatedBy String   @map("evaluated_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId, memberId, createdAt])
+  @@map("article_assessment_history")
+  @@schema("article")
+}
+
+model ExternalPublication {
+  id              String   @id @db.Uuid
+  articleId       String   @map("article_id") @db.Uuid
+  venueName       String   @map("venue_name")
+  kind            String
+  publicationDate DateTime @map("publication_date") @db.Date
+  url             String
+  createdBy       String   @map("created_by") @db.Uuid
+  updatedBy       String   @map("updated_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId, publicationDate])
+  @@map("external_publication")
   @@schema("article")
 }

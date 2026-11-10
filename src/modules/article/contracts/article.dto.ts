@@ -136,6 +136,84 @@ export interface ArticlePresenceDto {
   readonly updatedAt: Date;
 }
 
+export interface ArticleAssessmentDto {
+  readonly id: string;
+  readonly articleId: string;
+  readonly memberId: string | null;
+  readonly score: number;
+  readonly evaluatedBy: string;
+  readonly createdAt: Date;
+}
+
+export interface ExternalPublicationDto {
+  readonly id: string;
+  readonly articleId: string;
+  readonly venueName: string;
+  readonly kind: string;
+  readonly publicationDate: Date;
+  readonly url: string;
+  readonly createdBy: string;
+  readonly updatedBy: string;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+}
+
+export interface GradeCommand extends ArticleQuery {
+  readonly score: number;
+  readonly memberId?: string;
+}
+export interface PublicationCommand extends ArticleQuery {
+  readonly venueName: string;
+  readonly kind: 'CONFERENCE' | 'JOURNAL' | 'OTHER';
+  readonly publicationDate: Date;
+  readonly url: string;
+}
+export interface PublicationQuery extends ArticleQuery {
+  readonly publicationId: string;
+}
+export interface UpdatePublicationCommand extends PublicationQuery {
+  readonly venueName?: string;
+  readonly kind?: 'CONFERENCE' | 'JOURNAL' | 'OTHER';
+  readonly publicationDate?: Date;
+  readonly url?: string;
+}
+
+/** Leitura em lote consumida por acompanhamento e relatórios. */
+export interface ArticleProgressDto {
+  readonly articleId: string;
+  readonly institutionId: string;
+  readonly courseId: string | null;
+  readonly eventId: string;
+  readonly teamId: string;
+  readonly advisorId: string | null;
+  readonly memberIds: readonly string[];
+  readonly status: ArticleStatus;
+  readonly currentMilestoneId: string | null;
+  readonly currentMilestoneOrder: number | null;
+  readonly currentMilestoneDeadline: Date | null;
+  readonly lastMilestoneOrder: number | null;
+  readonly latestSubmissionAutomatic: boolean | null;
+  readonly latestSubmissionAt: Date | null;
+  readonly latestSubmissionMilestoneOrder: number | null;
+  readonly pendingRemarkCount: number;
+  readonly lastEditedAt: Date;
+  readonly consecutiveAutomaticSubmissions: number;
+  readonly editedMemberIds: readonly string[];
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+  readonly articleGrade: number | null;
+  readonly memberGrades: Readonly<Record<string, number>>;
+  readonly externalPublicationCount: number;
+}
+
+/** Texto estruturado do acervo interno, devolvido somente a consumidor confiável. */
+export interface ArticleCorpusEntryDto {
+  readonly articleId: string;
+  readonly content: JsonValue;
+  readonly references: readonly ArticleReferenceDto[];
+  readonly citations: readonly ArticleCitationDto[];
+}
+
 export interface ActorCommand {
   readonly actorId: string;
 }
@@ -175,6 +253,14 @@ export interface ArticleQuery extends ActorCommand {
   readonly articleId: string;
 }
 
+export interface ArticleProgressQuery extends ActorCommand {
+  readonly request: PageRequest;
+  readonly courseId?: string;
+  readonly scope: 'advisor' | 'course' | 'institution';
+}
+
+export type ArticleCorpusQuery = ArticleQuery;
+
 export interface CreateArticleCommand extends ActorCommand {
   readonly institutionId?: string;
   readonly courseId?: string | null;
@@ -191,6 +277,8 @@ export interface CreateArticleCommand extends ActorCommand {
 
 export interface SaveContentCommand extends ArticleQuery {
   readonly content: JsonValue;
+  /** Medidas efetivamente observadas pelo editor para tornar a análise de formatação verificável. */
+  readonly formatProfile?: JsonValue;
   readonly baseVersionId?: string;
 }
 
