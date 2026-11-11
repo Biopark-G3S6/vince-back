@@ -1,0 +1,65 @@
+model Notification {
+  id            String         @id @db.Uuid
+  recipientId   String         @map("recipient_id") @db.Uuid
+  eventId       String         @map("event_id") @db.Uuid
+  type          String
+  targetType    String         @map("target_type")
+  targetId      String         @map("target_id") @db.Uuid
+  data          Json           @db.JsonB
+  readAt        DateTime?      @map("read_at") @db.Timestamptz(3)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  emailDelivery EmailDelivery?
+
+  @@unique([eventId, recipientId])
+  @@index([recipientId, readAt, createdAt])
+  @@index([targetType, targetId])
+  @@map("notification")
+  @@schema("notification")
+}
+
+model NotificationEmailPreference {
+  userId    String   @map("user_id") @db.Uuid
+  type      String
+  enabled   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@id([userId, type])
+  @@map("notification_email_preference")
+  @@schema("notification")
+}
+
+model EmailDelivery {
+  id             String    @id @db.Uuid
+  notificationId String    @unique @map("notification_id") @db.Uuid
+  status         String
+  attempts       Int       @default(0)
+  nextAttemptAt  DateTime? @map("next_attempt_at") @db.Timestamptz(3)
+  lastErrorCode  String?   @map("last_error_code")
+  sentAt         DateTime? @map("sent_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextAttemptAt])
+  @@map("email_delivery")
+  @@schema("notification")
+}
+
+model NotificationOutbox {
+  id              String    @id @db.Uuid
+  type            String
+  contractVersion Int       @map("contract_version")
+  payload         Json      @db.JsonB
+  correlationId   String?   @map("correlation_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt     DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts        Int       @default(0)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([publishedAt, createdAt])
+  @@map("notification_outbox")
+  @@schema("notification")
+}

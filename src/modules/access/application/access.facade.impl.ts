@@ -32,6 +32,7 @@ import type {
   RoleAssignmentCommand,
   UpdateOwnProfileCommand,
   UserProfileDto,
+  NotificationRecipientDto,
   UserStateCommand,
 } from '../contracts/user.dto';
 import type { Result } from '../domain/failure';
@@ -41,6 +42,7 @@ import { AssignRoleUseCase } from './assign-role.use-case';
 import { ChangePasswordUseCase } from './change-password.use-case';
 import { CreateUserUseCase } from './create-user.use-case';
 import { FindRolePermissionsUseCase } from './find-role-permissions.use-case';
+import { FindNotificationRecipientsUseCase } from './find-notification-recipients.use-case';
 import { FindUserProfileUseCase } from './find-user-profile.use-case';
 import { FindInvitationUseCase } from './find-invitation.use-case';
 import { IssueInvitationUseCase } from './issue-invitation.use-case';
@@ -81,12 +83,19 @@ export class AccessFacadeImpl extends AccessFacade {
     private readonly acceptInvitationUseCase: AcceptInvitationUseCase,
     private readonly listInvitationsUseCase: ListInvitationsUseCase,
     private readonly revokeInvitationUseCase: RevokeInvitationUseCase,
+    private readonly findNotificationRecipientsUseCase: FindNotificationRecipientsUseCase,
   ) {
     super();
   }
 
   async permissionsOfRoles(query: RolePermissionsQuery): Promise<RolePermissionsResult> {
     return { permissions: await this.findRolePermissions.execute(query.roleCodes) };
+  }
+
+  async findNotificationRecipients(
+    userIds: readonly string[],
+  ): Promise<readonly NotificationRecipientDto[]> {
+    return this.findNotificationRecipientsUseCase.execute(userIds);
   }
 
   async createUser(command: CreateUserCommand): Promise<AccessResult<UserProfileDto>> {

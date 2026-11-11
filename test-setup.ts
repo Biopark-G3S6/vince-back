@@ -38,7 +38,17 @@ process.env.LOG_LEVEL = 'silent';
 const poolId = process.env.VITEST_POOL_ID ?? '1';
 
 /** Os schemas que as migrações criam. Truncados entre testes e removidos ao final. */
-const MODULE_SCHEMAS = ['access', 'institution', 'course', 'cohort'];
+const MODULE_SCHEMAS = [
+  'access',
+  'institution',
+  'course',
+  'cohort',
+  'article',
+  'discussion',
+  'notification',
+  'assistance',
+  'progress',
+];
 
 const MIGRATIONS_DIR = join('prisma', 'migrations');
 

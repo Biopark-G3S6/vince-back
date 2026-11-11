@@ -6,13 +6,23 @@ import { CredentialVerifier } from '@shared/auth/credential-verifier';
 import { IdentityResolver } from '@shared/auth/identity';
 import { InstitutionAccess } from '@shared/auth/institution-access';
 import { RedisSessionStore } from '@shared/auth/redis-session-store';
-import { loadAuthConfig } from '@shared/config/environment';
+import {
+  loadAssistanceConfig,
+  loadAuthConfig,
+  loadNotificationEmailConfig,
+  loadProgressRiskConfig,
+} from '@shared/config/environment';
 import { InMemoryDomainEventBus } from '@shared/events/event-bus';
 
 import { AccessModule } from '@modules/access/access.module';
+import { ArticleModule } from '@modules/article/article.module';
 import { CohortModule } from '@modules/cohort/cohort.module';
 import { CourseModule } from '@modules/course/course.module';
 import { InstitutionModule } from '@modules/institution/institution.module';
+import { DiscussionModule } from '@modules/discussion/discussion.module';
+import { NotificationModule } from '@modules/notification/notification.module';
+import { AssistanceModule } from '@modules/assistance/assistance.module';
+import { ProgressModule } from '@modules/progress/progress.module';
 
 import {
   AccessCredentialVerifier,
@@ -62,6 +72,9 @@ export class AppModule {
     // A configuração é lida uma vez, aqui: a aplicação recusa subir com variável ausente,
     // e recusa antes de abrir conexão com coisa alguma.
     const config = loadAuthConfig();
+    const assistanceConfig = loadAssistanceConfig();
+    const notificationEmailConfig = loadNotificationEmailConfig();
+    const progressRiskConfig = loadProgressRiskConfig();
 
     // `getPrismaClient()` e `getRedisClient()` devolvem as instâncias únicas do
     // processo (ADR-0010 §7, ADR-0020 §4); cada módulo recebe delas a sua extensão
@@ -104,8 +117,70 @@ export class AppModule {
           })
         : null;
 
+    const notification =
+      active('notification') && access !== null
+        ? NotificationModule.forRoot(getPrismaClient(), {
+            imports: [access],
+            runWorker: role === 'worker',
+            emailConfig: notificationEmailConfig,
+          })
+        : null;
+
+    const article =
+      active('article') && access !== null && institution !== null && course !== null
+        ? ArticleModule.forRoot(getPrismaClient(), {
+            imports: [
+              access,
+              institution,
+              course,
+              ...(notification === null ? [] : [notification]),
+            ],
+          })
+        : null;
+
+    const discussion =
+      active('discussion') && article !== null && notification !== null
+        ? DiscussionModule.forRoot(getPrismaClient(), {
+            imports: [article, notification],
+            runWorker: role === 'worker',
+          })
+        : null;
+
+    const assistance =
+      active('assistance') && access !== null && institution !== null && article !== null
+        ? AssistanceModule.forRoot(getPrismaClient(), {
+            imports: [access, institution, article],
+            configuration: assistanceConfig,
+          })
+        : null;
+
+    const progress =
+      active('progress') &&
+      access !== null &&
+      course !== null &&
+      article !== null &&
+      notification !== null &&
+      discussion !== null &&
+      assistance !== null
+        ? ProgressModule.forRoot(getPrismaClient(), {
+            imports: [access, course, article, notification, discussion, assistance],
+            runWorker: role === 'worker',
+            riskConfig: progressRiskConfig,
+          })
+        : null;
+
     if (role !== 'api') {
-      return [access, institution, course, cohort].filter((entry) => entry !== null);
+      return [
+        access,
+        institution,
+        course,
+        cohort,
+        article,
+        notification,
+        discussion,
+        assistance,
+        progress,
+      ].filter((entry) => entry !== null);
     }
 
     const registry = [
@@ -121,6 +196,11 @@ export class AppModule {
               ...(institution === null ? [] : [institution]),
               ...(course === null ? [] : [course]),
               ...(cohort === null ? [] : [cohort]),
+              ...(article === null ? [] : [article]),
+              ...(notification === null ? [] : [notification]),
+              ...(discussion === null ? [] : [discussion]),
+              ...(assistance === null ? [] : [assistance]),
+              ...(progress === null ? [] : [progress]),
             ],
             ports: [
               InstitutionStateGate,

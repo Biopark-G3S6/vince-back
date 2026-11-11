@@ -18,6 +18,14 @@ export interface UserProfileDto {
   readonly roleCodes: readonly string[];
 }
 
+/** Dados mínimos para renderizar correio ao próprio destinatário (`ADR-0026` §18). */
+export interface NotificationRecipientDto {
+  readonly userId: string;
+  readonly email: string;
+  readonly preferredLanguage: string | null;
+  readonly active: boolean;
+}
+
 /**
  * A criação de conta pelos fluxos internos — carga inicial, RF-TUR-003 e RF-TUR-005.
  *
