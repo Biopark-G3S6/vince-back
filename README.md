@@ -7,6 +7,8 @@ Monolito modular em NestJS. As decisões de arquitetura que governam este reposi
 > Divergência entre este código e os ADRs é **defeito**, não estilo. Alterar uma regra exige
 > reescrever o ADR correspondente, nunca contorná-lo.
 
+Veja também o [resumo dos padrões de projeto GoF](PADROES-DE-PROJETO-GOF.md), com exemplos do código.
+
 ## Começando
 
 ```bash
