@@ -12,9 +12,11 @@ import {
   loadNotificationEmailConfig,
   loadProgressRiskConfig,
 } from '@shared/config/environment';
+import { InMemoryDomainEventBus } from '@shared/events/event-bus';
 
 import { AccessModule } from '@modules/access/access.module';
 import { ArticleModule } from '@modules/article/article.module';
+import { CohortModule } from '@modules/cohort/cohort.module';
 import { CourseModule } from '@modules/course/course.module';
 import { InstitutionModule } from '@modules/institution/institution.module';
 import { DiscussionModule } from '@modules/discussion/discussion.module';
@@ -83,12 +85,14 @@ export class AppModule {
     // Uma única instância do repositório de sessões no processo: a borda a usa para
     // resolver a sessão, e o módulo `access`, para revogá-las na troca de senha.
     const sessions = new RedisSessionStore(getRedisClient(), config.session);
+    const events = new InMemoryDomainEventBus();
 
     const access = active('access')
       ? AccessModule.forRoot(getPrismaClient(), getRedisClient(), {
           passwordHashing: config.passwordHashing,
           passwordResetTtlSeconds: config.passwordResetTtlSeconds,
           sessions,
+          events,
         })
       : null;
 
@@ -103,6 +107,14 @@ export class AppModule {
     const course =
       active('course') && access !== null && institution !== null
         ? CourseModule.forRoot(getPrismaClient(), { imports: [access, institution] })
+        : null;
+
+    const cohort =
+      active('cohort') && access !== null && institution !== null && course !== null
+        ? CohortModule.forRoot(getPrismaClient(), {
+            imports: [access, institution, course],
+            events,
+          })
         : null;
 
     const notification =
@@ -162,6 +174,7 @@ export class AppModule {
         access,
         institution,
         course,
+        cohort,
         article,
         notification,
         discussion,
@@ -182,6 +195,7 @@ export class AppModule {
               access,
               ...(institution === null ? [] : [institution]),
               ...(course === null ? [] : [course]),
+              ...(cohort === null ? [] : [cohort]),
               ...(article === null ? [] : [article]),
               ...(notification === null ? [] : [notification]),
               ...(discussion === null ? [] : [discussion]),

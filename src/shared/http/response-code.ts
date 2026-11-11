@@ -43,6 +43,7 @@ export const RESPONSE_CODE_CATALOG = {
   INVITATION_REVOKED: { severity: 'error', httpStatus: 422 },
   INVITATION_LIMIT_REACHED: { severity: 'error', httpStatus: 422 },
   STUDENT_ALREADY_ENROLLED: { severity: 'error', httpStatus: 409 },
+  COHORT_ALREADY_EXISTS: { severity: 'error', httpStatus: 409 },
   COORDINATOR_ALREADY_ASSIGNED: { severity: 'error', httpStatus: 409 },
   EVENT_SCOPE_NOT_ALLOWED: { severity: 'error', httpStatus: 422 },
   EVENT_TEAM_LIMIT_REACHED: { severity: 'error', httpStatus: 422 },

@@ -22,6 +22,8 @@ export interface IssueInvitationInput {
   readonly targetEmail?: string | null;
   readonly expiresAt?: Date;
   readonly maxUses?: number | null;
+  readonly scopeType?: string | null;
+  readonly scopeId?: string | null;
 }
 
 export interface IssuedInvitation {
@@ -95,6 +97,8 @@ export class IssueInvitationUseCase {
         actorId: input.actorId,
         expiresAt: input.expiresAt as Date,
         maxUses: input.maxUses ?? null,
+        scopeType: input.scopeType ?? null,
+        scopeId: input.scopeId ?? null,
       },
       {
         id: uuidv7(),

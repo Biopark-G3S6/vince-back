@@ -1,5 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { v7 as uuidv7 } from 'uuid';
+
+import { DomainEventBus } from '@shared/events/event-bus';
 
 import {
   hashInvitationToken,
@@ -38,6 +40,7 @@ export class AcceptInvitationUseCase {
   constructor(
     private readonly invitations: InvitationRepository,
     private readonly hasher: PasswordHasher,
+    @Optional() private readonly events?: DomainEventBus,
   ) {}
 
   async execute(input: AcceptInvitationInput): Promise<Result<AcceptedInvitation>> {
@@ -117,6 +120,22 @@ export class AcceptInvitationUseCase {
         case 'EXPIRED':
           return fail(FAILURE.INVITATION_EXPIRED);
       }
+    }
+
+    if (invitation.scopeType !== null && invitation.scopeId !== null && outcome.ok) {
+      await this.events?.publish({
+        type: 'InvitationAccepted',
+        payload: {
+          eventId: uuidv7(),
+          invitationId: invitation.id,
+          userId: outcome.account.account.id,
+          roleCode: invitation.roleCode,
+          institutionId: invitation.institutionId,
+          scopeType: invitation.scopeType,
+          scopeId: invitation.scopeId,
+          occurredAt: new Date(),
+        },
+      });
     }
 
     return ok({

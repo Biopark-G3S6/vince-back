@@ -14,5 +14,5 @@ datasource db {
   url      = env("DATABASE_URL")
 
   // Um schema por módulo. Acrescente aqui ao criar um módulo com dados próprios.
-  schemas = ["access", "institution", "course", "article", "discussion", "notification", "assistance", "progress", "observabilidade"]
+  schemas = ["access", "institution", "course", "cohort", "article", "discussion", "notification", "assistance", "progress", "observabilidade"]
 }

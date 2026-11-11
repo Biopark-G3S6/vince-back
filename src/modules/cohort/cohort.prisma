@@ -1,0 +1,116 @@
+/// Módulo de negócio: turmas, matrículas e ingresso (ADR-0031).
+
+model Cohort {
+  id             String   @id @db.Uuid
+  courseId       String   @map("course_id") @db.Uuid
+  identification String
+  term           String
+  startsAt       DateTime @map("starts_at") @db.Timestamptz(3)
+  endsAt         DateTime @map("ends_at") @db.Timestamptz(3)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  professors  CohortProfessor[]
+  enrollments Enrollment[]
+  invitations CohortInvitation[]
+  audits      CohortProfessorAudit[]
+
+  @@unique([courseId, term, identification])
+  @@index([courseId, active])
+  @@index([courseId, startsAt])
+  @@map("cohort")
+  @@schema("cohort")
+}
+
+model CohortProfessor {
+  cohortId  String   @map("cohort_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  cohort Cohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+
+  @@id([cohortId, userId])
+  @@index([userId, cohortId])
+  @@map("cohort_professor")
+  @@schema("cohort")
+}
+
+model CohortProfessorAudit {
+  id        String   @id @db.Uuid
+  cohortId  String   @map("cohort_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  actorId   String   @map("actor_id") @db.Uuid
+  operation String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  cohort Cohort @relation(fields: [cohortId], references: [id], onDelete: Restrict)
+
+  @@index([cohortId, createdAt])
+  @@index([userId, createdAt])
+  @@map("cohort_professor_audit")
+  @@schema("cohort")
+}
+
+model Enrollment {
+  id        String   @id @db.Uuid
+  cohortId  String   @map("cohort_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  status    String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  cohort Cohort @relation(fields: [cohortId], references: [id], onDelete: Restrict)
+
+  @@index([cohortId, status, createdAt])
+  @@index([userId, status])
+  @@map("enrollment")
+  @@schema("cohort")
+}
+
+model CohortInvitation {
+  id           String   @id @db.Uuid
+  invitationId String   @unique @map("invitation_id") @db.Uuid
+  cohortId     String   @map("cohort_id") @db.Uuid
+  professorId  String   @map("professor_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  cohort Cohort @relation(fields: [cohortId], references: [id], onDelete: Restrict)
+
+  @@index([cohortId, createdAt])
+  @@index([professorId, createdAt])
+  @@map("cohort_invitation")
+  @@schema("cohort")
+}
+
+model ProcessedEvent {
+  id          String   @id @db.Uuid
+  eventType   String   @map("event_type")
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([eventType, id])
+  @@index([processedAt])
+  @@map("processed_event")
+  @@schema("cohort")
+}
+
+model CohortOutbox {
+  id            String    @id @db.Uuid
+  eventType     String    @map("event_type")
+  eventVersion  Int       @map("event_version")
+  payload       Json
+  correlationId String?   @map("correlation_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt   DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts      Int       @default(0)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([publishedAt, createdAt])
+  @@map("outbox")
+  @@schema("cohort")
+}

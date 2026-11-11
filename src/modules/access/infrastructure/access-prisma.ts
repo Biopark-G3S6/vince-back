@@ -26,6 +26,7 @@ export const OWNED_MODELS = [
   'passwordCredential',
   'invitation',
   'invitationAudit',
+  'accessOutbox',
 ] as const;
 
 export type OwnedModel = (typeof OWNED_MODELS)[number];
@@ -87,6 +88,7 @@ export abstract class AccessPrisma {
   abstract readonly passwordCredential: ScopedClient['passwordCredential'];
   abstract readonly invitation: ScopedClient['invitation'];
   abstract readonly invitationAudit: ScopedClient['invitationAudit'];
+  abstract readonly accessOutbox: ScopedClient['accessOutbox'];
 
   abstract transaction<T>(
     run: (tx: AccessModels) => Promise<T>,
@@ -111,6 +113,7 @@ export function createAccessPrisma(prisma: PrismaClient): AccessPrisma {
     passwordCredential: scoped.passwordCredential,
     invitation: scoped.invitation,
     invitationAudit: scoped.invitationAudit,
+    accessOutbox: scoped.accessOutbox,
 
     transaction: (run, options) =>
       scoped.$transaction(
@@ -125,6 +128,7 @@ export function createAccessPrisma(prisma: PrismaClient): AccessPrisma {
             passwordCredential: tx.passwordCredential,
             invitation: tx.invitation,
             invitationAudit: tx.invitationAudit,
+            accessOutbox: tx.accessOutbox,
           }),
         {
           timeout: options?.timeoutMs ?? DEFAULT_TIMEOUT_MS,
