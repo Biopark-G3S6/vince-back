@@ -2,6 +2,12 @@ import { Module, type DynamicModule, type ModuleMetadata } from '@nestjs/common'
 import type { PrismaClient } from '@prisma/client';
 
 import { ArticleFacadeImpl } from './application/article.facade.impl';
+import {
+  ListArticleCitationsUseCase,
+  ListArticleProgressUseCase,
+  ListSystemArticleProgressUseCase,
+  ListSimilarityCorpusUseCase,
+} from './application/analysis-read.use-cases';
 import { ArticleScope } from './application/article-scope';
 import {
   ApplyFormatUseCase,
@@ -49,6 +55,16 @@ import { ArticleRepository } from './domain/ports/article-repository';
 import { ArticlePrisma, createArticlePrisma } from './infrastructure/article-prisma';
 import { PrismaArticleRepository } from './infrastructure/prisma-article.repository';
 import { ArticleController } from './presentation/article.controller';
+import { AssessmentPublicationController } from './presentation/assessment-publication.controller';
+import {
+  CountSystemPublicationsUseCase,
+  CreatePublicationUseCase,
+  DeletePublicationUseCase,
+  ListGradesUseCase,
+  ListPublicationsUseCase,
+  RecordGradeUseCase,
+  UpdatePublicationUseCase,
+} from './application/assessment-publication.use-cases';
 
 export interface ArticleModuleOptions {
   readonly imports: ModuleMetadata['imports'];
@@ -60,7 +76,7 @@ export class ArticleModule {
     return {
       module: ArticleModule,
       imports: options.imports,
-      controllers: [ArticleController],
+      controllers: [ArticleController, AssessmentPublicationController],
       providers: [
         { provide: ArticlePrisma, useValue: createArticlePrisma(prisma) },
         { provide: ArticleRepository, useClass: PrismaArticleRepository },
@@ -73,6 +89,17 @@ export class ArticleModule {
         SelectTemplateUseCase,
         CreateArticleUseCase,
         FindArticleUseCase,
+        ListArticleProgressUseCase,
+        ListSystemArticleProgressUseCase,
+        ListSimilarityCorpusUseCase,
+        ListArticleCitationsUseCase,
+        RecordGradeUseCase,
+        ListGradesUseCase,
+        CreatePublicationUseCase,
+        ListPublicationsUseCase,
+        UpdatePublicationUseCase,
+        DeletePublicationUseCase,
+        CountSystemPublicationsUseCase,
         SaveContentUseCase,
         MarkPresenceUseCase,
         CreateReferenceUseCase,

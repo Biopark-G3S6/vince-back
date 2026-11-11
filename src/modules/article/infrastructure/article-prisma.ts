@@ -11,6 +11,8 @@ const OWNED_MODELS = [
   'articleSubmission',
   'articleRemark',
   'articlePresence',
+  'articleAssessmentHistory',
+  'externalPublication',
 ] as const;
 const OWNED = new Set<string>(OWNED_MODELS);
 
@@ -63,6 +65,8 @@ export abstract class ArticlePrisma {
   abstract readonly articleSubmission: ScopedClient['articleSubmission'];
   abstract readonly articleRemark: ScopedClient['articleRemark'];
   abstract readonly articlePresence: ScopedClient['articlePresence'];
+  abstract readonly articleAssessmentHistory: ScopedClient['articleAssessmentHistory'];
+  abstract readonly externalPublication: ScopedClient['externalPublication'];
   abstract transaction<T>(
     run: (tx: ArticleModels) => Promise<T>,
     options?: ArticleTransactionOptions,
@@ -86,6 +90,8 @@ export function createArticlePrisma(prisma: PrismaClient): ArticlePrisma {
     articleSubmission: scoped.articleSubmission,
     articleRemark: scoped.articleRemark,
     articlePresence: scoped.articlePresence,
+    articleAssessmentHistory: scoped.articleAssessmentHistory,
+    externalPublication: scoped.externalPublication,
     transaction: (run, options) =>
       scoped.$transaction(
         (tx) =>
@@ -100,6 +106,8 @@ export function createArticlePrisma(prisma: PrismaClient): ArticlePrisma {
             articleSubmission: tx.articleSubmission,
             articleRemark: tx.articleRemark,
             articlePresence: tx.articlePresence,
+            articleAssessmentHistory: tx.articleAssessmentHistory,
+            externalPublication: tx.externalPublication,
           }),
         {
           timeout: options?.timeoutMs ?? DEFAULT_TIMEOUT_MS,

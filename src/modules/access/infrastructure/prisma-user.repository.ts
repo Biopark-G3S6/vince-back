@@ -6,6 +6,7 @@ import { AUDIT_OPERATION } from '../domain/ports/role-assignment-repository';
 import {
   UserRepository,
   type NewUserAccount,
+  type NotificationRecipientRecord,
   type UserAccountWithRoles,
 } from '../domain/ports/user-repository';
 import type { UserAccount } from '../domain/user';
@@ -134,6 +135,23 @@ export class PrismaUserRepository extends UserRepository {
       account: toAccount(row),
       roleCodes: row.roles.map((link) => link.role.code),
     };
+  }
+
+  async findNotificationRecipients(
+    userIds: readonly string[],
+  ): Promise<readonly NotificationRecipientRecord[]> {
+    const rows = await this.prisma.user.findMany({
+      where: { id: { in: [...userIds] } },
+      select: { id: true, email: true, preferredLanguage: true, active: true },
+      orderBy: { id: 'asc' },
+    });
+
+    return rows.map((row) => ({
+      userId: row.id,
+      email: row.email,
+      preferredLanguage: row.preferredLanguage,
+      active: row.active,
+    }));
   }
 
   async findByEmail(email: string): Promise<UserAccount | null> {

@@ -327,6 +327,13 @@ export class ContentRequestDto {
   @ApiProperty({ type: 'object', additionalProperties: true })
   content!: unknown;
 
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    description: 'Medidas de formatação observadas pelo editor para a verificação ABNT.',
+  })
+  formatProfile?: unknown;
+
   @ApiPropertyOptional({ format: 'uuid' })
   baseVersionId?: string;
 }
@@ -458,6 +465,7 @@ export const selectTemplateSchema = z.object({
 
 export const contentSchema = z.object({
   content: jsonSchema,
+  formatProfile: z.record(jsonSchema).optional(),
   baseVersionId: z.string().uuid().optional(),
 });
 

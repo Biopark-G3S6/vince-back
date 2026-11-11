@@ -14,7 +14,7 @@ import {
   type Template,
 } from '../domain/article';
 import { FAILURE, fail, ok, type Result } from '../domain/failure';
-import { ArticleRepository } from '../domain/ports/article-repository';
+import { ArticleRepository, type ArticleCorpusRecord } from '../domain/ports/article-repository';
 
 const ROLE = {
   INSTITUTION_ADMIN: 'INSTITUTION_ADMIN',
@@ -155,5 +155,69 @@ export class ArticleScope {
     return article.value.status === ARTICLE_STATUS.IN_REVIEW
       ? ok(article.value)
       : fail(FAILURE.ARTICLE_NOT_IN_REVIEW);
+  }
+
+  async progressFilter(
+    actorId: string,
+    scope: 'advisor' | 'course' | 'institution',
+    courseId?: string,
+  ): Promise<
+    Result<{
+      readonly advisorId?: string;
+      readonly courseId?: string;
+      readonly institutionId?: string;
+    }>
+  > {
+    const institution = await this.actorInstitution(actorId);
+
+    if (!institution.ok) {
+      return institution;
+    }
+
+    const roles = new Set(institution.value.profile.roleCodes);
+
+    if (scope === 'advisor' && roles.has('PROFESSOR')) {
+      return ok({ advisorId: actorId, institutionId: institution.value.id });
+    }
+
+    if (scope === 'course' && courseId !== undefined && roles.has(ROLE.COORDINATOR)) {
+      const coordinatorId = await this.courses.coordinatorOf(courseId);
+      const course = await this.courses.findById({ actorId, courseId });
+
+      if (!course.ok || coordinatorId !== actorId) {
+        return fail(FAILURE.PERMISSION_DENIED);
+      }
+
+      if (course.value.institutionId !== institution.value.id) {
+        return fail(FAILURE.RESOURCE_NOT_FOUND);
+      }
+
+      return ok({ courseId });
+    }
+
+    if (scope === 'institution' && roles.has(ROLE.INSTITUTION_ADMIN)) {
+      return ok({ institutionId: institution.value.id });
+    }
+
+    return fail(FAILURE.PERMISSION_DENIED);
+  }
+
+  async similarityCorpus(
+    actorId: string,
+    articleId: string,
+  ): Promise<Result<readonly ArticleCorpusRecord[]>> {
+    const article = await this.readableArticle(actorId, articleId);
+
+    if (!article.ok) {
+      return article;
+    }
+
+    if (!isTeamMember(article.value, actorId) && !isResponsibleAdvisor(article.value, actorId)) {
+      return fail(FAILURE.RESOURCE_NOT_FOUND);
+    }
+
+    const corpus = await this.repo.listSimilarityCorpus(article.value.institutionId, articleId);
+
+    return ok(corpus);
   }
 }

@@ -13,6 +13,10 @@ módulo, não acima dele.
 | :-------------------------------------- | :--------- | :------------------------------------------------- | :------- |
 | [`access/`](access/README.md)           | Negócio    | Identidade e autorização — papel, permissão, conta | ADR-0027 |
 | [`institution/`](institution/README.md) | Negócio    | A instituição como fronteira de isolamento         | ADR-0028 |
+| `discussion/`                           | Negócio    | Discussão contínua da equipe                       | ADR-0030 |
+| `notification/`                         | Negócio    | Caixa e entrega de notificações                    | ADR-0031 |
+| `assistance/`                           | Negócio    | Análises de apoio ao artigo                        | ADR-0032 |
+| `progress/`                             | Negócio    | Acompanhamento, risco e relatórios                 | ADR-0033 |
 | `observabilidade/`                      | Plataforma | Registro de erros agregado por assinatura          | ADR-0022 |
 
 ## Estrutura obrigatória

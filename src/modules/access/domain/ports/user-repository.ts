@@ -1,5 +1,12 @@
 import type { UserAccount } from '../user';
 
+export interface NotificationRecipientRecord {
+  readonly userId: string;
+  readonly email: string;
+  readonly preferredLanguage: string | null;
+  readonly active: boolean;
+}
+
 /**
  * Port do domínio para a conta de usuário e o seu perfil.
  *
@@ -35,6 +42,11 @@ export abstract class UserRepository {
 
   /** A conta e seus papéis, ou `null` se não existir. Uma única consulta por relação. */
   abstract findWithRoles(id: string): Promise<UserAccountWithRoles | null>;
+
+  /** Projeção mínima de destinatários em lote para correio eletrônico. */
+  abstract findNotificationRecipients(
+    userIds: readonly string[],
+  ): Promise<readonly NotificationRecipientRecord[]>;
 
   /** A conta pelo e-mail **já normalizado**. Normalizar aqui esconderia a regra. */
   abstract findByEmail(email: string): Promise<UserAccount | null>;

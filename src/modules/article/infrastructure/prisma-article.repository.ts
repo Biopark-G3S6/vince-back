@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 
 import { offsetOf, takeOf, toPage, type Page, type PageRequest } from '@shared/http/pagination';
@@ -20,13 +21,18 @@ import {
 } from '../domain/article';
 import {
   ArticleRepository,
+  type ArticleAssessment,
   type ArticleCreateData,
+  type ArticleCorpusRecord,
+  type ArticleProgressRecord,
   type CitationData,
   type ReferenceData,
   type RemarkData,
   type SubmissionData,
   type TemplateCreateData,
   type TemplateUpdateData,
+  type ExternalPublication,
+  type PublicationData,
   type VersionData,
 } from '../domain/ports/article-repository';
 import { ArticlePrisma } from './article-prisma';
@@ -243,15 +249,138 @@ export class PrismaArticleRepository extends ArticleRepository {
     return row === null ? null : toArticle(row);
   }
 
+  async listProgress(
+    filters: {
+      readonly advisorId?: string;
+      readonly courseId?: string;
+      readonly institutionId?: string;
+    },
+    request: PageRequest,
+  ): Promise<Page<ArticleProgressRecord>> {
+    const where = {
+      ...(filters.advisorId === undefined ? {} : { advisorId: filters.advisorId }),
+      ...(filters.courseId === undefined ? {} : { courseId: filters.courseId }),
+      ...(filters.institutionId === undefined ? {} : { institutionId: filters.institutionId }),
+    };
+    const rows = await this.prisma.article.findMany({
+      where,
+      include: {
+        submissions: {
+          where: { revokedAt: null },
+          orderBy: [{ milestoneOrder: 'desc' }, { createdAt: 'desc' }],
+          take: 100,
+          select: { automatic: true, createdAt: true, milestoneOrder: true },
+        },
+        remarks: {
+          where: { status: { in: [REMARK_STATUS.OPEN, REMARK_STATUS.ADDRESSED] } },
+          select: { id: true },
+        },
+        versions: {
+          where: { kind: { in: ['AUTOSAVE', 'FORMAT', 'IMPORT', 'RESTORE'] } },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: 500,
+          select: { createdAt: true, authorId: true },
+        },
+        assessments: {
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: 1000,
+          select: { memberId: true, score: true },
+        },
+        publications: { select: { id: true } },
+      },
+      orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
+      skip: offsetOf(request),
+      take: takeOf(request),
+    });
+    const authoredVersions =
+      rows.length === 0
+        ? []
+        : await this.prisma.articleVersion.findMany({
+            where: { articleId: { in: rows.map((row) => row.id) }, authorId: { not: null } },
+            select: { articleId: true, authorId: true },
+            distinct: ['articleId', 'authorId'],
+          });
+    const editedAuthorsByArticle = new Map<string, string[]>();
+    for (const version of authoredVersions) {
+      if (version.authorId !== null)
+        editedAuthorsByArticle.set(version.articleId, [
+          ...(editedAuthorsByArticle.get(version.articleId) ?? []),
+          version.authorId,
+        ]);
+    }
+    const total = request.withTotal ? await this.prisma.article.count({ where }) : undefined;
+    const records = rows.map((row) => {
+      const latest = row.submissions[0];
+      const lastVersion = row.versions[0];
+      let consecutiveAutomaticSubmissions = 0;
+      const seenMilestones = new Set<number>();
+      for (const submission of row.submissions) {
+        if (seenMilestones.has(submission.milestoneOrder)) continue;
+        seenMilestones.add(submission.milestoneOrder);
+        if (!submission.automatic) break;
+        consecutiveAutomaticSubmissions += 1;
+      }
+      const editedMemberIds = [...new Set(editedAuthorsByArticle.get(row.id) ?? [])].filter((id) =>
+        row.memberIds.includes(id),
+      );
+      const memberGrades: Record<string, number> = {};
+      let articleGrade: number | null = null;
+      for (const assessment of row.assessments) {
+        if (assessment.memberId === null) articleGrade ??= assessment.score;
+        else if (memberGrades[assessment.memberId] === undefined)
+          memberGrades[assessment.memberId] = assessment.score;
+      }
+
+      return {
+        article: toArticle(row),
+        latestSubmissionAutomatic: latest?.automatic ?? null,
+        latestSubmissionAt: latest?.createdAt ?? null,
+        latestSubmissionMilestoneOrder: latest?.milestoneOrder ?? null,
+        pendingRemarkCount: row.remarks.length,
+        lastEditedAt: lastVersion?.createdAt ?? row.createdAt,
+        consecutiveAutomaticSubmissions,
+        editedMemberIds,
+        articleGrade,
+        memberGrades,
+        externalPublicationCount: row.publications.length,
+      };
+    });
+
+    return toPage(request, records, total);
+  }
+
+  async listSimilarityCorpus(
+    institutionId: string,
+    excludeArticleId: string,
+  ): Promise<readonly ArticleCorpusRecord[]> {
+    const rows = await this.prisma.article.findMany({
+      where: { institutionId, id: { not: excludeArticleId }, status: 'FINISHED' },
+      include: { references: true, citations: true },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: 500,
+    });
+
+    return rows.map((row) => ({
+      article: toArticle(row),
+      references: row.references.map(toReference),
+      citations: row.citations.map(toCitation),
+    }));
+  }
+
   async saveArticleContent(
     id: string,
     content: JsonValue,
     status: Article['status'],
+    formatProfile?: JsonValue,
   ): Promise<Article | null> {
     try {
       const row = await this.prisma.article.update({
         where: { id },
-        data: { content: asInput(content), status },
+        data: {
+          content: asInput(content),
+          status,
+          ...(formatProfile === undefined ? {} : { formatProfile: asInput(formatProfile) }),
+        },
       });
 
       return toArticle(row);
@@ -294,6 +423,80 @@ export class PrismaArticleRepository extends ArticleRepository {
     });
 
     return rows.map(toPresence);
+  }
+
+  async createAssessment(data: {
+    readonly articleId: string;
+    readonly memberId: string | null;
+    readonly score: number;
+    readonly evaluatedBy: string;
+  }): Promise<ArticleAssessment> {
+    const row = await this.prisma.articleAssessmentHistory.create({
+      data: { id: randomUUID(), ...data },
+    });
+    return toAssessment(row);
+  }
+
+  async listAssessments(articleId: string): Promise<readonly ArticleAssessment[]> {
+    const rows = await this.prisma.articleAssessmentHistory.findMany({
+      where: { articleId },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+    return rows.map(toAssessment);
+  }
+
+  async createPublication(data: PublicationData): Promise<ExternalPublication> {
+    return toPublication(await this.prisma.externalPublication.create({ data }));
+  }
+
+  async listPublications(articleId: string): Promise<readonly ExternalPublication[]> {
+    const rows = await this.prisma.externalPublication.findMany({
+      where: { articleId },
+      orderBy: [{ publicationDate: 'desc' }, { id: 'asc' }],
+    });
+    return rows.map(toPublication);
+  }
+
+  async findPublication(articleId: string, id: string): Promise<ExternalPublication | null> {
+    const row = await this.prisma.externalPublication.findFirst({ where: { id, articleId } });
+    return row === null ? null : toPublication(row);
+  }
+
+  async updatePublication(
+    data: Partial<PublicationData> & {
+      readonly id: string;
+      readonly articleId: string;
+      readonly updatedBy: string;
+    },
+  ): Promise<ExternalPublication | null> {
+    try {
+      return toPublication(
+        await this.prisma.externalPublication.update({
+          where: { id: data.id },
+          data: {
+            venueName: data.venueName,
+            kind: data.kind,
+            publicationDate: data.publicationDate,
+            url: data.url,
+            updatedBy: data.updatedBy,
+          },
+        }),
+      );
+    } catch (error) {
+      if (isPrismaError(error, RECORD_NOT_FOUND)) return null;
+      throw error;
+    }
+  }
+
+  async deletePublication(articleId: string, id: string): Promise<boolean> {
+    const result = await this.prisma.externalPublication.deleteMany({ where: { id, articleId } });
+    return result.count > 0;
+  }
+
+  countPublications(courseId: string, periodStart: Date, periodEnd: Date): Promise<number> {
+    return this.prisma.externalPublication.count({
+      where: { publicationDate: { gte: periodStart, lte: periodEnd }, article: { courseId } },
+    });
   }
 
   async createReference(data: ReferenceData): Promise<ArticleReference> {
@@ -384,6 +587,15 @@ export class PrismaArticleRepository extends ArticleRepository {
     });
 
     return toCitation(row);
+  }
+
+  async listCitations(articleId: string): Promise<readonly ArticleCitation[]> {
+    const rows = await this.prisma.articleCitation.findMany({
+      where: { articleId },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    });
+
+    return rows.map(toCitation);
   }
 
   async createVersion(data: VersionData): Promise<ArticleVersion> {
@@ -782,4 +994,19 @@ function toPresence(row: {
   updatedAt: Date;
 }): ArticlePresence {
   return { ...row, cursor: asJson(row.cursor) };
+}
+
+function toAssessment(row: ArticleAssessment): ArticleAssessment {
+  return {
+    id: row.id,
+    articleId: row.articleId,
+    memberId: row.memberId,
+    score: row.score,
+    evaluatedBy: row.evaluatedBy,
+    createdAt: row.createdAt,
+  };
+}
+
+function toPublication(row: ExternalPublication): ExternalPublication {
+  return { ...row };
 }
