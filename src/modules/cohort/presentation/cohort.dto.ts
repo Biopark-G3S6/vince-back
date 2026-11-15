@@ -94,6 +94,18 @@ export class InvitationResponse {
 
   @ApiPropertyOptional()
   url?: string;
+
+  @ApiPropertyOptional({ format: 'date-time', description: 'Presente na listagem.' })
+  expiresAt?: string;
+
+  @ApiPropertyOptional({
+    enum: ['ACTIVE', 'EXPIRED', 'EXHAUSTED', 'REVOKED'],
+    description: 'Presente na listagem.',
+  })
+  state?: string;
+
+  @ApiPropertyOptional({ description: 'Presente na listagem.' })
+  useCount?: number;
 }
 
 export class IssueInvitationRequest {
@@ -123,3 +135,12 @@ export const enrollStudentSchema = z.object({
 });
 
 export const issueInvitationSchema = z.object({ expiresAt: z.coerce.date() });
+
+/** Uma designação ativa de professor à turma (RF-TUR-002). */
+export class CohortProfessorResponse {
+  @ApiProperty({ format: 'uuid' })
+  cohortId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  userId!: string;
+}

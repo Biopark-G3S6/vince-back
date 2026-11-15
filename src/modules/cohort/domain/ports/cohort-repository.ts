@@ -52,6 +52,10 @@ export abstract class CohortRepository {
   abstract save(cohort: Cohort): Promise<Cohort | null>;
   abstract setActive(id: string, active: boolean): Promise<Cohort | null>;
   abstract hasProfessor(cohortId: string, userId: string): Promise<boolean>;
+  abstract listProfessors(
+    cohortId: string,
+    request: PageRequest,
+  ): Promise<{ readonly rows: readonly string[]; readonly totalItems?: number }>;
   abstract addProfessor(cohortId: string, userId: string, actorId: string): Promise<void>;
   abstract removeProfessor(cohortId: string, userId: string, actorId: string): Promise<void>;
   abstract countProfessorAssignments(userId: string): Promise<number>;

@@ -98,6 +98,13 @@ export abstract class TeamRepository {
   abstract findInvitation(id: string): Promise<TeamInvitation | null>;
   abstract listInvitations(teamId: string, request: PageRequest): Promise<InvitationRows>;
 
+  /** Os convites pendentes e não vencidos endereçados ao usuário. */
+  abstract listReceivedInvitations(
+    userId: string,
+    now: Date,
+    request: PageRequest,
+  ): Promise<InvitationRows>;
+
   /**
    * Aceita o convite e cria a participação na mesma transação (§15).
    *

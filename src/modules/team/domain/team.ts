@@ -7,6 +7,8 @@ export interface Team {
   readonly eventId: string;
   readonly institutionId: string;
   readonly identification: string;
+  /** O orientador responsável corrente (RF-EQP-005), ou `null`. */
+  readonly responsibleAdvisorId: string | null;
 }
 
 export interface TeamDraft {
@@ -32,7 +34,14 @@ export function teamOf(
   institutionId: string,
   draft: Required<TeamDraft>,
 ): Team {
-  return { id, eventId, institutionId, identification: draft.identification.trim() };
+  return {
+    id,
+    eventId,
+    institutionId,
+    identification: draft.identification.trim(),
+    // A equipe nasce sem responsável: a designação é do dono do escopo (RF-EQP-005).
+    responsibleAdvisorId: null,
+  };
 }
 
 /**

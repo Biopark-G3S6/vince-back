@@ -11,6 +11,8 @@ export interface TeamDto {
   readonly eventId: string;
   readonly institutionId: string;
   readonly identification: string;
+  /** O orientador responsável corrente (RF-EQP-005), ou `null` (`team-read-extensions`). */
+  readonly responsibleAdvisorId: string | null;
 }
 
 export interface CreateTeamCommand {
@@ -116,4 +118,10 @@ export interface TeamMembershipDto {
 export type TeamPageDto = Page<TeamDto>;
 export type MemberPageDto = Page<MemberDto>;
 export type TeamInvitationPageDto = Page<TeamInvitationDto>;
+
+/** Os convites pendentes endereçados ao próprio ator (`team-read-extensions`, RF-EQP-004). */
+export interface ListReceivedInvitationsCommand {
+  readonly actorId: string;
+  readonly request: PageRequest;
+}
 export type EligibleStudentPageDto = Page<string>;

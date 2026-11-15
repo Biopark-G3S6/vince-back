@@ -433,6 +433,17 @@ describe('contrato HTTP da vertical team', () => {
       .expect(200);
     expect(bodyOf(invitations).data).toHaveLength(1);
 
+    // team-read-extensions: o convidado encontra o convite; a colega, não.
+    const received = (cookies: Cookies) =>
+      request(server as never)
+        .get(`${PREFIX}/team-invitations`)
+        .set('Cookie', cookieHeader(cookies))
+        .expect(200);
+    expect(bodyOf(await received(student)).data).toEqual([
+      expect.objectContaining({ id: invitation.id, teamId: team.id }),
+    ]);
+    expect(bodyOf(await received(mate)).data).toEqual([]);
+
     // Só o convidado responde ao convite.
     const notMine = await request(server as never)
       .post(`${PREFIX}/team-invitations/${invitation.id}/acceptance`)
@@ -467,6 +478,8 @@ describe('contrato HTTP da vertical team', () => {
       .set('X-CSRF-Token', student.csrf)
       .expect(201);
     expect(bodyOf(accepted).data).toMatchObject({ userId: fixture.student.id });
+    // Aceito, o convite deixa de constar entre os recebidos.
+    expect(bodyOf(await received(student)).data).toEqual([]);
 
     const again = await request(server as never)
       .post(`${PREFIX}/team-invitations/${invitation.id}/acceptance`)
@@ -509,12 +522,32 @@ describe('contrato HTTP da vertical team', () => {
       .expect(204);
     expect((await teams.stateOf(team.id)).responsibleAdvisorId).toBe(fixture.professor.id);
 
+    // team-read-extensions: a consulta e a listagem trazem o responsável.
+    const found = await request(server as never)
+      .get(`${PREFIX}/teams/${team.id}`)
+      .set('Cookie', cookieHeader(owner))
+      .expect(200);
+    expect(bodyOf(found).data).toMatchObject({ responsibleAdvisorId: fixture.professor.id });
+    const listed = await request(server as never)
+      .get(`${PREFIX}/events/${fixture.eventId}/teams`)
+      .set('Cookie', cookieHeader(owner))
+      .expect(200);
+    expect(bodyOf(listed).data).toEqual([
+      expect.objectContaining({ id: team.id, responsibleAdvisorId: fixture.professor.id }),
+    ]);
+
     await request(server as never)
       .delete(`${PREFIX}/teams/${team.id}/advisor/${fixture.professor.id}`)
       .set('Cookie', cookieHeader(owner))
       .set('X-CSRF-Token', owner.csrf)
       .expect(204);
     expect((await teams.stateOf(team.id)).responsibleAdvisorId).toBeNull();
+
+    const cleared = await request(server as never)
+      .get(`${PREFIX}/teams/${team.id}`)
+      .set('Cookie', cookieHeader(owner))
+      .expect(200);
+    expect(bodyOf(cleared).data).toMatchObject({ responsibleAdvisorId: null });
   });
 
   it('lista os alunos elegíveis sem equipe e a esvazia quando todos ingressam', async () => {

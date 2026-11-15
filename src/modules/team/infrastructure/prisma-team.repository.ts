@@ -36,6 +36,9 @@ const TEAM_COLUMNS = {
   eventId: true,
   institutionId: true,
   identification: true,
+  // O responsável ativo, na mesma consulta: o índice único parcial garante no máximo um
+  // (RF-EQP-005 RN3), e trazê-lo aqui evita uma ida ao banco por equipe na listagem.
+  advisors: { where: { status: 'ACTIVE' }, select: { userId: true }, take: 1 },
 } as const;
 
 const MEMBER_COLUMNS = {
@@ -70,8 +73,15 @@ function toTeam(row: {
   eventId: string;
   institutionId: string;
   identification: string;
+  advisors: readonly { userId: string }[];
 }): Team {
-  return row;
+  return {
+    id: row.id,
+    eventId: row.eventId,
+    institutionId: row.institutionId,
+    identification: row.identification,
+    responsibleAdvisorId: row.advisors[0]?.userId ?? null,
+  };
 }
 
 function toMember(row: {
@@ -335,6 +345,30 @@ export class PrismaTeamRepository extends TeamRepository {
           rows: invitations,
           totalItems: await this.prisma.invitation.count({ where: { teamId } }),
         }
+      : { rows: invitations };
+  }
+
+  async listReceivedInvitations(
+    userId: string,
+    now: Date,
+    request: PageRequest,
+  ): Promise<InvitationRows> {
+    const where = {
+      userId,
+      status: TEAM_INVITATION_STATUS.PENDING,
+      expiresAt: { gt: now },
+    };
+    const rows = await this.prisma.invitation.findMany({
+      where,
+      select: INVITATION_COLUMNS,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      skip: offsetOf(request),
+      take: takeOf(request),
+    });
+    const invitations = rows.map(toInvitation);
+
+    return request.withTotal
+      ? { rows: invitations, totalItems: await this.prisma.invitation.count({ where }) }
       : { rows: invitations };
   }
 

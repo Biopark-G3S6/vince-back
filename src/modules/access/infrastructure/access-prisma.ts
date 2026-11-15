@@ -24,6 +24,7 @@ export const OWNED_MODELS = [
   'userRole',
   'roleAssignmentAudit',
   'passwordCredential',
+  'permissionGrant',
   'invitation',
   'invitationAudit',
   'accessOutbox',
@@ -86,6 +87,7 @@ export abstract class AccessPrisma {
   abstract readonly userRole: ScopedClient['userRole'];
   abstract readonly roleAssignmentAudit: ScopedClient['roleAssignmentAudit'];
   abstract readonly passwordCredential: ScopedClient['passwordCredential'];
+  abstract readonly permissionGrant: ScopedClient['permissionGrant'];
   abstract readonly invitation: ScopedClient['invitation'];
   abstract readonly invitationAudit: ScopedClient['invitationAudit'];
   abstract readonly accessOutbox: ScopedClient['accessOutbox'];
@@ -111,6 +113,7 @@ export function createAccessPrisma(prisma: PrismaClient): AccessPrisma {
     userRole: scoped.userRole,
     roleAssignmentAudit: scoped.roleAssignmentAudit,
     passwordCredential: scoped.passwordCredential,
+    permissionGrant: scoped.permissionGrant,
     invitation: scoped.invitation,
     invitationAudit: scoped.invitationAudit,
     accessOutbox: scoped.accessOutbox,
@@ -126,6 +129,7 @@ export function createAccessPrisma(prisma: PrismaClient): AccessPrisma {
             userRole: tx.userRole,
             roleAssignmentAudit: tx.roleAssignmentAudit,
             passwordCredential: tx.passwordCredential,
+            permissionGrant: tx.permissionGrant,
             invitation: tx.invitation,
             invitationAudit: tx.invitationAudit,
             accessOutbox: tx.accessOutbox,

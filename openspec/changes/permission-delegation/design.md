@@ -21,14 +21,18 @@
 
 ## Decisions
 
-1. **Tabelas.**
-   - `permission_grant`: `id`, `granter_id`, `beneficiary_id`, `institution_id`, `permission_code`,
+1. **Uma tabela, que é também a trilha.**
+   - O `ADR-0027` §5 enumera `permission_grant` e §6 proíbe qualquer tabela fora da lista. Uma
+     `permission_grant_audit` exigiria reescrever o ADR, então ela não existe.
+   - Colunas: `id`, `granter_id`, `beneficiary_id`, `institution_id`, `permission_id`,
      `valid_until`, `revoked_at`, `revoked_by`, `created_at`, `updated_at`.
-     - Índice parcial em `(beneficiary_id)` onde `revoked_at is null`.
-     - Sem chave estrangeira para `user`, para que a concessão sobreviva a contas desativadas.
-   - `permission_grant_audit`: `operation` `GRANTED`/`REVOKED`, ator, beneficiário, permissão e
-     instante, no mesmo molde de `role_assignment_audit`.
-   - A migração é escrita à mão: `migrate dev` arrasta o schema de observabilidade.
+   - A linha nunca é removida, e a revogação preenche `revoked_at`/`revoked_by` uma única vez. Assim
+     a própria tabela guarda concedente, beneficiário, permissão e os instantes de concessão e de
+     revogação (`ADR-0014` §18), e o repositório não expõe alteração nem remoção.
+   - Chave estrangeira para `permission`, exigida por `ADR-0018` §12 e prevista no `ADR-0027`
+     ("Alternativas rejeitadas"). Não há chave para `user`, para que a trilha não dependa da conta.
+   - Índice em `(beneficiary_id)` e em `(institution_id, created_at)`.
+   - A migração é escrita à mão, porque `migrate dev` arrasta o schema de observabilidade.
 2. **Nova origem na apuração.** O repositório devolve as permissões das concessões ativas, com
    `revoked_at is null and (valid_until is null or valid_until > now())`, numa única consulta
    adicional (`ADR-0011` §9).

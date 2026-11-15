@@ -13,6 +13,13 @@ export class TeamResponse {
 
   @ApiProperty()
   identification!: string;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    nullable: true,
+    description: 'O orientador responsável corrente (RF-EQP-005).',
+  })
+  responsibleAdvisorId!: string | null;
 }
 
 export class CreateTeamRequest {

@@ -21,6 +21,8 @@ import type {
   ListCohortInvitationsCommand,
   ListCohortsCommand,
   ListEnrollmentsCommand,
+  ListCohortProfessorsCommand,
+  CohortProfessorPageDto,
   ProfessorCommand,
   RevokeCohortInvitationCommand,
   UpdateCohortCommand,
@@ -40,6 +42,7 @@ import { FindCohortUseCase } from './find-cohort.use-case';
 import { IssueInvitationUseCase } from './issue-invitation.use-case';
 import { ListCohortsUseCase } from './list-cohorts.use-case';
 import { ListEnrollmentsUseCase } from './list-enrollments.use-case';
+import { ListProfessorsUseCase } from './list-professors.use-case';
 import { ListInvitationsUseCase } from './list-invitations.use-case';
 import { RevokeInvitationUseCase } from './revoke-invitation.use-case';
 import { RevokeProfessorUseCase } from './revoke-professor.use-case';
@@ -75,6 +78,7 @@ export class CohortFacadeImpl extends CohortFacade {
     private readonly revokeProfessorUseCase: RevokeProfessorUseCase,
     private readonly enrollStudent: EnrollStudentUseCase,
     private readonly listEnrollmentsUseCase: ListEnrollmentsUseCase,
+    private readonly listProfessorsUseCase: ListProfessorsUseCase,
     private readonly issueInvitationUseCase: IssueInvitationUseCase,
     private readonly listInvitationsUseCase: ListInvitationsUseCase,
     private readonly revokeInvitationUseCase: RevokeInvitationUseCase,
@@ -123,6 +127,15 @@ export class CohortFacadeImpl extends CohortFacade {
 
   async enroll(command: EnrollmentCommand): Promise<CohortResult<EnrollmentDto>> {
     return toResult(await this.enrollStudent.execute(command), toEnrollmentDto);
+  }
+
+  async listProfessors(
+    command: ListCohortProfessorsCommand,
+  ): Promise<CohortResult<CohortProfessorPageDto>> {
+    return toResult(
+      await this.listProfessorsUseCase.execute(command.actorId, command.cohortId, command.request),
+      (page) => page,
+    );
   }
 
   async listEnrollments(command: ListEnrollmentsCommand): Promise<CohortResult<EnrollmentPageDto>> {

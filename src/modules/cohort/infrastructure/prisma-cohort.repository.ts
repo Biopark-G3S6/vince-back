@@ -185,6 +185,24 @@ export class PrismaCohortRepository extends CohortRepository {
     );
   }
 
+  async listProfessors(
+    cohortId: string,
+    request: PageRequest,
+  ): Promise<{ readonly rows: readonly string[]; readonly totalItems?: number }> {
+    const rows = await this.prisma.cohortProfessor.findMany({
+      where: { cohortId },
+      select: { userId: true },
+      orderBy: [{ createdAt: 'asc' }, { userId: 'asc' }],
+      skip: offsetOf(request),
+      take: takeOf(request),
+    });
+    const ids = rows.map((row) => row.userId);
+
+    return request.withTotal
+      ? { rows: ids, totalItems: await this.prisma.cohortProfessor.count({ where: { cohortId } }) }
+      : { rows: ids };
+  }
+
   async addProfessor(cohortId: string, userId: string, actorId: string): Promise<void> {
     try {
       await this.prisma.transaction(async (tx) => {

@@ -7,6 +7,7 @@ import type {
   ListEligibleStudentsCommand,
   ListMembersCommand,
   ListTeamInvitationsCommand,
+  ListReceivedInvitationsCommand,
   ListTeamsCommand,
   MemberCommand,
   MemberDto,
@@ -48,6 +49,9 @@ export abstract class TeamFacade {
 
   abstract invite(command: InviteMemberCommand): Promise<TeamResult<TeamInvitationDto>>;
   /** Reavalia elegibilidade, unicidade e lotação no instante do aceite (RF-EQP-004 RN2). */
+  abstract listReceivedInvitations(
+    command: ListReceivedInvitationsCommand,
+  ): Promise<TeamResult<TeamInvitationPageDto>>;
   abstract acceptInvitation(command: InvitationResponseCommand): Promise<TeamResult<MemberDto>>;
   abstract declineInvitation(command: InvitationResponseCommand): Promise<TeamResult<void>>;
   abstract listInvitations(

@@ -10,6 +10,7 @@ import { InviteMemberUseCase } from './application/invite-member.use-case';
 import { JoinTeamUseCase } from './application/join-team.use-case';
 import { ListEligibleStudentsUseCase } from './application/list-eligible-students.use-case';
 import { ListInvitationsUseCase } from './application/list-invitations.use-case';
+import { ListReceivedInvitationsUseCase } from './application/list-received-invitations.use-case';
 import { ListMembersUseCase } from './application/list-members.use-case';
 import { ListTeamsUseCase } from './application/list-teams.use-case';
 import { ReadTeamStateUseCase } from './application/read-team-state.use-case';
@@ -30,6 +31,7 @@ import { TeamController } from './presentation/team.controller';
 import {
   TeamInvitationController,
   TeamInvitationResponseController,
+  ReceivedTeamInvitationController,
 } from './presentation/team-invitation.controller';
 import {
   TeamMemberController,
@@ -62,6 +64,7 @@ export class TeamModule {
         TeamMemberController,
         TeamInvitationController,
         TeamInvitationResponseController,
+        ReceivedTeamInvitationController,
         TeamAdvisorController,
       ],
       providers: [
@@ -78,6 +81,7 @@ export class TeamModule {
         InviteMemberUseCase,
         RespondInvitationUseCase,
         ListInvitationsUseCase,
+        ListReceivedInvitationsUseCase,
         AssignTeamAdvisorUseCase,
         ListEligibleStudentsUseCase,
         ReadTeamStateUseCase,

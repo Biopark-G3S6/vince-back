@@ -20,7 +20,7 @@ model Team {
 }
 
 model TeamMember {
-  id String @id @db.Uuid
+  id        String    @id @db.Uuid
   /// O evento viaja junto da equipe: é por ele que a unicidade de participação é
   /// garantida, e buscá-lo na equipe a cada escrita exigiria junção no índice.
   eventId   String    @map("event_id") @db.Uuid

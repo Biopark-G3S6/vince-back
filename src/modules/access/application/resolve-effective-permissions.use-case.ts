@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { PERMISSION_SOURCE, uniteSources } from '../domain/effective-permissions';
 import { CatalogRepository } from '../domain/ports/catalog-repository';
 import { PermissionCache, type ResolvedPermissions } from '../domain/ports/permission-cache';
+import { PermissionGrantRepository } from '../domain/ports/permission-grant-repository';
 import { UserRepository } from '../domain/ports/user-repository';
 
 /**
@@ -31,6 +32,7 @@ export class ResolveEffectivePermissionsUseCase {
     private readonly users: UserRepository,
     private readonly catalog: CatalogRepository,
     private readonly cache: PermissionCache,
+    private readonly grants: PermissionGrantRepository,
   ) {}
 
   async execute(userId: string): Promise<ResolvedPermissions> {
@@ -52,6 +54,10 @@ export class ResolveEffectivePermissionsUseCase {
       return { permissions: [], institutionId: null };
     }
 
+    const now = new Date();
+    const granted = found.account.active
+      ? await this.grants.grantedTo(userId, now)
+      : { permissions: [], earliestExpiry: null };
     const resolved: ResolvedPermissions = {
       permissions: found.account.active
         ? uniteSources([
@@ -59,12 +65,21 @@ export class ResolveEffectivePermissionsUseCase {
               source: PERMISSION_SOURCE.ROLE,
               permissions: await this.catalog.findPermissionsOfRoles(found.roleCodes),
             },
+            { source: PERMISSION_SOURCE.GRANT, permissions: granted.permissions },
           ])
         : [],
       institutionId: found.account.institutionId,
     };
 
-    await this.cache.write(userId, resolved);
+    // A concessão com prazo limita a vida da entrada: vencida, ela deixa de compor as
+    // efetivas sem que nenhuma escrita precise invalidar a chave (`ADR-0014` §19).
+    await this.cache.write(
+      userId,
+      resolved,
+      granted.earliestExpiry === null
+        ? undefined
+        : (granted.earliestExpiry.getTime() - now.getTime()) / 1000,
+    );
 
     return resolved;
   }

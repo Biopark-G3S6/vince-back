@@ -19,7 +19,7 @@ export interface PermissionSourceResult {
 /** As origens que compõem as permissões efetivas. */
 export const PERMISSION_SOURCE = {
   ROLE: 'ROLE',
-  /** Ainda não implementada — entra com RF-ACS-006 a RF-ACS-008. */
+  /** As concessões diretas ativas (RF-ACS-006 a RF-ACS-008). */
   GRANT: 'GRANT',
 } as const;
 

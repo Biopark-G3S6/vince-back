@@ -237,6 +237,49 @@ describe('contrato HTTP da vertical cohort', () => {
       .expect(422);
     expect(bodyOf(revokedAcceptance).status.code).toBe('INVITATION_REVOKED');
 
+    // cohort-read-extensions: a lista traz validade, situação e usos de cada convite…
+    const invitations = bodyOf(
+      await request(server as never)
+        .get(`${PREFIX}/cohorts/${cohort.id}/invitations`)
+        .set('Cookie', cookieHeader(professorCookies))
+        .expect(200),
+    ).data as readonly {
+      readonly invitationId: string;
+      readonly expiresAt: string;
+      readonly state: string;
+      readonly useCount: number;
+    }[];
+    expect(
+      invitations.find((item) => item.invitationId === revocableData.invitationId),
+    ).toMatchObject({
+      expiresAt: '2030-01-01T00:00:00.000Z',
+      state: 'REVOKED',
+      useCount: 0,
+    });
+
+    // …e os professores designados podem ser consultados (RF-TUR-002), sem os revogados.
+    const other = await createAccount(institution.value.id, 'PROFESSOR');
+    await request(server as never)
+      .post(`${PREFIX}/cohorts/${cohort.id}/professors/${other.id}`)
+      .set('Cookie', cookieHeader(coordinatorCookies))
+      .set('X-CSRF-Token', coordinatorCookies.csrf)
+      .expect(204);
+    await request(server as never)
+      .delete(`${PREFIX}/cohorts/${cohort.id}/professors/${other.id}`)
+      .set('Cookie', cookieHeader(coordinatorCookies))
+      .set('X-CSRF-Token', coordinatorCookies.csrf)
+      .expect(204);
+    const professors = await request(server as never)
+      .get(`${PREFIX}/cohorts/${cohort.id}/professors`)
+      .set('Cookie', cookieHeader(coordinatorCookies))
+      .expect(200);
+    expect(bodyOf(professors).data).toEqual([{ cohortId: cohort.id, userId: professor.id }]);
+
+    await request(server as never)
+      .get(`${PREFIX}/cohorts/${uuidv7()}/professors`)
+      .set('Cookie', cookieHeader(coordinatorCookies))
+      .expect(404);
+
     const enrollments = await cohorts.listEnrollments({
       actorId: professor.id,
       cohortId: cohort.id,

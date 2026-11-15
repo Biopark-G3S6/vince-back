@@ -9,7 +9,8 @@ frontend existe e hoje funciona só com dados locais.
 
 ## What Changes
 
-- Novas tabelas `access.permission_grant` e `access.permission_grant_audit`. A trilha é imutável.
+- Nova tabela `access.permission_grant`, já prevista no `ADR-0027` §5. A linha nunca é removida: ela
+  própria é a trilha imutável de concessão e revogação exigida pelo `ADR-0014` §18.
 - `POST /api/v1/permission-grants`: concede uma permissão.
 - `DELETE /api/v1/permission-grants/:grantId`: revoga a concessão.
 - `GET /api/v1/permission-grants`: lista as concessões ativas, com filtro por beneficiário ou

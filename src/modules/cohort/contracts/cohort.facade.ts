@@ -17,6 +17,8 @@ import type {
   ListCohortInvitationsCommand,
   ListCohortsCommand,
   ListEnrollmentsCommand,
+  ListCohortProfessorsCommand,
+  CohortProfessorPageDto,
   ProfessorCommand,
   RevokeCohortInvitationCommand,
   UpdateCohortCommand,
@@ -45,6 +47,9 @@ export abstract class CohortFacade {
   abstract assignProfessor(command: ProfessorCommand): Promise<CohortResult<void>>;
   abstract revokeProfessor(command: ProfessorCommand): Promise<CohortResult<void>>;
   abstract enroll(command: EnrollmentCommand): Promise<CohortResult<EnrollmentDto>>;
+  abstract listProfessors(
+    command: ListCohortProfessorsCommand,
+  ): Promise<CohortResult<CohortProfessorPageDto>>;
   abstract listEnrollments(
     command: ListEnrollmentsCommand,
   ): Promise<CohortResult<EnrollmentPageDto>>;
