@@ -1,0 +1,38 @@
+model DiscussionMessage {
+  id        String    @id @db.Uuid
+  articleId String    @map("article_id") @db.Uuid
+  teamId    String    @map("team_id") @db.Uuid
+  authorId  String    @map("author_id") @db.Uuid
+  rootId    String?   @map("root_id") @db.Uuid
+  remarkId  String?   @map("remark_id") @db.Uuid
+  body      String?
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  root    DiscussionMessage?  @relation("DiscussionReplies", fields: [rootId], references: [id], onDelete: Cascade)
+  replies DiscussionMessage[] @relation("DiscussionReplies")
+
+  @@index([articleId, createdAt, id])
+  @@index([teamId, articleId])
+  @@index([rootId, createdAt, id])
+  @@index([remarkId])
+  @@map("discussion_message")
+  @@schema("discussion")
+}
+
+model DiscussionOutbox {
+  id              String    @id @db.Uuid
+  type            String
+  contractVersion Int       @map("contract_version")
+  payload         Json      @db.JsonB
+  correlationId   String?   @map("correlation_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt     DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts        Int       @default(0)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([publishedAt, updatedAt, createdAt])
+  @@map("discussion_outbox")
+  @@schema("discussion")
+}

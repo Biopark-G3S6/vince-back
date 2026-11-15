@@ -49,6 +49,10 @@ class SubstituteAccessFacade extends AccessFacade {
     );
   }
 
+  findNotificationRecipients(): never {
+    return expect.unreachable('não usado');
+  }
+
   assignRole(command: RoleAssignmentCommand): Promise<AccessResult<void>> {
     const roles = this.roles.get(command.userId) ?? new Set<string>();
     roles.add(command.roleCode);

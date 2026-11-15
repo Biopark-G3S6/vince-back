@@ -56,6 +56,10 @@ class SubstituteAccessFacade extends AccessFacade {
     return expect.unreachable('o módulo `event` não usa esta operação de `access`');
   }
 
+  findNotificationRecipients(): never {
+    return expect.unreachable('o módulo `event` não usa esta operação de `access`');
+  }
+
   activateUser(): never {
     return expect.unreachable('o módulo `event` não usa esta operação de `access`');
   }

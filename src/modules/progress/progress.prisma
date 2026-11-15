@@ -1,0 +1,62 @@
+model RiskSignal {
+  id                String    @id @db.Uuid
+  articleId         String    @map("article_id") @db.Uuid
+  teamId            String    @map("team_id") @db.Uuid
+  courseId          String?   @map("course_id") @db.Uuid
+  eventId           String    @map("event_id") @db.Uuid
+  condition         String
+  activationEventId String    @map("activation_event_id") @db.Uuid
+  active            Boolean   @default(true)
+  activatedAt       DateTime  @map("activated_at") @db.Timestamptz(3)
+  lastObservedAt    DateTime  @map("last_observed_at") @db.Timestamptz(3)
+  clearedAt         DateTime? @map("cleared_at") @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([teamId, condition])
+  @@index([courseId, active, activatedAt])
+  @@index([articleId, active])
+  @@map("risk_signal")
+  @@schema("progress")
+}
+
+model ProgressReport {
+  id          String   @id @db.Uuid
+  courseId    String   @map("course_id") @db.Uuid
+  periodStart DateTime @map("period_start") @db.Timestamptz(3)
+  periodEnd   DateTime @map("period_end") @db.Timestamptz(3)
+  createdBy   String   @map("created_by") @db.Uuid
+  status      String
+  data        Json?    @db.JsonB
+  errorCode   String?  @map("error_code")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([courseId, periodStart, periodEnd, createdAt])
+  @@map("progress_report")
+  @@schema("progress")
+}
+
+model ProcessedProgressEvent {
+  eventId     String   @id @map("event_id") @db.Uuid
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+
+  @@map("processed_event")
+  @@schema("progress")
+}
+
+model ProgressOutbox {
+  id              String    @id @db.Uuid
+  type            String
+  contractVersion Int       @map("contract_version")
+  payload         Json      @db.JsonB
+  correlationId   String?   @map("correlation_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt     DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts        Int       @default(0)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([publishedAt, createdAt])
+  @@map("progress_outbox")
+  @@schema("progress")
+}

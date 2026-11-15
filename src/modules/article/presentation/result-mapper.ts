@@ -10,6 +10,6 @@ export function unwrap<T>(result: ArticleResult<T>): T {
 
   throw new ApiFailure(
     isKnownResponseCode(result.failure.code) ? result.failure.code : 'INTERNAL_ERROR',
-    result.failure.fields,
+    result.failure.fields?.map((field) => ({ field: field.field, code: field.code })),
   );
 }

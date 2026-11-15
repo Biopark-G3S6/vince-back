@@ -70,6 +70,7 @@ export const RESPONSE_CODE_CATALOG = {
   REMARK_ALREADY_CLOSED: { severity: 'error', httpStatus: 409 },
   REMARK_PENDING: { severity: 'error', httpStatus: 422 },
   AI_CONSENT_REQUIRED: { severity: 'error', httpStatus: 422 },
+  AI_SERVICE_UNAVAILABLE: { severity: 'warning', httpStatus: 500 },
   REPORT_NOT_READY: { severity: 'error', httpStatus: 422 },
 } as const satisfies Readonly<Record<string, CodeDeclaration>>;
 

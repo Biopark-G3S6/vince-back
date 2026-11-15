@@ -1,23 +1,51 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { z } from 'zod';
 
-/**
- * A faixa de nota e os tipos de veículo, para a especificação OpenAPI.
- *
- * A autoridade sobre os dois é o domínio, e a restrição de verificação da migração é quem
- * os impõe no banco. A borda não pode importar de `domain` (`ADR-0003` §5), e repetir aqui
- * os limites é o preço — menor do que abrir a fronteira para que a documentação os leia.
- */
-const GRADE_MIN = 0;
-const GRADE_MAX = 10;
-const PUBLICATION_KINDS = ['EVENT', 'JOURNAL'] as const;
+const jsonSchema: z.ZodType<unknown> = z.lazy(() =>
+  z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+    z.array(jsonSchema),
+    z.record(jsonSchema),
+  ]),
+);
 
-export class ArticleResponse {
+const optionalString = z.string().nullable().optional();
+
+export class TemplateResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
 
   @ApiProperty({ format: 'uuid' })
-  teamId!: string;
+  institutionId!: string;
+
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  courseId!: string | null;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  description!: string | null;
+
+  @ApiProperty()
+  active!: boolean;
+
+  @ApiProperty()
+  currentVersionNumber!: number;
+
+  @ApiProperty({ format: 'uuid' })
+  currentVersionId!: string;
+
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  content!: unknown;
+}
+
+export class TemplateSelectionResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
 
   @ApiProperty({ format: 'uuid' })
   eventId!: string;
@@ -25,123 +53,466 @@ export class ArticleResponse {
   @ApiProperty({ format: 'uuid' })
   institutionId!: string;
 
-  @ApiProperty({ enum: ['STARTED', 'IN_PROGRESS', 'IN_REVIEW', 'FINISHED'] })
-  status!: string;
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  courseId!: string | null;
+
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  templateId!: string | null;
+
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  templateVersionId!: string | null;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: string;
 }
 
-export class MilestoneSummaryResponse {
+export class ArticleResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
 
-  @ApiProperty()
-  name!: string;
-
-  @ApiProperty()
-  order!: number;
-
-  @ApiProperty({ format: 'date-time' })
-  dueAt!: Date;
-}
-
-export class GradeResponse {
-  @ApiProperty({ minimum: GRADE_MIN, maximum: GRADE_MAX })
-  value!: number;
-
-  @ApiProperty({ format: 'uuid', description: 'Quem registrou a avaliação.' })
-  authorId!: string;
-
-  @ApiProperty({ format: 'date-time' })
-  recordedAt!: Date;
-}
-
-export class MemberGradeResponse extends GradeResponse {
   @ApiProperty({ format: 'uuid' })
-  userId!: string;
+  institutionId!: string;
 
-  @ApiProperty({ description: 'A participação estava ativa quando a nota foi registrada.' })
-  memberActive!: boolean;
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  courseId!: string | null;
+
+  @ApiProperty({ format: 'uuid' })
+  eventId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  teamId!: string;
+
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  advisorId!: string | null;
+
+  @ApiProperty({ type: [String], format: 'uuid' })
+  memberIds!: string[];
+
+  @ApiProperty({ enum: ['STARTED', 'IN_PROGRESS', 'IN_REVIEW', 'FINISHED'] })
+  status!: string;
+
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  currentMilestoneId!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  currentMilestoneOrder!: number | null;
+
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  currentMilestoneDeadline!: string | null;
+
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  content!: unknown;
+
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  formatProfile!: unknown;
 }
 
-/** A situação do artigo: estado, etapa corrente e nota corrente (RF-ART-001). */
-export class ArticleSituationResponse {
-  @ApiProperty({ type: ArticleResponse })
-  article!: ArticleResponse;
-
-  @ApiPropertyOptional({ type: MilestoneSummaryResponse, nullable: true })
-  currentMilestone!: MilestoneSummaryResponse | null;
-
-  @ApiPropertyOptional({ type: GradeResponse, nullable: true })
-  grade!: GradeResponse | null;
-}
-
-export class GradeRequest {
-  @ApiProperty({ minimum: GRADE_MIN, maximum: GRADE_MAX })
-  value!: number;
-}
-
-export class PublicationResponse {
+export class ReferenceResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
 
   @ApiProperty({ format: 'uuid' })
   articleId!: string;
 
-  @ApiProperty({ description: 'O nome do evento científico ou do periódico.' })
-  venue!: string;
+  @ApiProperty()
+  type!: string;
 
-  @ApiProperty({ enum: PUBLICATION_KINDS })
-  kind!: string;
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  authors!: unknown;
 
-  @ApiProperty({ format: 'date-time' })
-  publishedAt!: Date;
+  @ApiProperty()
+  title!: string;
 
-  @ApiProperty({ format: 'uri' })
-  url!: string;
+  @ApiPropertyOptional({ nullable: true })
+  year!: number | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  vehicle!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  doi!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  url!: string | null;
+}
+
+export class CitationResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
 
   @ApiProperty({ format: 'uuid' })
-  authorId!: string;
-}
+  articleId!: string;
 
-export class CreatePublicationRequest {
+  @ApiProperty({ format: 'uuid' })
+  referenceId!: string;
+
   @ApiProperty()
-  venue!: string;
-
-  @ApiProperty({ enum: PUBLICATION_KINDS })
   kind!: string;
 
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true, nullable: true })
+  locator!: unknown;
+
+  @ApiPropertyOptional({ nullable: true })
+  page!: string | null;
+}
+
+export class PresenceResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  articleId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  userId!: string;
+
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  cursor!: unknown;
+
   @ApiProperty({ format: 'date-time' })
-  publishedAt!: string;
-
-  @ApiProperty({ format: 'uri' })
-  url!: string;
+  updatedAt!: string;
 }
 
-export class UpdatePublicationRequest {
+export class VersionResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  kind!: string;
+
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  content!: unknown;
+
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  authorId!: string | null;
+
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  metadata!: unknown;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: string;
+}
+
+export class SubmissionResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  articleId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  milestoneId!: string;
+
+  @ApiProperty()
+  milestoneOrder!: number;
+
+  @ApiProperty()
+  automatic!: boolean;
+
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  submittedBy!: string | null;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: string;
+}
+
+export class RemarkResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  articleId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  submissionId!: string;
+
+  @ApiProperty({ enum: ['OPEN', 'ADDRESSED', 'RESOLVED', 'DISMISSED'] })
+  status!: string;
+
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  anchor!: unknown;
+
+  @ApiProperty()
+  originalText!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  currentText!: string | null;
+
+  @ApiProperty()
+  body!: string;
+
+  @ApiProperty()
+  visibleToTeam!: boolean;
+}
+
+export class FormatReportResponseDto {
+  @ApiProperty({ type: ArticleResponseDto })
+  article!: ArticleResponseDto;
+
+  @ApiProperty()
+  changed!: boolean;
+
+  @ApiProperty()
+  norm!: string;
+
+  @ApiProperty({ type: [String] })
+  changes!: string[];
+}
+
+export class ExportedArticleResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  articleId!: string;
+
+  @ApiProperty({ enum: ['DOCX', 'PDF'] })
+  format!: string;
+
+  @ApiProperty()
+  fileName!: string;
+
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  content!: unknown;
+
+  @ApiProperty({ format: 'date-time' })
+  generatedAt!: string;
+}
+
+export class ComparisonResponseDto {
+  @ApiProperty({ type: SubmissionResponseDto })
+  submission!: SubmissionResponseDto;
+
+  @ApiPropertyOptional({ type: SubmissionResponseDto, nullable: true })
+  previousSubmission!: SubmissionResponseDto | null;
+
+  @ApiProperty({ type: 'array', items: { type: 'object' } })
+  differences!: unknown[];
+}
+
+export class CreateTemplateRequestDto {
+  @ApiProperty()
+  name!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  description?: string | null;
+
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  courseId?: string | null;
+
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  content!: unknown;
+}
+
+export class UpdateTemplateRequestDto {
   @ApiPropertyOptional()
-  venue?: string;
+  name?: string;
 
-  @ApiPropertyOptional({ enum: PUBLICATION_KINDS })
-  kind?: string;
+  @ApiPropertyOptional({ nullable: true })
+  description?: string | null;
 
-  @ApiPropertyOptional({ format: 'date-time' })
-  publishedAt?: string;
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  courseId?: string | null;
 
-  @ApiPropertyOptional({ format: 'uri' })
-  url?: string;
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
+  content?: unknown;
 }
 
-export const gradeSchema = z.object({ value: z.number() });
+export class SelectTemplateRequestDto {
+  @ApiProperty({ format: 'uuid' })
+  eventId!: string;
 
-export const createPublicationSchema = z.object({
-  venue: z.string(),
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  courseId?: string | null;
+
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  templateId?: string | null;
+}
+
+export class ContentRequestDto {
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  content!: unknown;
+
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    description: 'Medidas de formatação observadas pelo editor para a verificação ABNT.',
+  })
+  formatProfile?: unknown;
+
+  @ApiPropertyOptional({ format: 'uuid' })
+  baseVersionId?: string;
+}
+
+export class PresenceRequestDto {
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  cursor!: unknown;
+}
+
+export class ReferenceRequestDto {
+  @ApiProperty()
+  type!: string;
+
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  authors!: unknown;
+
+  @ApiProperty()
+  title!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  year?: number | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  vehicle?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  edition?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  place?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  publisher?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  pages?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  doi?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  url?: string | null;
+}
+
+export class CitationRequestDto {
+  @ApiProperty()
+  kind!: string;
+
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true, nullable: true })
+  locator?: unknown;
+
+  @ApiPropertyOptional({ nullable: true })
+  page?: string | null;
+}
+
+export class FormatRequestDto {
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true, nullable: true })
+  target?: unknown;
+}
+
+export class ImportRequestDto {
+  @ApiProperty()
+  fileName!: string;
+
+  @ApiProperty()
+  mimeType!: string;
+
+  @ApiProperty()
+  sizeBytes!: number;
+
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  content!: unknown;
+
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
+  metadata?: unknown;
+
+  @ApiPropertyOptional()
+  confirmReplace?: boolean;
+}
+
+export class RemarkRequestDto {
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  anchor!: unknown;
+
+  @ApiProperty()
+  originalText!: string;
+
+  @ApiProperty()
+  body!: string;
+}
+
+export class UpdateRemarkRequestDto {
+  @ApiProperty()
+  body!: string;
+}
+
+export class DecideRemarkRequestDto {
+  @ApiProperty({ enum: ['OPEN', 'RESOLVED', 'DISMISSED'] })
+  decision!: 'OPEN' | 'RESOLVED' | 'DISMISSED';
+
+  @ApiPropertyOptional({ nullable: true })
+  reason?: string | null;
+}
+
+export class DecisionReasonRequestDto {
+  @ApiPropertyOptional({ nullable: true })
+  reason?: string | null;
+}
+
+export const createTemplateSchema = z.object({
+  name: z.string(),
+  description: optionalString,
+  courseId: z.string().uuid().nullable().optional(),
+  content: jsonSchema,
+});
+
+export const updateTemplateSchema = z.object({
+  name: z.string().optional(),
+  description: optionalString,
+  courseId: z.string().uuid().nullable().optional(),
+  content: jsonSchema.optional(),
+});
+
+export const selectTemplateSchema = z.object({
+  eventId: z.string().uuid(),
+  courseId: z.string().uuid().nullable().optional(),
+  templateId: z.string().uuid().nullable().optional(),
+});
+
+export const contentSchema = z.object({
+  content: jsonSchema,
+  formatProfile: z.record(jsonSchema).optional(),
+  baseVersionId: z.string().uuid().optional(),
+});
+
+export const presenceSchema = z.object({ cursor: jsonSchema });
+
+export const referenceSchema = z.object({
+  type: z.string(),
+  authors: jsonSchema,
+  title: z.string(),
+  year: z.number().int().nullable().optional(),
+  vehicle: optionalString,
+  edition: optionalString,
+  place: optionalString,
+  publisher: optionalString,
+  pages: optionalString,
+  doi: optionalString,
+  url: optionalString,
+});
+
+export const citationSchema = z.object({
   kind: z.string(),
-  publishedAt: z.coerce.date(),
-  url: z.string(),
+  locator: jsonSchema.nullable().optional(),
+  page: optionalString,
 });
 
-export const updatePublicationSchema = z.object({
-  venue: z.string().optional(),
-  kind: z.string().optional(),
-  publishedAt: z.coerce.date().optional(),
-  url: z.string().optional(),
+export const formatSchema = z.object({ target: jsonSchema.nullable().optional() });
+
+export const importSchema = z.object({
+  fileName: z.string(),
+  mimeType: z.string(),
+  sizeBytes: z.number().int().nonnegative(),
+  content: jsonSchema,
+  metadata: jsonSchema.optional(),
+  confirmReplace: z.boolean().optional(),
 });
+
+export const remarkSchema = z.object({
+  anchor: jsonSchema,
+  originalText: z.string(),
+  body: z.string(),
+});
+
+export const updateRemarkSchema = z.object({ body: z.string() });
+
+export const decideRemarkSchema = z.object({
+  decision: z.enum(['OPEN', 'RESOLVED', 'DISMISSED']),
+  reason: optionalString,
+});
+
+export const decisionReasonSchema = z.object({ reason: optionalString });

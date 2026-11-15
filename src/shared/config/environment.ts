@@ -36,6 +36,30 @@ export interface SessionConfig {
   readonly absoluteTtlSeconds: number;
 }
 
+/** Configuração opcional do provedor externo de resumo e da declaração institucional. */
+export interface AssistanceConfig {
+  readonly providerName: string | null;
+  readonly processingPurpose: string | null;
+  readonly legalBasis: string | null;
+  readonly consentVersion: string | null;
+  readonly consentText: string | null;
+  readonly analysisEndpoint: string | null;
+  readonly analysisToken: string | null;
+}
+
+/** Integração de correio; ausente, as mensagens ficam persistidas para envio posterior. */
+export interface NotificationEmailConfig {
+  readonly endpoint: string | null;
+  readonly token: string | null;
+}
+
+/** Limiares operacionais configuráveis para os sinais de risco. */
+export interface ProgressRiskConfig {
+  readonly inactivityDays: number;
+  readonly deadlineHours: number;
+  readonly pendingRemarks: number;
+}
+
 /**
  * `abstract class` e não interface porque também é o token de injeção — a mesma convenção
  * dos ports do domínio (`ADR-0004` §2, §3): interface some em execução e não serve para
@@ -77,6 +101,67 @@ function requiredPositiveInteger(env: NodeJS.ProcessEnv, variable: string): numb
   }
 
   return value;
+}
+
+function optionalText(env: NodeJS.ProcessEnv, variable: string): string | null {
+  const raw = env[variable]?.trim();
+  return raw ? raw : null;
+}
+
+function optionalEndpoint(env: NodeJS.ProcessEnv, variable: string): string | null {
+  const value = optionalText(env, variable);
+  if (value === null) return null;
+  try {
+    const url = new URL(value);
+    const localHttp =
+      url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+    if (url.protocol !== 'https:' && !localHttp) throw new Error('invalid endpoint');
+    return url.toString();
+  } catch {
+    throw new InvalidConfigError(variable, 'não é um endpoint HTTPS válido');
+  }
+}
+
+function optionalPositiveInteger(
+  env: NodeJS.ProcessEnv,
+  variable: string,
+  fallback: number,
+): number {
+  const raw = optionalText(env, variable);
+  if (raw === null) return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value <= 0)
+    throw new InvalidConfigError(variable, 'não é um inteiro positivo');
+  return value;
+}
+
+export function loadAssistanceConfig(env: NodeJS.ProcessEnv = process.env): AssistanceConfig {
+  return {
+    providerName: optionalText(env, 'AI_PROVIDER_NAME'),
+    processingPurpose: optionalText(env, 'AI_PROCESSING_PURPOSE'),
+    legalBasis: optionalText(env, 'AI_LEGAL_BASIS'),
+    consentVersion: optionalText(env, 'AI_CONSENT_VERSION'),
+    consentText: optionalText(env, 'AI_CONSENT_TEXT'),
+    analysisEndpoint: optionalEndpoint(env, 'AI_ANALYSIS_ENDPOINT'),
+    analysisToken: optionalText(env, 'AI_ANALYSIS_TOKEN'),
+  };
+}
+
+export function loadNotificationEmailConfig(
+  env: NodeJS.ProcessEnv = process.env,
+): NotificationEmailConfig {
+  return {
+    endpoint: optionalEndpoint(env, 'NOTIFICATION_EMAIL_ENDPOINT'),
+    token: optionalText(env, 'NOTIFICATION_EMAIL_TOKEN'),
+  };
+}
+
+export function loadProgressRiskConfig(env: NodeJS.ProcessEnv = process.env): ProgressRiskConfig {
+  return {
+    inactivityDays: optionalPositiveInteger(env, 'RISK_INACTIVITY_DAYS', 14),
+    deadlineHours: optionalPositiveInteger(env, 'RISK_DEADLINE_HOURS', 72),
+    pendingRemarks: optionalPositiveInteger(env, 'RISK_PENDING_REMARKS', 3),
+  };
 }
 
 /**

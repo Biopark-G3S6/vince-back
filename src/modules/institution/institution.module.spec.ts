@@ -60,6 +60,10 @@ class SubstituteAccessFacade extends AccessFacade {
     this.accounts.add(userId);
   }
 
+  findNotificationRecipients(): never {
+    return expect.unreachable('não usado');
+  }
+
   rolesOf(userId: string): readonly string[] {
     return [...(this.rolesByUser.get(userId) ?? [])];
   }

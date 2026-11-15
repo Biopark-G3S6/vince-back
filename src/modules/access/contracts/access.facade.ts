@@ -25,6 +25,7 @@ import type {
   RoleMembershipQuery,
   EffectivePermissionsQuery,
   EffectivePermissionsResult,
+  NotificationRecipientDto,
   OwnProfileQuery,
   RoleAssignmentCommand,
   UpdateOwnProfileCommand,
@@ -56,6 +57,11 @@ export abstract class AccessFacade {
 
   /** O perfil do titular, com papéis e vínculo (RF-ACS-005). */
   abstract findOwnProfile(query: OwnProfileQuery): Promise<AccessResult<UserProfileDto>>;
+
+  /** Projeção em lote e minimizada para entrega de notificação ao destinatário. */
+  abstract findNotificationRecipients(
+    userIds: readonly string[],
+  ): Promise<readonly NotificationRecipientDto[]>;
 
   /** Altera nome, área de atuação e preferência de idioma do próprio titular. */
   abstract updateOwnProfile(

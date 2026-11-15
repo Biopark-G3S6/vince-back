@@ -1,0 +1,60 @@
+model InstitutionAiConsent {
+  id                  String    @id @db.Uuid
+  institutionId       String    @map("institution_id") @db.Uuid
+  declarationVersion  String    @map("declaration_version")
+  declarationSnapshot String    @map("declaration_snapshot")
+  providerName        String    @map("provider_name")
+  processingPurpose   String    @map("processing_purpose")
+  consentedBy         String    @map("consented_by") @db.Uuid
+  consentedAt         DateTime  @map("consented_at") @db.Timestamptz(3)
+  revokedBy           String?   @map("revoked_by") @db.Uuid
+  revokedAt           DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([institutionId, consentedAt])
+  @@map("institution_ai_consent")
+  @@schema("assistance")
+}
+
+model ArticleAnalysis {
+  id            String   @id @db.Uuid
+  articleId     String   @map("article_id") @db.Uuid
+  kind          String
+  requestedBy   String   @map("requested_by") @db.Uuid
+  status        String
+  result        Json?    @db.JsonB
+  errorCode     String?  @map("error_code")
+  correlationId String?  @map("correlation_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([articleId, kind, createdAt])
+  @@index([status, createdAt])
+  @@map("article_analysis")
+  @@schema("assistance")
+}
+
+model ProcessedAssistanceEvent {
+  eventId     String   @id @map("event_id") @db.Uuid
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+
+  @@map("processed_event")
+  @@schema("assistance")
+}
+
+model AssistanceOutbox {
+  id              String    @id @db.Uuid
+  type            String
+  contractVersion Int       @map("contract_version")
+  payload         Json      @db.JsonB
+  correlationId   String?   @map("correlation_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt     DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts        Int       @default(0)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([publishedAt, createdAt])
+  @@map("assistance_outbox")
+  @@schema("assistance")
+}
