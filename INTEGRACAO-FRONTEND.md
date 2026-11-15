@@ -120,6 +120,18 @@ parecer da nota do artigo e papel do integrante.
 
 Todas as mudanças acima foram implementadas e arquivadas em `openspec/changes/archive/2026-11-15-*`.
 
+### Defeitos encontrados na integração (corrigidos)
+
+| Mudança                         | Defeito                                                                                                                |
+| :------------------------------ | :--------------------------------------------------------------------------------------------------------------------- |
+| `csrf-token-readable-by-client` | O cookie anti-CSRF tinha `Path=/api/v1`, e a aplicação, em `/admin/...`, não conseguia lê-lo. Toda mutação dava `403`. |
+| `cohort-read-by-members`        | `COHORT:READ` do professor e do aluno não alcançava turma alguma; o professor não chegava à matrícula nem ao convite.  |
+
+### Resultado
+
+As sete telas falam com o backend real e foram verificadas por 26 testes Playwright contra a pilha
+local (`vince-front/e2e/integration`, `pnpm run test:integration`).
+
 ### Fora desta rodada
 
 - O coordenador lê todos os artigos da instituição (`ArticleScope.readableArticle`). A URS
@@ -128,3 +140,11 @@ Todas as mudanças acima foram implementadas e arquivadas em `openspec/changes/a
   artigos reais.
 - O seed (`pnpm run db:seed`) imprime o resultado, mas o processo não termina, porque alguma conexão
   fica aberta após `context.close()`.
+- O código do curso não é único (o mock do frontend impedia duplicata; a URS não exige).
+- O backend aceita e-mail com acento antes do `@`, que o campo `type="email"` do navegador recusa.
+- O administrador de sistema só convida `INSTITUTION_ADMIN`; professores e alunos entram por convite
+  do administrador institucional ou da turma.
+- A etapa corrente do artigo é gravada na criação da equipe (ou na primeira sincronização), mas não
+  avança sozinha quando a etapa vence: fica para a entrega automática de `RF-REV-003`.
+- `src/features/review/api/newArticle.spec.ts`, no frontend, já falhava na `main`, na área de
+  revisão, que continua em demonstração.
