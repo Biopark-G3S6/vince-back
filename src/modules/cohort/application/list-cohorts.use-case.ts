@@ -25,11 +25,12 @@ export class ListCohortsUseCase {
     if (!course.exists) {
       return fail(FAILURE.RESOURCE_NOT_FOUND);
     }
-    if ((await this.courses.coordinatorOf(courseId)) !== actorId) {
-      return fail(FAILURE.PERMISSION_DENIED);
-    }
-
-    const rows = await this.cohorts.listByCourse(courseId, request);
+    // Quem coordena vê todas as turmas do curso; professores e alunos, as suas
+    // (`cohort-read-by-members`).
+    const rows =
+      (await this.courses.coordinatorOf(courseId)) === actorId
+        ? await this.cohorts.listByCourse(courseId, request)
+        : await this.cohorts.listByCourseForMember(courseId, actorId, request);
 
     return ok(toPage(request, rows.rows, rows.totalItems));
   }

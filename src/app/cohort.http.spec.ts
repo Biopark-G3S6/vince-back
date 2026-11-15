@@ -275,6 +275,38 @@ describe('contrato HTTP da vertical cohort', () => {
       .expect(200);
     expect(bodyOf(professors).data).toEqual([{ cohortId: cohort.id, userId: professor.id }]);
 
+    // cohort-read-by-members: o professor designado e o aluno matriculado leem a turma.
+    const ownList = await request(server as never)
+      .get(`${PREFIX}/courses/${course.value.id}/cohorts`)
+      .set('Cookie', cookieHeader(professorCookies))
+      .expect(200);
+    expect((bodyOf(ownList).data as { id: string }[]).map((item) => item.id)).toEqual([cohort.id]);
+    await request(server as never)
+      .get(`${PREFIX}/cohorts/${cohort.id}`)
+      .set('Cookie', cookieHeader(professorCookies))
+      .expect(200);
+
+    const acceptedStudent = await authenticate(
+      (bodyOf(accepted).data as { readonly email: string }).email,
+    );
+    await request(server as never)
+      .get(`${PREFIX}/cohorts/${cohort.id}`)
+      .set('Cookie', cookieHeader(acceptedStudent))
+      .expect(200);
+
+    const stranger = await createAccount(institution.value.id, 'PROFESSOR');
+    const strangerCookies = await authenticate(stranger.email);
+    const denied = await request(server as never)
+      .get(`${PREFIX}/cohorts/${cohort.id}`)
+      .set('Cookie', cookieHeader(strangerCookies))
+      .expect(403);
+    expect(bodyOf(denied).status.code).toBe('PERMISSION_DENIED');
+    const emptyList = await request(server as never)
+      .get(`${PREFIX}/courses/${course.value.id}/cohorts`)
+      .set('Cookie', cookieHeader(strangerCookies))
+      .expect(200);
+    expect(bodyOf(emptyList).data).toEqual([]);
+
     await request(server as never)
       .get(`${PREFIX}/cohorts/${uuidv7()}/professors`)
       .set('Cookie', cookieHeader(coordinatorCookies))

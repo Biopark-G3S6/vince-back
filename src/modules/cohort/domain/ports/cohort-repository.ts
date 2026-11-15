@@ -49,6 +49,14 @@ export abstract class CohortRepository {
   abstract create(cohort: Cohort): Promise<Cohort | null>;
   abstract findById(id: string): Promise<Cohort | null>;
   abstract listByCourse(courseId: string, request: PageRequest): Promise<CohortRows>;
+  /** As turmas do curso em que o usuário é professor designado ou aluno matriculado. */
+  abstract listByCourseForMember(
+    courseId: string,
+    userId: string,
+    request: PageRequest,
+  ): Promise<CohortRows>;
+  /** O usuário é professor designado ou aluno com matrícula ativa da turma? */
+  abstract isMember(cohortId: string, userId: string): Promise<boolean>;
   abstract save(cohort: Cohort): Promise<Cohort | null>;
   abstract setActive(id: string, active: boolean): Promise<Cohort | null>;
   abstract hasProfessor(cohortId: string, userId: string): Promise<boolean>;

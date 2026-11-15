@@ -7,7 +7,7 @@ import { CourseFacade } from '@modules/course/contracts/course.facade';
 import type { CohortProfessorDto } from '../contracts/cohort.dto';
 import type { Result } from '../domain/failure';
 import { CohortRepository } from '../domain/ports/cohort-repository';
-import { coordinatorCohort } from './cohort-scope';
+import { readableCohort } from './cohort-scope';
 
 /**
  * Os professores designados à turma (`cohort-read-extensions`, RF-TUR-002).
@@ -28,7 +28,7 @@ export class ListProfessorsUseCase {
     cohortId: string,
     request: PageRequest,
   ): Promise<Result<Page<CohortProfessorDto>>> {
-    const scoped = await coordinatorCohort(this.courses, this.cohorts, actorId, cohortId, false);
+    const scoped = await readableCohort(this.courses, this.cohorts, actorId, cohortId);
 
     if (!scoped.ok) {
       return { ok: false, failure: scoped.failure };
