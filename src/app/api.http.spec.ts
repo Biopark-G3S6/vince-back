@@ -521,6 +521,11 @@ describe('contrato da API', () => {
       expect(line).toContain('Secure');
       expect(line).toMatch(/SameSite=Lax/i);
       expect(line).toContain(`Path=${PREFIX}`);
+
+      // csrf-token-readable-by-client: o token é lido pela aplicação em qualquer caminho.
+      const csrfLine = cookieLine(response, CSRF_COOKIE) ?? '';
+      expect(csrfLine).toMatch(/Path=\/(;|$)/);
+      expect(csrfLine).not.toContain('HttpOnly');
     });
 
     it('o identificador de sessão não aparece no corpo nem fora do cookie', async () => {
@@ -637,11 +642,14 @@ describe('contrato da API', () => {
       const account = await createAccount();
       const cookies = await authenticate(account.email);
 
-      await request(server as never)
+      const closed = await request(server as never)
         .delete(`${PREFIX}/sessions/current`)
         .set('Cookie', header(cookies))
         .set('X-CSRF-Token', cookies.csrf)
         .expect(204);
+
+      // O token é apagado no mesmo caminho em que foi gravado.
+      expect(cookieLine(closed, CSRF_COOKIE) ?? '').toMatch(/Path=\/(;|$)/);
 
       await request(server as never)
         .get(`${PREFIX}/identity`)
