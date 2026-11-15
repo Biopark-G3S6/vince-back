@@ -77,6 +77,64 @@ export interface RevokeCohortInvitationCommand extends CohortQuery {
   readonly invitationId: string;
 }
 
+/**
+ * Existência, estado e ancestralidade da turma, para o consumidor interno.
+ *
+ * `exists: false` **não é falha** — é resposta: quem pergunta é outro módulo validando o
+ * alvo de um escopo, e uma exceção ali transformaria referência órfã em erro de servidor.
+ */
+export interface CohortStateDto {
+  readonly exists: boolean;
+  readonly active: boolean;
+  readonly courseId: string | null;
+  readonly institutionId: string | null;
+}
+
+/**
+ * A consulta de vínculo, em lote (`ADR-0011` §9).
+ *
+ * O alvo é a turma **ou** o curso, nunca os dois: `cohortId` pergunta pelos vínculos
+ * daquela turma; `courseId`, pelos de qualquer turma do curso — que é o que um evento de
+ * escopo de curso precisa saber (`ADR-0032` §12).
+ */
+export interface CohortLinkQuery {
+  readonly userIds: readonly string[];
+  readonly cohortId?: string;
+  readonly courseId?: string;
+}
+
+/** O vínculo de um usuário com o alvo consultado. */
+export interface CohortLinkDto {
+  readonly enrolled: boolean;
+  readonly professor: boolean;
+}
+
+/**
+ * O vínculo do usuário com uma turma, e o curso dela.
+ *
+ * O curso viaja junto porque quem pergunta — `event`, resolvendo alcance — precisa dos
+ * dois no mesmo instante, e uma segunda ida por turma seria consulta em laço
+ * (`ADR-0011` §7).
+ */
+export interface CohortScopeDto {
+  readonly cohortId: string;
+  readonly courseId: string;
+  readonly enrolled: boolean;
+  readonly professor: boolean;
+}
+
+/**
+ * A enumeração dos alunos matriculados no alvo, paginada (`RF-EQP-006`).
+ *
+ * `cohortId` pergunta pela turma; `courseId`, por qualquer turma do curso. Paginada por
+ * obrigação: a quantidade de matrículas de um curso não tem cota natural.
+ */
+export interface CohortStudentQuery {
+  readonly cohortId?: string;
+  readonly courseId?: string;
+  readonly request: PageRequest;
+}
+
 export type CohortPageDto = Page<CohortDto>;
 export type EnrollmentPageDto = Page<EnrollmentDto>;
 export type CohortInvitationPageDto = Page<CohortInvitationDto>;

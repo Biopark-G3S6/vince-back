@@ -43,6 +43,8 @@ const MODULE_SCHEMAS = [
   'institution',
   'course',
   'cohort',
+  'event',
+  'team',
   'article',
   'discussion',
   'notification',

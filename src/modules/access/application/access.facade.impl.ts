@@ -24,8 +24,11 @@ import type {
   RolePermissionsQuery,
   RolePermissionsResult,
 } from '../contracts/role-permissions.dto';
+import type { Page } from '@shared/http/pagination';
+
 import type {
   CreateUserCommand,
+  RoleMembershipQuery,
   EffectivePermissionsQuery,
   EffectivePermissionsResult,
   OwnProfileQuery,
@@ -41,12 +44,14 @@ import { AcceptInvitationUseCase } from './accept-invitation.use-case';
 import { AssignRoleUseCase } from './assign-role.use-case';
 import { ChangePasswordUseCase } from './change-password.use-case';
 import { CreateUserUseCase } from './create-user.use-case';
+import { FindInstitutionLinksUseCase } from './find-institution-links.use-case';
+import { FindInvitationUseCase } from './find-invitation.use-case';
 import { FindRolePermissionsUseCase } from './find-role-permissions.use-case';
 import { FindNotificationRecipientsUseCase } from './find-notification-recipients.use-case';
 import { FindUserProfileUseCase } from './find-user-profile.use-case';
-import { FindInvitationUseCase } from './find-invitation.use-case';
 import { IssueInvitationUseCase } from './issue-invitation.use-case';
 import { ListInvitationsUseCase } from './list-invitations.use-case';
+import { ListRoleMembersUseCase } from './list-role-members.use-case';
 import { RequestPasswordResetUseCase } from './request-password-reset.use-case';
 import { ResetPasswordUseCase } from './reset-password.use-case';
 import { RevokeInvitationUseCase } from './revoke-invitation.use-case';
@@ -83,6 +88,8 @@ export class AccessFacadeImpl extends AccessFacade {
     private readonly acceptInvitationUseCase: AcceptInvitationUseCase,
     private readonly listInvitationsUseCase: ListInvitationsUseCase,
     private readonly revokeInvitationUseCase: RevokeInvitationUseCase,
+    private readonly findInstitutionLinks: FindInstitutionLinksUseCase,
+    private readonly listRoleMembers: ListRoleMembersUseCase,
     private readonly findNotificationRecipientsUseCase: FindNotificationRecipientsUseCase,
   ) {
     super();
@@ -202,6 +209,16 @@ export class AccessFacadeImpl extends AccessFacade {
     await this.revokeInvitationUseCase.execute(command);
 
     return { ok: true, value: undefined };
+  }
+
+  async institutionLinksOf(
+    userIds: readonly string[],
+  ): Promise<ReadonlyMap<string, string | null>> {
+    return this.findInstitutionLinks.execute(userIds);
+  }
+
+  async listByRole(query: RoleMembershipQuery): Promise<Page<string>> {
+    return this.listRoleMembers.execute(query);
   }
 }
 

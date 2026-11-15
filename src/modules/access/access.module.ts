@@ -14,9 +14,11 @@ import { CreateUserUseCase } from './application/create-user.use-case';
 import { FindRolePermissionsUseCase } from './application/find-role-permissions.use-case';
 import { FindNotificationRecipientsUseCase } from './application/find-notification-recipients.use-case';
 import { FindUserProfileUseCase } from './application/find-user-profile.use-case';
+import { FindInstitutionLinksUseCase } from './application/find-institution-links.use-case';
 import { FindInvitationUseCase } from './application/find-invitation.use-case';
 import { IssueInvitationUseCase } from './application/issue-invitation.use-case';
 import { ListInvitationsUseCase } from './application/list-invitations.use-case';
+import { ListRoleMembersUseCase } from './application/list-role-members.use-case';
 import { RequestPasswordResetUseCase } from './application/request-password-reset.use-case';
 import { ResetPasswordUseCase } from './application/reset-password.use-case';
 import { RevokeInvitationUseCase } from './application/revoke-invitation.use-case';
@@ -123,9 +125,11 @@ export class AccessModule {
         AcceptInvitationUseCase,
         CreateUserUseCase,
         FindUserProfileUseCase,
+        FindInstitutionLinksUseCase,
         FindInvitationUseCase,
         IssueInvitationUseCase,
         ListInvitationsUseCase,
+        ListRoleMembersUseCase,
         UpdateUserProfileUseCase,
         SetUserActiveUseCase,
         AssignRoleUseCase,

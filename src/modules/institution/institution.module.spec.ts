@@ -94,6 +94,13 @@ class SubstituteAccessFacade extends AccessFacade {
     return Promise.resolve({ ok: true, value: undefined });
   }
 
+  listByRole(): never {
+    return expect.unreachable('`institution` não enumera contas por papel');
+  }
+  institutionLinksOf(): never {
+    return expect.unreachable('`institution` não avalia escopo por vínculo em lote');
+  }
+
   permissionsOfRoles(): never {
     return expect.unreachable('`institution` não consulta a composição de papéis');
   }

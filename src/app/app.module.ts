@@ -18,6 +18,8 @@ import { AccessModule } from '@modules/access/access.module';
 import { ArticleModule } from '@modules/article/article.module';
 import { CohortModule } from '@modules/cohort/cohort.module';
 import { CourseModule } from '@modules/course/course.module';
+import { EventModule } from '@modules/event/event.module';
+import { TeamModule } from '@modules/team/team.module';
 import { InstitutionModule } from '@modules/institution/institution.module';
 import { DiscussionModule } from '@modules/discussion/discussion.module';
 import { NotificationModule } from '@modules/notification/notification.module';
@@ -117,6 +119,29 @@ export class AppModule {
           })
         : null;
 
+    // `event` depende do alvo e da elegibilidade mantidos por `institution`, `course` e
+    // `cohort`, e das contas de `access` (`ADR-0032` §12). Sem os quatro não há a quem
+    // perguntar pelo escopo — daí a conjunção.
+    const event =
+      active('event') &&
+      access !== null &&
+      institution !== null &&
+      course !== null &&
+      cohort !== null
+        ? EventModule.forRoot(getPrismaClient(), {
+            imports: [access, institution, course, cohort],
+            events,
+          })
+        : null;
+
+    // `team` depende apenas de `event`: estado, limites, orientação e elegibilidade vêm
+    // todos de lá (`ADR-0033` §12). A dependência é de mão única — o que volta ao evento
+    // são fatos, pelo barramento.
+    const team =
+      active('team') && event !== null
+        ? TeamModule.forRoot(getPrismaClient(), { imports: [event], events })
+        : null;
+
     const notification =
       active('notification') && access !== null
         ? NotificationModule.forRoot(getPrismaClient(), {
@@ -175,6 +200,8 @@ export class AppModule {
         institution,
         course,
         cohort,
+        event,
+        team,
         article,
         notification,
         discussion,
@@ -196,6 +223,8 @@ export class AppModule {
               ...(institution === null ? [] : [institution]),
               ...(course === null ? [] : [course]),
               ...(cohort === null ? [] : [cohort]),
+              ...(event === null ? [] : [event]),
+              ...(team === null ? [] : [team]),
               ...(article === null ? [] : [article]),
               ...(notification === null ? [] : [notification]),
               ...(discussion === null ? [] : [discussion]),

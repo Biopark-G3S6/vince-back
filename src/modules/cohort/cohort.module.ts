@@ -10,6 +10,7 @@ import { ConsumeInvitationAcceptedUseCase } from './application/consume-invitati
 import { CreateCohortUseCase } from './application/create-cohort.use-case';
 import { DeactivateCohortUseCase } from './application/deactivate-cohort.use-case';
 import { EnrollStudentUseCase } from './application/enroll-student.use-case';
+import { FindCohortLinksUseCase } from './application/find-cohort-links.use-case';
 import { FindCohortUseCase } from './application/find-cohort.use-case';
 import { IssueInvitationUseCase } from './application/issue-invitation.use-case';
 import { ListCohortsUseCase } from './application/list-cohorts.use-case';
@@ -53,6 +54,7 @@ export class CohortModule {
         CreateCohortUseCase,
         ListCohortsUseCase,
         FindCohortUseCase,
+        FindCohortLinksUseCase,
         UpdateCohortUseCase,
         DeactivateCohortUseCase,
         AssignProfessorUseCase,

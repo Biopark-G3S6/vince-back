@@ -98,6 +98,16 @@ export class PrismaCoordinatorRepository extends CoordinatorRepository {
     return this.prisma.courseCoordinator.count({ where: { userId } });
   }
 
+  async findByUser(userId: string): Promise<readonly string[]> {
+    const rows = await this.prisma.courseCoordinator.findMany({
+      where: { userId },
+      select: { courseId: true },
+      orderBy: { courseId: 'asc' },
+    });
+
+    return rows.map((row) => row.courseId);
+  }
+
   async findAuditByCourse(courseId: string): Promise<readonly CoordinatorAuditEntry[]> {
     const rows = await this.prisma.courseCoordinatorAudit.findMany({
       where: { courseId },

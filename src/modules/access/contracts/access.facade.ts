@@ -16,10 +16,13 @@ import type {
   ListInvitationsQuery,
   RevokeInvitationCommand,
 } from './invitation.dto';
+import type { Page } from '@shared/http/pagination';
+
 import type { AccessResult } from './result.dto';
 import type { RolePermissionsQuery, RolePermissionsResult } from './role-permissions.dto';
 import type {
   CreateUserCommand,
+  RoleMembershipQuery,
   EffectivePermissionsQuery,
   EffectivePermissionsResult,
   NotificationRecipientDto,
@@ -119,4 +122,26 @@ export abstract class AccessFacade {
   abstract listInvitations(query: ListInvitationsQuery): Promise<InvitationPage>;
 
   abstract revokeInvitation(command: RevokeInvitationCommand): Promise<AccessResult<void>>;
+
+  /**
+   * O vínculo institucional de várias contas, em lote (`ADR-0011` §9).
+   *
+   * Existe para o consumidor interno que avalia escopo — `event`, ao decidir quem um
+   * evento de escopo institucional torna elegível (`ADR-0032` §12). Conta inexistente ou
+   * desativada fica **fora** do mapa; o módulo `access` não interpreta o identificador
+   * devolvido, apenas o guarda e o devolve.
+   */
+  abstract institutionLinksOf(
+    userIds: readonly string[],
+  ): Promise<ReadonlyMap<string, string | null>>;
+
+  /**
+   * As contas ativas de um papel na instituição, paginadas (`ADR-0011` §6).
+   *
+   * Enumera o escopo para o consumidor interno que precisa percorrê-lo —
+   * `event`, ao listar os alunos elegíveis de um evento institucional (`RF-EQP-006`). Não
+   * é CRUD administrativo de usuário: não há rota que a exponha, e nenhuma permissão a
+   * autoriza (`ADR-0014` §7).
+   */
+  abstract listByRole(query: RoleMembershipQuery): Promise<Page<string>>;
 }

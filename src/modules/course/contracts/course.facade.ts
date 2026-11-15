@@ -25,4 +25,12 @@ export abstract class CourseFacade {
 
   /** Coordenador corrente, ou `null`, para consumidores do escopo do curso. */
   abstract coordinatorOf(courseId: string): Promise<string | null>;
+
+  /**
+   * Os cursos que o usuário coordena — a consulta inversa de `coordinatorOf`.
+   *
+   * Existe para o consumidor que precisa do alcance do coordenador sem percorrer curso
+   * por curso (`ADR-0011` §9). Lista vazia quando ele não coordena nenhum.
+   */
+  abstract coordinatedBy(userId: string): Promise<readonly string[]>;
 }

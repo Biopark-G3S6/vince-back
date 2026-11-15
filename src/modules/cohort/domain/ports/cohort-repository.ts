@@ -18,6 +18,33 @@ export interface InvitationRows {
   readonly totalItems?: number;
 }
 
+/** O alvo de uma consulta de escopo: a turma, ou qualquer turma do curso. */
+export interface CohortScopeTarget {
+  readonly cohortId?: string;
+  readonly courseId?: string;
+}
+
+export interface CohortLinkTarget extends CohortScopeTarget {
+  readonly userIds: readonly string[];
+}
+
+export interface StudentRows {
+  readonly rows: readonly string[];
+  readonly totalItems?: number;
+}
+
+export interface CohortScope {
+  readonly cohortId: string;
+  readonly courseId: string;
+  readonly enrolled: boolean;
+  readonly professor: boolean;
+}
+
+export interface CohortLink {
+  readonly enrolled: boolean;
+  readonly professor: boolean;
+}
+
 export abstract class CohortRepository {
   abstract create(cohort: Cohort): Promise<Cohort | null>;
   abstract findById(id: string): Promise<Cohort | null>;
@@ -41,4 +68,23 @@ export abstract class CohortRepository {
   abstract createInvitation(invitation: CohortInvitation): Promise<CohortInvitation | null>;
   abstract findInvitation(invitationId: string): Promise<CohortInvitation | null>;
   abstract listInvitations(cohortId: string, request: PageRequest): Promise<InvitationRows>;
+
+  /**
+   * As matrículas ativas e as designações de professor de vários usuários, em duas
+   * consultas — uma por relação —, qualquer que seja a quantidade de identificadores
+   * (`ADR-0011` §9).
+   *
+   * O alvo é a turma ou o curso. Por curso, o filtro atravessa a relação **dentro do
+   * schema do módulo**, o que é junção permitida (`ADR-0018` §12).
+   */
+  abstract linksOf(target: CohortLinkTarget): Promise<ReadonlyMap<string, CohortLink>>;
+
+  /**
+   * As turmas a que o usuário está ligado, com o curso de cada uma — duas consultas, uma
+   * por relação (`ADR-0011` §9).
+   */
+  abstract scopesOf(userId: string): Promise<readonly CohortScope[]>;
+
+  /** Os alunos com matrícula ativa no alvo, uma página por consulta. */
+  abstract studentsOf(target: CohortScopeTarget, request: PageRequest): Promise<StudentRows>;
 }

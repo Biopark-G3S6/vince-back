@@ -1,3 +1,5 @@
+import type { PageRequest } from '@shared/http/pagination';
+
 import type { UserAccount } from '../user';
 
 export interface NotificationRecipientRecord {
@@ -18,6 +20,11 @@ export interface NotificationRecipientRecord {
 export interface UserAccountWithRoles {
   readonly account: UserAccount;
   readonly roleCodes: readonly string[];
+}
+
+export interface AccountIdRows {
+  readonly rows: readonly string[];
+  readonly totalItems?: number;
 }
 
 /** O que a criação grava, já validado e normalizado pelo domínio. */
@@ -59,4 +66,30 @@ export abstract class UserRepository {
    * `RESOURCE_NOT_FOUND` é decisão do caso de uso, não do repositório.
    */
   abstract setActive(id: string, active: boolean): Promise<UserAccount | null>;
+
+  /**
+   * O vínculo institucional de várias contas, em **uma** consulta (`ADR-0011` §9).
+   *
+   * Só conta ativa entra no mapa: quem pergunta é o escopo de outro módulo decidindo
+   * elegibilidade, e conta desativada não é elegível a nada. A ausência da chave,
+   * portanto, significa "não existe ou não está ativa" — e as duas são o mesmo caso para
+   * quem pergunta.
+   */
+  abstract institutionLinksOf(
+    userIds: readonly string[],
+  ): Promise<ReadonlyMap<string, string | null>>;
+
+  /**
+   * As contas ativas de um papel na instituição, paginadas.
+   *
+   * Existe para quem precisa **enumerar** o escopo, e não apenas conferir um vínculo
+   * conhecido: é o caso de um evento de escopo institucional, que lista os seus alunos
+   * elegíveis (`RF-EQP-006`). A ordem é estável por identificador, porque a paginação sem
+   * ordem total devolve a mesma linha em duas páginas.
+   */
+  abstract listByRole(
+    institutionId: string,
+    roleCode: string,
+    request: PageRequest,
+  ): Promise<AccountIdRows>;
 }

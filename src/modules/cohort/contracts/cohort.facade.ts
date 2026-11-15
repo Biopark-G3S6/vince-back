@@ -1,8 +1,13 @@
 import type {
   CohortDto,
+  CohortLinkDto,
+  CohortLinkQuery,
   CohortInvitationDto,
   CohortInvitationPageDto,
   CohortPageDto,
+  CohortScopeDto,
+  CohortStateDto,
+  CohortStudentQuery,
   CohortQuery,
   CreateCohortCommand,
   EnrollmentCommand,
@@ -16,6 +21,8 @@ import type {
   RevokeCohortInvitationCommand,
   UpdateCohortCommand,
 } from './cohort.dto';
+import type { Page } from '@shared/http/pagination';
+
 import type { CohortResult } from './result.dto';
 
 export interface InvitationAcceptedEvent {
@@ -49,4 +56,33 @@ export abstract class CohortFacade {
   ): Promise<CohortResult<CohortInvitationPageDto>>;
   abstract revokeInvitation(command: RevokeCohortInvitationCommand): Promise<CohortResult<void>>;
   abstract handleInvitationAccepted(event: InvitationAcceptedEvent): Promise<void>;
+
+  /** Existência, estado, curso e instituição da turma. Não falha por inexistência. */
+  abstract stateOf(cohortId: string): Promise<CohortStateDto>;
+
+  /**
+   * O vínculo de vários usuários com a turma, ou com qualquer turma do curso, em lote.
+   *
+   * Executa em número de consultas **independente da quantidade** de identificadores
+   * informados (`ADR-0011` §9). Usuário ausente do mapa não tem vínculo algum.
+   */
+  abstract linksOf(query: CohortLinkQuery): Promise<ReadonlyMap<string, CohortLinkDto>>;
+
+  /**
+   * As turmas a que o usuário está ligado — por matrícula ativa ou por designação —, com
+   * o curso de cada uma.
+   *
+   * É a consulta inversa de `linksOf`, e existe para quem resolve o **alcance** do ator
+   * sem conhecer de antemão as turmas a perguntar (`ADR-0032` §21). Duas consultas,
+   * qualquer que seja a quantidade de vínculos.
+   */
+  abstract scopesOf(userId: string): Promise<readonly CohortScopeDto[]>;
+
+  /**
+   * Os alunos com matrícula ativa no alvo, paginados.
+   *
+   * Enumera o escopo — distinto de `linksOf`, que confere um conjunto já conhecido. Uma
+   * consulta por página (`ADR-0011` §6).
+   */
+  abstract studentsOf(query: CohortStudentQuery): Promise<Page<string>>;
 }

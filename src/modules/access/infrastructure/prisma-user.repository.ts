@@ -3,8 +3,11 @@ import { Prisma } from '@prisma/client';
 import { v7 as uuidv7 } from 'uuid';
 
 import { AUDIT_OPERATION } from '../domain/ports/role-assignment-repository';
+import { offsetOf, takeOf, type PageRequest } from '@shared/http/pagination';
+
 import {
   UserRepository,
+  type AccountIdRows,
   type NewUserAccount,
   type NotificationRecipientRecord,
   type UserAccountWithRoles,
@@ -183,6 +186,55 @@ export class PrismaUserRepository extends UserRepository {
 
       throw error;
     }
+  }
+
+  /**
+   * O vínculo de várias contas em uma consulta (`ADR-0011` §9).
+   *
+   * `active: true` no filtro, e não na projeção: a chave ausente do mapa é a resposta para
+   * conta inexistente **e** para conta desativada, que é exatamente o que quem avalia
+   * elegibilidade precisa saber.
+   */
+  async institutionLinksOf(
+    userIds: readonly string[],
+  ): Promise<ReadonlyMap<string, string | null>> {
+    const rows = await this.prisma.user.findMany({
+      where: { id: { in: [...userIds] }, active: true },
+      select: { id: true, institutionId: true },
+    });
+
+    return new Map(rows.map((row) => [row.id, row.institutionId]));
+  }
+
+  /**
+   * As contas ativas de um papel na instituição, uma página por consulta.
+   *
+   * O filtro atravessa a relação de papéis **dentro do schema do módulo**, o que é junção
+   * permitida (`ADR-0018` §12). A ordem é por identificador — UUIDv7 é monotônico no
+   * tempo, de modo que ordenar por ele é ordenar por criação, sem segunda coluna.
+   */
+  async listByRole(
+    institutionId: string,
+    roleCode: string,
+    request: PageRequest,
+  ): Promise<AccountIdRows> {
+    const where = {
+      institutionId,
+      active: true,
+      roles: { some: { role: { code: roleCode } } },
+    } as const;
+    const rows = await this.prisma.user.findMany({
+      where,
+      select: { id: true },
+      orderBy: { id: 'asc' },
+      skip: offsetOf(request),
+      take: takeOf(request),
+    });
+    const ids = rows.map((row) => row.id);
+
+    return request.withTotal
+      ? { rows: ids, totalItems: await this.prisma.user.count({ where }) }
+      : { rows: ids };
   }
 
   async setActive(id: string, active: boolean): Promise<UserAccount | null> {
