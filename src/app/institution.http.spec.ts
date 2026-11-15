@@ -241,6 +241,48 @@ describe('contrato da API — instituição', () => {
     });
   });
 
+  describe('cidade e UF (institution-location)', () => {
+    it('grava, devolve e altera cidade e UF; recusa UF malformada', async () => {
+      const cookies = await asSystemAdmin();
+      sequence += 1;
+      const created = await request(server as never)
+        .post(`${PREFIX}/institutions`)
+        .set('Cookie', header(cookies))
+        .set('X-CSRF-Token', cookies.csrf)
+        .send({
+          name: `Instituição Local ${sequence}`,
+          code: `LOC${sequence}${Date.now() % 100000}`,
+          city: '  Toledo ',
+          state: 'PR',
+        })
+        .expect(201);
+      const institution = bodyOf(created).data as { readonly id: string };
+      expect(bodyOf(created).data).toMatchObject({ city: 'Toledo', state: 'PR' });
+
+      const found = await request(server as never)
+        .get(`${PREFIX}/institutions/${institution.id}`)
+        .set('Cookie', header(cookies))
+        .expect(200);
+      expect(bodyOf(found).data).toMatchObject({ city: 'Toledo', state: 'PR' });
+
+      const invalid = await request(server as never)
+        .patch(`${PREFIX}/institutions/${institution.id}`)
+        .set('Cookie', header(cookies))
+        .set('X-CSRF-Token', cookies.csrf)
+        .send({ state: 'Paraná' })
+        .expect(400);
+      expect(bodyOf(invalid).errors).toEqual([{ field: 'state', code: 'MALFORMED' }]);
+
+      const cleared = await request(server as never)
+        .patch(`${PREFIX}/institutions/${institution.id}`)
+        .set('Cookie', header(cookies))
+        .set('X-CSRF-Token', cookies.csrf)
+        .send({ city: 'Cascavel', state: null })
+        .expect(200);
+      expect(bodyOf(cleared).data).toMatchObject({ city: 'Cascavel', state: null });
+    });
+  });
+
   describe('listagem paginada (ADR-0025 §21 a §25)', () => {
     it('o envelope traz pagination com page, pageSize e hasNext, e não o total', async () => {
       const cookies = await asSystemAdmin();

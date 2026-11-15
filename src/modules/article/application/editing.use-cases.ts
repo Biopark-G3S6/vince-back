@@ -7,6 +7,7 @@ import type {
   ArticleDto,
   ArticleSummaryDto,
   ListArticlesQuery,
+  UpdateArticleTitleCommand,
   ArticlePresenceDto,
   ArticleQuery,
   ArticleVersionDto,
@@ -77,6 +78,7 @@ export class CreateArticleUseCase {
         currentMilestoneDeadline: command.currentMilestoneDeadline ?? null,
         lastMilestoneOrder: command.lastMilestoneOrder ?? null,
         templateVersionId: command.templateVersionId ?? null,
+        title: command.title ?? null,
         content,
       }),
     );
@@ -110,6 +112,30 @@ export class ListArticlesUseCase {
         query.request,
       ),
     );
+  }
+}
+
+/**
+ * O título do artigo (`article-title-and-feedback`): dos integrantes ativos, com as mesmas
+ * recusas da edição de conteúdo — o artigo em avaliação ou concluído não muda de título.
+ */
+@Injectable()
+export class UpdateArticleTitleUseCase {
+  constructor(
+    private readonly repo: ArticleRepository,
+    private readonly scope: ArticleScope,
+  ) {}
+
+  async execute(command: UpdateArticleTitleCommand): Promise<Result<ArticleDto>> {
+    const article = await this.scope.editableArticle(command.actorId, command.articleId);
+
+    if (!article.ok) {
+      return article;
+    }
+
+    const updated = await this.repo.updateArticleTitle(command.articleId, command.title);
+
+    return updated === null ? fail(FAILURE.RESOURCE_NOT_FOUND) : ok(updated);
   }
 }
 

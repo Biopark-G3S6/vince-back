@@ -77,6 +77,8 @@ import {
   referenceSchema,
   remarkSchema,
   listArticlesQuerySchema,
+  updateArticleSchema,
+  UpdateArticleRequestDto,
   selectTemplateSchema,
   updateRemarkSchema,
   updateTemplateSchema,
@@ -245,6 +247,35 @@ export class ArticleController {
   ): Promise<ArticleResponseDto> {
     return toArticleResponse(
       unwrap(await this.articles.findArticle({ actorId: session.state.userId, articleId })),
+    );
+  }
+
+  @Patch('articles/:articleId')
+  @RequiresPermission('ARTICLE:EDIT')
+  @ApiOperation({ summary: 'Altera o título do artigo (integrante ativo)' })
+  @ApiEnvelope(ArticleResponseDto)
+  @ApiFailures(
+    'AUTHENTICATION_FAILED',
+    'RESOURCE_NOT_FOUND',
+    'VALIDATION_FAILED',
+    'ARTICLE_LOCKED_FOR_REVIEW',
+    'ARTICLE_ALREADY_FINISHED',
+  )
+  async updateArticle(
+    @Param('articleId', ParseUUIDPipe) articleId: string,
+    @Body() body: UpdateArticleRequestDto,
+    @CurrentSession() session: Session,
+  ): Promise<ArticleResponseDto> {
+    const input = parseOrFail(updateArticleSchema, body);
+
+    return toArticleResponse(
+      unwrap(
+        await this.articles.updateTitle({
+          actorId: session.state.userId,
+          articleId,
+          title: input.title,
+        }),
+      ),
     );
   }
 
@@ -871,6 +902,7 @@ function toArticleSummaryResponse(article: ArticleSummaryDto): ArticleSummaryRes
     currentMilestoneId: article.currentMilestoneId,
     currentMilestoneOrder: article.currentMilestoneOrder,
     currentMilestoneDeadline: article.currentMilestoneDeadline?.toISOString() ?? null,
+    title: article.title,
     updatedAt: article.updatedAt.toISOString(),
   };
 }
@@ -888,6 +920,7 @@ function toArticleResponse(article: ArticleDto): ArticleResponseDto {
     currentMilestoneId: article.currentMilestoneId,
     currentMilestoneOrder: article.currentMilestoneOrder,
     currentMilestoneDeadline: article.currentMilestoneDeadline?.toISOString() ?? null,
+    title: article.title,
     content: article.content,
     formatProfile: article.formatProfile,
   };

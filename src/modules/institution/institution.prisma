@@ -34,6 +34,10 @@ model Institution {
   cnpj         String? @unique
   website      String?
   contactEmail String? @map("contact_email")
+  /// Cidade e UF (`institution-location`): dados de identificação fora da URS v0.4,
+  /// pendentes de ratificação. UF em duas letras maiúsculas.
+  city         String?
+  state        String?
 
   active Boolean @default(true)
 

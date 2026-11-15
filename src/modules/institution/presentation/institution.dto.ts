@@ -21,6 +21,12 @@ export class InstitutionDtoResponse {
   @ApiPropertyOptional({ nullable: true, format: 'email' })
   contactEmail!: string | null;
 
+  @ApiPropertyOptional({ nullable: true })
+  city!: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'UF, duas letras maiúsculas.' })
+  state!: string | null;
+
   @ApiProperty({ description: 'Instituição inativa não permite a autenticação dos seus usuários.' })
   active!: boolean;
 }
@@ -40,6 +46,12 @@ export class CreateInstitutionRequestDto {
 
   @ApiPropertyOptional({ nullable: true, format: 'email' })
   contactEmail?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  city?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'UF, duas letras maiúsculas.' })
+  state?: string | null;
 }
 
 export class UpdateInstitutionRequestDto {
@@ -57,6 +69,12 @@ export class UpdateInstitutionRequestDto {
 
   @ApiPropertyOptional({ nullable: true, format: 'email' })
   contactEmail?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  city?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'UF, duas letras maiúsculas.' })
+  state?: string | null;
 }
 
 export class InstitutionAdminRequestDto {
@@ -75,6 +93,8 @@ export const createInstitutionSchema = z.object({
   cnpj: z.string().nullable().optional(),
   website: z.string().nullable().optional(),
   contactEmail: z.string().nullable().optional(),
+  city: z.string().nullable().optional(),
+  state: z.string().nullable().optional(),
 });
 
 /**
@@ -91,6 +111,8 @@ export const updateInstitutionSchema = z.object({
   cnpj: z.string().nullable().optional(),
   website: z.string().nullable().optional(),
   contactEmail: z.string().nullable().optional(),
+  city: z.string().nullable().optional(),
+  state: z.string().nullable().optional(),
 });
 
 export const institutionAdminSchema = z.object({

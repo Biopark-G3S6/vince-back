@@ -12,6 +12,7 @@ import type {
   ListMembersCommand,
   ListTeamInvitationsCommand,
   ListReceivedInvitationsCommand,
+  MemberRoleCommand,
   ListTeamsCommand,
   MemberCommand,
   MemberDto,
@@ -38,6 +39,7 @@ import { JoinTeamUseCase } from './join-team.use-case';
 import { ListEligibleStudentsUseCase } from './list-eligible-students.use-case';
 import { ListInvitationsUseCase } from './list-invitations.use-case';
 import { ListReceivedInvitationsUseCase } from './list-received-invitations.use-case';
+import { SetMemberRoleUseCase } from './set-member-role.use-case';
 import { ListMembersUseCase } from './list-members.use-case';
 import { ListTeamsUseCase } from './list-teams.use-case';
 import { InviteMemberUseCase } from './invite-member.use-case';
@@ -84,6 +86,7 @@ export class TeamFacadeImpl extends TeamFacade {
     private readonly respondInvitation: RespondInvitationUseCase,
     private readonly listInvitationsUseCase: ListInvitationsUseCase,
     private readonly listReceivedInvitationsUseCase: ListReceivedInvitationsUseCase,
+    private readonly setMemberRoleUseCase: SetMemberRoleUseCase,
     private readonly teamAdvisor: AssignTeamAdvisorUseCase,
     private readonly eligibleStudents: ListEligibleStudentsUseCase,
     private readonly teamState: ReadTeamStateUseCase,
@@ -135,6 +138,10 @@ export class TeamFacadeImpl extends TeamFacade {
 
   async declineInvitation(command: InvitationResponseCommand): Promise<TeamResult<void>> {
     return toVoidResult(await this.respondInvitation.decline(command));
+  }
+
+  async setMemberRole(command: MemberRoleCommand): Promise<TeamResult<MemberDto>> {
+    return toResult(await this.setMemberRoleUseCase.execute(command), toMemberDto);
   }
 
   async listReceivedInvitations(

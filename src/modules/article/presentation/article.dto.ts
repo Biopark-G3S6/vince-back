@@ -101,6 +101,9 @@ export class ArticleSummaryResponseDto {
   @ApiPropertyOptional({ format: 'date-time', nullable: true })
   currentMilestoneDeadline!: string | null;
 
+  @ApiPropertyOptional({ nullable: true })
+  title!: string | null;
+
   @ApiProperty({ format: 'date-time' })
   updatedAt!: string;
 }
@@ -138,6 +141,9 @@ export class ArticleResponseDto {
 
   @ApiPropertyOptional({ format: 'date-time', nullable: true })
   currentMilestoneDeadline!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  title!: string | null;
 
   @ApiProperty({ type: 'object', additionalProperties: true })
   content!: unknown;
@@ -495,6 +501,15 @@ export const updateTemplateSchema = z.object({
   courseId: z.string().uuid().nullable().optional(),
   content: jsonSchema.optional(),
 });
+
+export const updateArticleSchema = z.object({
+  title: z.string().trim().min(1).max(300).nullable(),
+});
+
+export class UpdateArticleRequestDto {
+  @ApiPropertyOptional({ nullable: true, maxLength: 300 })
+  title!: string | null;
+}
 
 export const listArticlesQuerySchema = z.object({
   eventId: z.string().uuid().optional(),

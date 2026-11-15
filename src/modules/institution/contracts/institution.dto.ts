@@ -12,6 +12,8 @@ export interface InstitutionDto {
   readonly cnpj: string | null;
   readonly website: string | null;
   readonly contactEmail: string | null;
+  readonly city: string | null;
+  readonly state: string | null;
   readonly active: boolean;
 }
 
@@ -22,6 +24,8 @@ export interface CreateInstitutionCommand {
   readonly cnpj?: string | null;
   readonly website?: string | null;
   readonly contactEmail?: string | null;
+  readonly city?: string | null;
+  readonly state?: string | null;
 }
 
 /**
@@ -37,6 +41,8 @@ export interface UpdateInstitutionCommand {
   readonly cnpj?: string | null;
   readonly website?: string | null;
   readonly contactEmail?: string | null;
+  readonly city?: string | null;
+  readonly state?: string | null;
 }
 
 export interface InstitutionQuery {

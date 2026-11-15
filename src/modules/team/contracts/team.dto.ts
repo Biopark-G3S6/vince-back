@@ -19,6 +19,11 @@ export interface CreateTeamCommand {
   readonly actorId: string;
   readonly eventId: string;
   readonly identification: string;
+  /**
+   * O título com que o artigo da equipe nasce (`article-title-and-feedback`). A equipe não
+   * o guarda: só o transporta no fato de criação, para o módulo do artigo.
+   */
+  readonly articleTitle?: string | null;
 }
 
 export interface TeamQuery {
@@ -38,6 +43,8 @@ export interface MemberDto {
   readonly eventId: string;
   readonly userId: string;
   readonly status: string;
+  /** `LEADER`, `AUTHOR` ou `COAUTHOR` (`team-member-role`). */
+  readonly role: string;
   readonly joinedAt: Date;
   readonly leftAt: Date | null;
 }
@@ -48,6 +55,10 @@ export type JoinTeamCommand = TeamQuery;
 /** A designação e a remoção pelo orientador (RF-EQP-003). */
 export interface MemberCommand extends TeamQuery {
   readonly userId: string;
+}
+
+export interface MemberRoleCommand extends MemberCommand {
+  readonly role: string;
 }
 
 export interface ListMembersCommand extends TeamQuery {

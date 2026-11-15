@@ -16,6 +16,8 @@ export interface Institution {
   readonly cnpj: string | null;
   readonly website: string | null;
   readonly contactEmail: string | null;
+  readonly city: string | null;
+  readonly state: string | null;
   readonly active: boolean;
 }
 
@@ -28,6 +30,10 @@ export const NAME_MAX_LENGTH = 200;
 export const CODE_MAX_LENGTH = 32;
 export const WEBSITE_MAX_LENGTH = 2048;
 export const CONTACT_EMAIL_MAX_LENGTH = 254;
+
+/** Cidade e UF (`institution-location`). A UF é a sigla de duas letras, em maiúsculas. */
+const CITY_MAX_LENGTH = 120;
+const STATE_SHAPE = /^[A-Z]{2}$/;
 
 /** O CNPJ tem catorze dígitos. A máscara é apresentação, e não é gravada. */
 const CNPJ_DIGITS = 14;
@@ -94,6 +100,8 @@ export interface InstitutionDraft {
   readonly cnpj?: string | null;
   readonly website?: string | null;
   readonly contactEmail?: string | null;
+  readonly city?: string | null;
+  readonly state?: string | null;
 }
 
 function violateName(name: string | undefined, into: FieldViolation[]): void {
@@ -145,6 +153,22 @@ function violateOptionals(draft: InstitutionDraft, into: FieldViolation[]): void
       into.push({ field: 'contactEmail', code: VIOLATION.MALFORMED });
     }
   }
+
+  if (draft.city !== undefined) {
+    const city = normalizeOptionalText(draft.city);
+
+    if (city !== null && city.length > CITY_MAX_LENGTH) {
+      into.push({ field: 'city', code: VIOLATION.TOO_LONG });
+    }
+  }
+
+  if (draft.state !== undefined) {
+    const state = normalizeOptionalText(draft.state);
+
+    if (state !== null && !STATE_SHAPE.test(state)) {
+      into.push({ field: 'state', code: VIOLATION.MALFORMED });
+    }
+  }
 }
 
 /**
@@ -189,6 +213,8 @@ export function institutionOf(id: string, draft: InstitutionDraft): Institution 
     cnpj: normalizeCnpj(draft.cnpj),
     website: normalizeOptionalText(draft.website),
     contactEmail: normalizeOptionalText(draft.contactEmail),
+    city: normalizeOptionalText(draft.city),
+    state: normalizeOptionalText(draft.state),
     active: true,
   };
 }
@@ -214,6 +240,8 @@ export function withChanges(institution: Institution, draft: InstitutionDraft): 
       draft.contactEmail === undefined
         ? institution.contactEmail
         : normalizeOptionalText(draft.contactEmail),
+    city: draft.city === undefined ? institution.city : normalizeOptionalText(draft.city),
+    state: draft.state === undefined ? institution.state : normalizeOptionalText(draft.state),
   };
 }
 

@@ -8,6 +8,7 @@ import type {
   ListMembersCommand,
   ListTeamInvitationsCommand,
   ListReceivedInvitationsCommand,
+  MemberRoleCommand,
   ListTeamsCommand,
   MemberCommand,
   MemberDto,
@@ -44,6 +45,7 @@ export abstract class TeamFacade {
   abstract join(command: JoinTeamCommand): Promise<TeamResult<MemberDto>>;
   abstract assignMember(command: MemberCommand): Promise<TeamResult<MemberDto>>;
   /** Idempotente, e **não destrutivo**: encerra a participação sem apagá-la. */
+  abstract setMemberRole(command: MemberRoleCommand): Promise<TeamResult<MemberDto>>;
   abstract removeMember(command: MemberCommand): Promise<TeamResult<void>>;
   abstract listMembers(command: ListMembersCommand): Promise<TeamResult<MemberPageDto>>;
 

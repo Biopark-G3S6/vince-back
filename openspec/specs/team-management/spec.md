@@ -120,3 +120,92 @@ caso de uso, SHALL usar envelope e paginação da API e SHALL constar da especif
 
 - **WHEN** aluno fora do escopo tenta ingressar em equipe
 - **THEN** a resposta tem status HTTP `422` e código `STUDENT_NOT_ELIGIBLE`
+
+### Requirement: Artigo acompanha a equipe
+
+O artigo de uma equipe SHALL refletir a composição ativa e o orientador responsável corrente da
+equipe. Ingresso, designação, remoção de integrante e designação ou revogação do orientador
+responsável MUST passar a valer para o acesso ao artigo sem ação adicional. Integrantes ativos SHALL
+ler e editar o artigo; o orientador responsável corrente SHALL ser quem avalia o artigo e os
+integrantes. A criação do artigo MUST ser idempotente: o reprocessamento do mesmo fato de criação de
+equipe não cria um segundo artigo.
+
+#### Scenario: Equipe criada gera artigo uma única vez
+
+- **WHEN** uma equipe é criada e o fato de criação é processado mais de uma vez
+- **THEN** existe exatamente um artigo associado à equipe, em estado `STARTED`
+
+#### Scenario: Integrante que ingressa passa a acessar o artigo
+
+- **WHEN** um aluno ingressa na equipe ou é designado a ela
+- **THEN** o aluno consegue consultar o artigo da equipe
+
+#### Scenario: Integrante removido perde o acesso de edição
+
+- **WHEN** um integrante é removido da equipe
+- **THEN** a edição do artigo por esse usuário é recusada
+
+#### Scenario: Orientador responsável designado passa a avaliar
+
+- **WHEN** um orientador do evento é designado responsável pela equipe
+- **THEN** a avaliação do artigo por esse orientador é aceita
+
+#### Scenario: Orientador responsável revogado deixa de avaliar
+
+- **WHEN** a designação do orientador responsável é revogada
+- **THEN** a avaliação do artigo por esse orientador é recusada com `PERMISSION_DENIED`
+
+### Requirement: Orientador responsável na consulta da equipe
+
+A consulta individual e a listagem de equipes do evento SHALL incluir `responsibleAdvisorId`, com o
+identificador do orientador responsável corrente, ou `null` quando não houver designação ativa.
+
+#### Scenario: Equipe com responsável
+
+- **WHEN** um orientador é designado responsável e a equipe é consultada
+- **THEN** a resposta traz `responsibleAdvisorId` igual ao identificador do orientador
+
+#### Scenario: Responsável revogado
+
+- **WHEN** a designação é revogada e a equipe é consultada
+- **THEN** a resposta traz `responsibleAdvisorId` nulo
+
+### Requirement: Convites recebidos pelo aluno
+
+O sistema SHALL expor `GET /api/v1/team-invitations`, exigindo `TEAM:JOIN`, paginado conforme o
+contrato de resposta, devolvendo somente os convites de equipe pendentes e não expirados cujo
+convidado é o próprio ator, com o identificador do convite, da equipe e do evento e a validade.
+Convites aceitos, recusados, expirados ou endereçados a outro aluno MUST NOT constar.
+
+#### Scenario: Aluno consulta os próprios convites
+
+- **WHEN** um aluno com um convite pendente e outro já recusado consulta os convites recebidos
+- **THEN** a resposta contém apenas o convite pendente
+
+#### Scenario: Convite de outro aluno
+
+- **WHEN** existe convite pendente endereçado a outro aluno
+- **THEN** ele não consta da resposta do ator
+
+### Requirement: Papel do integrante
+
+Cada integrante SHALL ter um papel: `LEADER`, `AUTHOR` ou `COAUTHOR`.
+
+- **Valor inicial:** quem ingressa, é designado ou aceita convite nasce como `COAUTHOR`.
+- **Leitura:** a listagem de integrantes SHALL devolver o papel.
+- **Alteração:** `PATCH /api/v1/teams/:teamId/members/:userId` exige `TEAM:ASSIGN_MEMBER` e o mesmo
+  alcance da designação de integrante.
+- **Recusas:**
+  - papel fora da lista → `VALIDATION_FAILED`;
+  - usuário que não é integrante ativo → `RESOURCE_NOT_FOUND`.
+- **Efeito:** o papel MUST NOT alterar permissões nem o acesso ao artigo.
+
+#### Scenario: Integrante passa a líder
+
+- **WHEN** o orientador do evento define `role` `LEADER` para um integrante ativo
+- **THEN** a listagem de integrantes devolve o integrante com `role` `LEADER`
+
+#### Scenario: Não integrante
+
+- **WHEN** o papel é definido para um usuário que não integra a equipe
+- **THEN** a resposta é `404` com `RESOURCE_NOT_FOUND`

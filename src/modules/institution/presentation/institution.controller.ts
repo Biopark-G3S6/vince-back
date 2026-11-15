@@ -244,6 +244,8 @@ function toResponse(institution: InstitutionDto): InstitutionDtoResponse {
     cnpj: institution.cnpj,
     website: institution.website,
     contactEmail: institution.contactEmail,
+    city: institution.city,
+    state: institution.state,
     active: institution.active,
   };
 }

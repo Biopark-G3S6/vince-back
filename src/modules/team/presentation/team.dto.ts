@@ -25,6 +25,13 @@ export class TeamResponse {
 export class CreateTeamRequest {
   @ApiProperty()
   identification!: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    maxLength: 300,
+    description: 'Título com que o artigo da equipe nasce.',
+  })
+  articleTitle?: string | null;
 }
 
 export class MemberResponse {
@@ -45,6 +52,9 @@ export class MemberResponse {
     description: 'A remoção encerra a participação; ela não desaparece da equipe.',
   })
   status!: string;
+
+  @ApiProperty({ enum: ['LEADER', 'AUTHOR', 'COAUTHOR'] })
+  role!: string;
 
   @ApiProperty({ format: 'date-time' })
   joinedAt!: Date;
@@ -87,7 +97,17 @@ export class EligibleStudentResponse {
   userId!: string;
 }
 
-export const createTeamSchema = z.object({ identification: z.string() });
+export class SetMemberRoleRequest {
+  @ApiProperty({ enum: ['LEADER', 'AUTHOR', 'COAUTHOR'] })
+  role!: string;
+}
+
+export const setMemberRoleSchema = z.object({ role: z.enum(['LEADER', 'AUTHOR', 'COAUTHOR']) });
+
+export const createTeamSchema = z.object({
+  identification: z.string(),
+  articleTitle: z.string().trim().max(300).nullable().optional(),
+});
 
 export const inviteMemberSchema = z.object({
   userId: z.string().uuid(),

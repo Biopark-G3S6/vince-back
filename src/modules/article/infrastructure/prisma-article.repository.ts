@@ -238,6 +238,7 @@ export class PrismaArticleRepository extends ArticleRepository {
         currentMilestoneDeadline: data.currentMilestoneDeadline,
         lastMilestoneOrder: data.lastMilestoneOrder,
         templateVersionId: data.templateVersionId,
+        title: data.title,
         content: asInput(data.content),
         formatProfile: asInput({ norm: 'ABNT' }),
       },
@@ -306,6 +307,7 @@ export class PrismaArticleRepository extends ArticleRepository {
         currentMilestoneId: true,
         currentMilestoneOrder: true,
         currentMilestoneDeadline: true,
+        title: true,
         updatedAt: true,
       },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -319,6 +321,18 @@ export class PrismaArticleRepository extends ArticleRepository {
       rows.map((row) => ({ ...row, status: row.status as ArticleSummary['status'] })),
       total,
     );
+  }
+
+  async updateArticleTitle(id: string, title: string | null): Promise<Article | null> {
+    try {
+      return toArticle(await this.prisma.article.update({ where: { id }, data: { title } }));
+    } catch (error: unknown) {
+      if (isPrismaError(error, RECORD_NOT_FOUND)) {
+        return null;
+      }
+
+      throw error;
+    }
   }
 
   async updateTeamRoster(teamId: string, roster: TeamRosterData): Promise<Article | null> {
@@ -527,6 +541,7 @@ export class PrismaArticleRepository extends ArticleRepository {
     readonly articleId: string;
     readonly memberId: string | null;
     readonly score: number;
+    readonly feedback: string | null;
     readonly evaluatedBy: string;
   }): Promise<ArticleAssessment> {
     const row = await this.prisma.articleAssessmentHistory.create({
@@ -965,6 +980,7 @@ function toArticle(row: {
   currentMilestoneDeadline: Date | null;
   lastMilestoneOrder: number | null;
   templateVersionId: string | null;
+  title: string | null;
   content: Prisma.JsonValue;
   formatProfile: Prisma.JsonValue;
   createdAt: Date;
@@ -1100,6 +1116,7 @@ function toAssessment(row: ArticleAssessment): ArticleAssessment {
     articleId: row.articleId,
     memberId: row.memberId,
     score: row.score,
+    feedback: row.feedback,
     evaluatedBy: row.evaluatedBy,
     createdAt: row.createdAt,
   };

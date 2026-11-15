@@ -11,6 +11,7 @@ import { JoinTeamUseCase } from './application/join-team.use-case';
 import { ListEligibleStudentsUseCase } from './application/list-eligible-students.use-case';
 import { ListInvitationsUseCase } from './application/list-invitations.use-case';
 import { ListReceivedInvitationsUseCase } from './application/list-received-invitations.use-case';
+import { SetMemberRoleUseCase } from './application/set-member-role.use-case';
 import { ListMembersUseCase } from './application/list-members.use-case';
 import { ListTeamsUseCase } from './application/list-teams.use-case';
 import { ReadTeamStateUseCase } from './application/read-team-state.use-case';
@@ -82,6 +83,7 @@ export class TeamModule {
         RespondInvitationUseCase,
         ListInvitationsUseCase,
         ListReceivedInvitationsUseCase,
+        SetMemberRoleUseCase,
         AssignTeamAdvisorUseCase,
         ListEligibleStudentsUseCase,
         ReadTeamStateUseCase,

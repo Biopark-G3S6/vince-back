@@ -99,7 +99,7 @@ URS/ADR — sai da tela.
 | :---------- | :----------------------------------------------- | :----- | :------------------------------------------------------------ |
 | Instituição | `acronym`, `legalId`, `domain`, `supportEmail`   | (a)    | `code`, `cnpj`, `website`, `contactEmail`                     |
 | Instituição | `admins`                                         | (b)    | `GET /users?role=INSTITUTION_ADMIN&institutionId=`            |
-| Instituição | `city`, `state`                                  | ?      | a decidir (ver abaixo)                                        |
+| Instituição | `city`, `state`                                  | (c\*)  | `institution-location`                                        |
 | Instituição | `coursesActive`                                  | (d)    | o administrador de sistema não lê cursos                      |
 | Curso       | `code`, `status`, `coordinator`                  | (a/b)  | `identification`, `active`, `coordinatorId` + diretório       |
 | Curso       | `classes`, `events`, `students` (contagens)      | (d)    | custo de N requisições por linha; sai                         |
@@ -108,11 +108,17 @@ URS/ADR — sai da tela.
 | Evento      | `scope`, `title`, `theme`, limites, `milestones` | (a)    | contrato atual; o front passa a pedir problema e objetivos    |
 | Evento      | `templateId`                                     | (a)    | `POST /article-template-selections`                           |
 | Evento      | `registrationOpen`, `registrationDeadline`       | (d)    | contradiz `RF-EVT-001` RN2 (sem inscrição prévia)             |
-| Evento      | `kind`, avaliador com `expertise`/`invited`      | ?      | a decidir; avaliadores viram orientadores (`EVT-003`)         |
+| Evento      | `kind`, avaliador com `expertise`/`invited`      | (d)    | sai; avaliadores viram orientadores do evento (`RF-EVT-003`)  |
 | Equipe      | `name`, `members`, `responsibleAdvisor`          | (a/c)  | `identification`, membros + diretório, `team-read-extensions` |
-| Equipe      | papel `Líder/Autor/Coautor`, título do artigo    | ?      | a decidir                                                     |
+| Equipe      | papel `Líder/Autor/Coautor`, título do artigo    | (c\*)  | `team-member-role`, `article-title-and-feedback`              |
 | Artigo      | nota, notas por integrante, publicação, situação | (a)    | `assessments`, `member-assessments`, `publications`, status   |
-| Artigo      | parecer textual (`feedback`)                     | ?      | a decidir                                                     |
+| Artigo      | parecer textual (`feedback`)                     | (c\*)  | `article-title-and-feedback`                                  |
+
+**(c\*)** — campo fora da URS v0.4, estendido no backend por decisão do usuário em 2026-11-15.
+**Pendente de ratificação na URS** (`vince-docs`): cidade/UF da instituição, título do artigo,
+parecer da nota do artigo e papel do integrante.
+
+Todas as mudanças acima foram implementadas e arquivadas em `openspec/changes/archive/2026-11-15-*`.
 
 ### Fora desta rodada
 

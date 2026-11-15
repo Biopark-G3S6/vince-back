@@ -16,6 +16,7 @@ import { ArticleScope } from './article-scope';
 
 const MIN_SCORE = 0;
 const MAX_SCORE = 10;
+const MAX_FEEDBACK = 4000;
 
 @Injectable()
 export class RecordGradeUseCase {
@@ -31,12 +32,18 @@ export class RecordGradeUseCase {
       return failValidation([{ field: 'score', code: 'MALFORMED' }]);
     if (command.memberId !== undefined && !article.value.memberIds.includes(command.memberId))
       return fail(FAILURE.RESOURCE_NOT_FOUND);
+    const feedback = command.feedback?.trim() ?? '';
+    if (command.memberId !== undefined && feedback !== '')
+      return failValidation([{ field: 'feedback', code: 'MALFORMED' }]);
+    if (feedback.length > MAX_FEEDBACK)
+      return failValidation([{ field: 'feedback', code: 'TOO_LONG' }]);
     return ok(
       toAssessment(
         await this.articles.createAssessment({
           articleId: command.articleId,
           memberId: command.memberId ?? null,
           score: command.score,
+          feedback: feedback === '' ? null : feedback,
           evaluatedBy: command.actorId,
         }),
       ),
@@ -195,6 +202,7 @@ function toAssessment(value: ArticleAssessment): ArticleAssessmentDto {
     articleId: value.articleId,
     memberId: value.memberId,
     score: value.score,
+    feedback: value.feedback,
     evaluatedBy: value.evaluatedBy,
     createdAt: value.createdAt,
   };

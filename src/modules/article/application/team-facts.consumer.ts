@@ -37,10 +37,10 @@ export class TeamFactsConsumer implements OnModuleInit, OnModuleDestroy {
   }
 
   private async consume(event: DomainEvent): Promise<void> {
-    const teamId = event.payload.teamId;
+    const { teamId, articleTitle } = event.payload;
 
     if (typeof teamId === 'string') {
-      await this.sync.execute(teamId);
+      await this.sync.execute(teamId, typeof articleTitle === 'string' ? articleTitle : null);
     }
   }
 }

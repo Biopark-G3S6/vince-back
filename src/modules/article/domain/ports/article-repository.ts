@@ -49,6 +49,7 @@ export interface ArticleCreateData {
   readonly currentMilestoneDeadline: Date | null;
   readonly lastMilestoneOrder: number | null;
   readonly templateVersionId: string | null;
+  readonly title: string | null;
   readonly content: JsonValue;
 }
 
@@ -187,6 +188,7 @@ export abstract class ArticleRepository {
   abstract createTeamArticle(data: ArticleCreateData): Promise<Article | 'ALREADY_EXISTS'>;
   abstract findArticle(id: string): Promise<Article | null>;
   abstract findArticleByTeam(teamId: string): Promise<Article | null>;
+  abstract updateArticleTitle(id: string, title: string | null): Promise<Article | null>;
   abstract listArticles(
     filters: ArticleListFilters,
     request: PageRequest,
@@ -222,6 +224,7 @@ export abstract class ArticleRepository {
     readonly articleId: string;
     readonly memberId: string | null;
     readonly score: number;
+    readonly feedback: string | null;
     readonly evaluatedBy: string;
   }): Promise<ArticleAssessment>;
   abstract listAssessments(articleId: string): Promise<readonly ArticleAssessment[]>;
@@ -285,6 +288,7 @@ export interface ArticleAssessment {
   readonly articleId: string;
   readonly memberId: string | null;
   readonly score: number;
+  readonly feedback: string | null;
   readonly evaluatedBy: string;
   readonly createdAt: Date;
 }

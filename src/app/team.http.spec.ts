@@ -688,6 +688,7 @@ describe('contrato HTTP da vertical team', () => {
       readonly status: string;
       readonly advisorId: string | null;
       readonly memberIds: readonly string[];
+      readonly title?: string | null;
     }
 
     const listArticles = async (cookies: Cookies, query: string): Promise<ArticleItem[]> =>
@@ -782,6 +783,112 @@ describe('contrato HTTP da vertical team', () => {
         .set('X-CSRF-Token', student.csrf)
         .send({ content: { type: 'doc' } })
         .expect(404);
+    });
+
+    it('título na criação e pelo integrante, parecer na nota e papel do integrante', async () => {
+      const fixture = await teamScenario();
+      const advisor = await authenticate(fixture.professor.email);
+      const owner = await authenticate(fixture.coordinator.email);
+      const student = await authenticate(fixture.student.email);
+
+      // article-title-and-feedback: o título viaja da criação da equipe ao artigo.
+      const created = await request(server as never)
+        .post(`${PREFIX}/events/${fixture.eventId}/teams`)
+        .set('Cookie', cookieHeader(advisor))
+        .set('X-CSRF-Token', advisor.csrf)
+        .send({ identification: 'Equipe Título', articleTitle: '  Mobilidade urbana  ' })
+        .expect(201);
+      const teamId = (bodyOf(created).data as { readonly id: string }).id;
+      const [article] = (await listArticles(
+        advisor,
+        `teamId=${teamId}`,
+      )) as readonly (ArticleItem & {
+        readonly title: string | null;
+      })[];
+      expect(article?.title).toBe('Mobilidade urbana');
+      const articleId = article?.id ?? '';
+
+      await request(server as never)
+        .post(`${PREFIX}/teams/${teamId}/membership`)
+        .set('Cookie', cookieHeader(student))
+        .set('X-CSRF-Token', student.csrf)
+        .expect(201);
+      const renamed = await request(server as never)
+        .patch(`${PREFIX}/articles/${articleId}`)
+        .set('Cookie', cookieHeader(student))
+        .set('X-CSRF-Token', student.csrf)
+        .send({ title: 'Mobilidade e dados abertos' })
+        .expect(200);
+      expect(bodyOf(renamed).data).toMatchObject({ title: 'Mobilidade e dados abertos' });
+
+      // O orientador não integra a equipe: não muda o título.
+      await request(server as never)
+        .patch(`${PREFIX}/articles/${articleId}`)
+        .set('Cookie', cookieHeader(advisor))
+        .set('X-CSRF-Token', advisor.csrf)
+        .send({ title: 'Outro' })
+        .expect(403);
+
+      // Parecer junto da nota do artigo; recusado na nota individual.
+      await request(server as never)
+        .post(`${PREFIX}/teams/${teamId}/advisor/${fixture.professor.id}`)
+        .set('Cookie', cookieHeader(owner))
+        .set('X-CSRF-Token', owner.csrf)
+        .expect(204);
+      await request(server as never)
+        .post(`${PREFIX}/articles/${articleId}/assessments`)
+        .set('Cookie', cookieHeader(advisor))
+        .set('X-CSRF-Token', advisor.csrf)
+        .send({ score: 9, feedback: 'Boa fundamentação.' })
+        .expect(201);
+      const memberFeedback = await request(server as never)
+        .post(`${PREFIX}/articles/${articleId}/member-assessments`)
+        .set('Cookie', cookieHeader(advisor))
+        .set('X-CSRF-Token', advisor.csrf)
+        .send({ score: 8, memberId: fixture.student.id, feedback: 'não cabe' })
+        .expect(400);
+      expect(bodyOf(memberFeedback).status.code).toBe('VALIDATION_FAILED');
+      const grades = await request(server as never)
+        .get(`${PREFIX}/articles/${articleId}/assessments`)
+        .set('Cookie', cookieHeader(advisor))
+        .expect(200);
+      expect(bodyOf(grades).data).toEqual([
+        expect.objectContaining({ score: 9, feedback: 'Boa fundamentação.', memberId: null }),
+      ]);
+
+      // team-member-role: nasce coautor; o orientador do evento o faz líder.
+      const members = async () =>
+        bodyOf(
+          await request(server as never)
+            .get(`${PREFIX}/teams/${teamId}/members`)
+            .set('Cookie', cookieHeader(advisor))
+            .expect(200),
+        ).data as readonly { readonly userId: string; readonly role: string }[];
+      expect(await members()).toEqual([
+        expect.objectContaining({ userId: fixture.student.id, role: 'COAUTHOR' }),
+      ]);
+      await request(server as never)
+        .patch(`${PREFIX}/teams/${teamId}/members/${fixture.student.id}`)
+        .set('Cookie', cookieHeader(advisor))
+        .set('X-CSRF-Token', advisor.csrf)
+        .send({ role: 'LEADER' })
+        .expect(200);
+      expect(await members()).toEqual([
+        expect.objectContaining({ userId: fixture.student.id, role: 'LEADER' }),
+      ]);
+      const notMember = await request(server as never)
+        .patch(`${PREFIX}/teams/${teamId}/members/${fixture.mate.id}`)
+        .set('Cookie', cookieHeader(advisor))
+        .set('X-CSRF-Token', advisor.csrf)
+        .send({ role: 'AUTHOR' })
+        .expect(404);
+      expect(bodyOf(notMember).status.code).toBe('RESOURCE_NOT_FOUND');
+      await request(server as never)
+        .patch(`${PREFIX}/teams/${teamId}/members/${fixture.student.id}`)
+        .set('Cookie', cookieHeader(advisor))
+        .set('X-CSRF-Token', advisor.csrf)
+        .send({ role: 'CHEFE' })
+        .expect(400);
     });
 
     it('o orientador do evento lista todas as equipes; aluno vê só a sua', async () => {

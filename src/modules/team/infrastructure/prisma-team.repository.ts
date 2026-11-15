@@ -10,7 +10,12 @@ import {
   type TeamInvitation,
   type TeamInvitationStatus,
 } from '../domain/invitation';
-import { MEMBER_STATUS, type MemberStatus, type TeamMember } from '../domain/member';
+import {
+  MEMBER_STATUS,
+  type MemberRole,
+  type MemberStatus,
+  type TeamMember,
+} from '../domain/member';
 import type { Team } from '../domain/team';
 import {
   TeamRepository,
@@ -47,6 +52,7 @@ const MEMBER_COLUMNS = {
   teamId: true,
   userId: true,
   status: true,
+  role: true,
   joinedAt: true,
   leftAt: true,
 } as const;
@@ -90,10 +96,11 @@ function toMember(row: {
   teamId: string;
   userId: string;
   status: string;
+  role: string;
   joinedAt: Date;
   leftAt: Date | null;
 }): TeamMember {
-  return { ...row, status: row.status as MemberStatus };
+  return { ...row, status: row.status as MemberStatus, role: row.role as MemberRole };
 }
 
 function toInvitation(row: {
@@ -127,7 +134,11 @@ export class PrismaTeamRepository extends TeamRepository {
     super();
   }
 
-  async createTeam(team: Team, maxTeams: number): Promise<CreateTeamOutcome> {
+  async createTeam(
+    team: Team,
+    maxTeams: number,
+    articleTitle?: string | null,
+  ): Promise<CreateTeamOutcome> {
     return this.prisma.transaction(async (tx) => {
       await tx.lock(eventLock(team.eventId));
 
@@ -153,6 +164,7 @@ export class PrismaTeamRepository extends TeamRepository {
             eventId: created.eventId,
             institutionId: created.institutionId,
             identification: created.identification,
+            ...(articleTitle === undefined || articleTitle === null ? {} : { articleTitle }),
             ...(await this.usageOf(tx, created.eventId)),
           }),
         ];
@@ -527,6 +539,28 @@ export class PrismaTeamRepository extends TeamRepository {
       institutionId: team.institutionId,
       advisorId,
     });
+  }
+
+  async setMemberRole(
+    teamId: string,
+    userId: string,
+    role: MemberRole,
+  ): Promise<TeamMember | null> {
+    const updated = await this.prisma.member.updateMany({
+      where: { teamId, userId, status: MEMBER_STATUS.ACTIVE },
+      data: { role },
+    });
+
+    if (updated.count === 0) {
+      return null;
+    }
+
+    const row = await this.prisma.member.findFirstOrThrow({
+      where: { teamId, userId, status: MEMBER_STATUS.ACTIVE },
+      select: MEMBER_COLUMNS,
+    });
+
+    return toMember(row);
   }
 
   async activeAdvisorOf(teamId: string): Promise<TeamAdvisor | null> {

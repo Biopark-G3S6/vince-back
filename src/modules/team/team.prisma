@@ -27,6 +27,9 @@ model TeamMember {
   teamId    String    @map("team_id") @db.Uuid
   userId    String    @map("user_id") @db.Uuid
   status    String
+  /// Papel na organização da equipe (`team-member-role`): `LEADER`, `AUTHOR` ou
+  /// `COAUTHOR`. Fora da URS v0.4, pendente de ratificação; não altera permissão.
+  role      String    @default("COAUTHOR")
   joinedAt  DateTime  @default(now()) @map("joined_at") @db.Timestamptz(3)
   leftAt    DateTime? @map("left_at") @db.Timestamptz(3)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)

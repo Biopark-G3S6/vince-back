@@ -28,7 +28,11 @@ export class SyncArticleWithTeamUseCase {
     private readonly events: EventFacade,
   ) {}
 
-  async execute(teamId: string): Promise<TeamSyncOutcome> {
+  /**
+   * `articleTitle` vem do fato de criação da equipe (`article-title-and-feedback`): só é
+   * usado ao criar o artigo; depois, o título é dos integrantes.
+   */
+  async execute(teamId: string, articleTitle?: string | null): Promise<TeamSyncOutcome> {
     const team = await this.teams.stateOf(teamId);
 
     if (!team.exists || team.eventId === null || team.institutionId === null) {
@@ -63,6 +67,7 @@ export class SyncArticleWithTeamUseCase {
         currentMilestoneDeadline: milestone?.dueAt ?? null,
         lastMilestoneOrder: null,
         templateVersionId: null,
+        title: articleTitle ?? null,
         content: {},
       });
 

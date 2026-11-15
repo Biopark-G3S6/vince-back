@@ -48,6 +48,7 @@ import type {
   ArticleSummaryDto,
   CitationCommand,
   ListArticlesQuery,
+  UpdateArticleTitleCommand,
 } from './article.dto';
 import type { ArticleResult } from './result.dto';
 
@@ -63,6 +64,7 @@ export abstract class ArticleFacade {
 
   abstract createArticle(command: CreateArticleCommand): Promise<ArticleResult<ArticleDto>>;
   abstract findArticle(query: ArticleQuery): Promise<ArticleResult<ArticleDto>>;
+  abstract updateTitle(command: UpdateArticleTitleCommand): Promise<ArticleResult<ArticleDto>>;
   abstract listArticles(query: ListArticlesQuery): Promise<ArticleResult<Page<ArticleSummaryDto>>>;
   abstract listProgress(
     query: ArticleProgressQuery,

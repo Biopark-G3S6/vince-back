@@ -55,6 +55,7 @@ export interface Article {
   readonly currentMilestoneDeadline: Date | null;
   readonly lastMilestoneOrder: number | null;
   readonly templateVersionId: string | null;
+  readonly title: string | null;
   readonly content: JsonValue;
   readonly formatProfile: JsonValue;
   readonly createdAt: Date;
