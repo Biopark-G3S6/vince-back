@@ -1,8 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { v7 as uuidv7 } from 'uuid';
 
+import type { Page } from '@shared/http/pagination';
+
 import type {
   ArticleDto,
+  ArticleSummaryDto,
+  ListArticlesQuery,
   ArticlePresenceDto,
   ArticleQuery,
   ArticleVersionDto,
@@ -75,6 +79,36 @@ export class CreateArticleUseCase {
         templateVersionId: command.templateVersionId ?? null,
         content,
       }),
+    );
+  }
+}
+
+@Injectable()
+export class ListArticlesUseCase {
+  constructor(
+    private readonly repo: ArticleRepository,
+    private readonly scope: ArticleScope,
+  ) {}
+
+  async execute(query: ListArticlesQuery): Promise<Result<Page<ArticleSummaryDto>>> {
+    const reach = await this.scope.readingReach(query.actorId);
+
+    if (!reach.ok) {
+      return reach;
+    }
+
+    return ok(
+      await this.repo.listArticles(
+        {
+          institutionId: reach.value.institutionId,
+          reach: reach.value.reach,
+          ...(query.eventId === undefined ? {} : { eventId: query.eventId }),
+          ...(query.teamId === undefined ? {} : { teamId: query.teamId }),
+          ...(query.courseId === undefined ? {} : { courseId: query.courseId }),
+          ...(query.status === undefined ? {} : { status: query.status }),
+        },
+        query.request,
+      ),
     );
   }
 }

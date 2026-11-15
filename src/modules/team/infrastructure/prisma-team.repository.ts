@@ -396,7 +396,7 @@ export class PrismaTeamRepository extends TeamRepository {
    * parcial o impõe; revogar o corrente dentro da mesma transação é o que permite trocar
    * sem passar por um estado sem responsável.
    */
-  async assignAdvisor(advisor: TeamAdvisor, actorId: string): Promise<boolean> {
+  async assignAdvisor(advisor: TeamAdvisor, actorId: string): Promise<readonly OutboxFact[]> {
     return this.prisma.transaction(async (tx) => {
       await tx.lock(teamLock(advisor.teamId));
 
@@ -406,7 +406,7 @@ export class PrismaTeamRepository extends TeamRepository {
       });
 
       if (current !== null && current.userId === advisor.userId) {
-        return false;
+        return [];
       }
 
       if (current !== null) {
@@ -443,11 +443,15 @@ export class PrismaTeamRepository extends TeamRepository {
         },
       });
 
-      return true;
+      return [await this.recordAdvisorChanged(tx, advisor.teamId, advisor.userId)];
     });
   }
 
-  async revokeAdvisor(teamId: string, userId: string, actorId: string): Promise<boolean> {
+  async revokeAdvisor(
+    teamId: string,
+    userId: string,
+    actorId: string,
+  ): Promise<readonly OutboxFact[]> {
     return this.prisma.transaction(async (tx) => {
       await tx.lock(teamLock(teamId));
 
@@ -457,14 +461,37 @@ export class PrismaTeamRepository extends TeamRepository {
       });
 
       if (revoked.count === 0) {
-        return false;
+        return [];
       }
 
       await tx.teamAdvisorAudit.create({
         data: { id: uuidv7(), teamId, userId, actorId, operation: 'REVOKED' },
       });
 
-      return true;
+      return [await this.recordAdvisorChanged(tx, teamId, null)];
+    });
+  }
+
+  /**
+   * O fato da troca de responsável (`TeamAdvisorChanged`), para quem guarda cópia dele —
+   * o artigo, que decide por ele quem avalia. Leva o responsável **resultante**, e não a
+   * operação, para que o consumidor convirja ao estado corrente qualquer que seja a ordem.
+   */
+  private async recordAdvisorChanged(
+    tx: TeamTransaction,
+    teamId: string,
+    advisorId: string | null,
+  ): Promise<OutboxFact> {
+    const team = await tx.team.findUniqueOrThrow({
+      where: { id: teamId },
+      select: { eventId: true, institutionId: true },
+    });
+
+    return this.recordFact(tx, 'TeamAdvisorChanged', {
+      teamId,
+      eventId: team.eventId,
+      institutionId: team.institutionId,
+      advisorId,
     });
   }
 

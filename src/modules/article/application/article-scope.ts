@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 
 import { AccessFacade } from '@modules/access/contracts/access.facade';
 import type { UserProfileDto } from '@modules/access/contracts/user.dto';
 import { CourseFacade } from '@modules/course/contracts/course.facade';
+import { EventFacade } from '@modules/event/contracts/event.facade';
 import { InstitutionFacade } from '@modules/institution/contracts/institution.facade';
 
 import {
@@ -14,7 +15,11 @@ import {
   type Template,
 } from '../domain/article';
 import { FAILURE, fail, ok, type Result } from '../domain/failure';
-import { ArticleRepository, type ArticleCorpusRecord } from '../domain/ports/article-repository';
+import {
+  ArticleRepository,
+  type ArticleCorpusRecord,
+  type ArticleReach,
+} from '../domain/ports/article-repository';
 
 const ROLE = {
   INSTITUTION_ADMIN: 'INSTITUTION_ADMIN',
@@ -28,7 +33,43 @@ export class ArticleScope {
     private readonly access: AccessFacade,
     private readonly institutions: InstitutionFacade,
     private readonly courses: CourseFacade,
+    /**
+     * Ausente quando o processo não ativa `event`: então ninguém é orientador de evento e
+     * o alcance se reduz a integrante e responsável.
+     */
+    @Optional() private readonly events?: EventFacade,
   ) {}
+
+  /**
+   * O alcance de leitura do ator sobre os artigos da sua instituição.
+   *
+   * `null` significa a instituição inteira — administrador institucional e coordenador,
+   * como em `readableArticle`. Os demais alcançam o artigo das equipes que integram, das
+   * que orientam como responsáveis e das equipes dos eventos que orientam (RF-ART-001 RN3).
+   */
+  async readingReach(
+    actorId: string,
+  ): Promise<Result<{ readonly institutionId: string; readonly reach: ArticleReach | null }>> {
+    const institution = await this.actorInstitution(actorId);
+
+    if (!institution.ok) {
+      return institution;
+    }
+
+    const roles = new Set(institution.value.profile.roleCodes);
+
+    if (roles.has(ROLE.INSTITUTION_ADMIN) || roles.has(ROLE.COORDINATOR)) {
+      return ok({ institutionId: institution.value.id, reach: null });
+    }
+
+    return ok({
+      institutionId: institution.value.id,
+      reach: {
+        userId: actorId,
+        advisedEventIds: (await this.events?.advisedEventIdsOf(actorId)) ?? [],
+      },
+    });
+  }
 
   async actorInstitution(
     actorId: string,
@@ -109,6 +150,11 @@ export class ArticleScope {
     }
 
     if (isTeamMember(article, actorId) || isResponsibleAdvisor(article, actorId)) {
+      return ok(article);
+    }
+
+    // O orientador do evento alcança os artigos de todas as equipes do evento (RN3).
+    if (this.events !== undefined && (await this.events.isAdvisor(article.eventId, actorId))) {
       return ok(article);
     }
 

@@ -49,6 +49,10 @@ class SubstituteEventFacade extends EventFacade {
     return Promise.resolve(this.advisors.has(userId));
   }
 
+  advisedEventIdsOf(): never {
+    return expect.unreachable('o módulo `team` não consulta os eventos orientados');
+  }
+
   isScopeOwner(_eventId: string, userId: string): Promise<boolean> {
     return Promise.resolve(this.owners.has(userId));
   }
@@ -514,6 +518,38 @@ describe('módulo team', () => {
           await facade.assignAdvisor({ actorId: advisorId, teamId: team.id, userId: advisorId }),
         ).code,
       ).toBe('PERMISSION_DENIED');
+    });
+
+    it('publica TeamAdvisorChanged com o responsável resultante, só quando algo muda', async () => {
+      const team = valueOf(await newTeam());
+      const received: unknown[] = [];
+      const unsubscribe = bus.subscribe('TeamAdvisorChanged', (event) => {
+        received.push(event.payload);
+
+        return Promise.resolve();
+      });
+
+      try {
+        valueOf(
+          await facade.assignAdvisor({ actorId: ownerId, teamId: team.id, userId: advisorId }),
+        );
+        valueOf(
+          await facade.assignAdvisor({ actorId: ownerId, teamId: team.id, userId: advisorId }),
+        );
+        valueOf(
+          await facade.revokeAdvisor({ actorId: ownerId, teamId: team.id, userId: advisorId }),
+        );
+        valueOf(
+          await facade.revokeAdvisor({ actorId: ownerId, teamId: team.id, userId: advisorId }),
+        );
+
+        expect(received).toEqual([
+          expect.objectContaining({ teamId: team.id, eventId, institutionId, advisorId }),
+          expect.objectContaining({ teamId: team.id, eventId, institutionId, advisorId: null }),
+        ]);
+      } finally {
+        unsubscribe();
+      }
     });
 
     it('a revogação é idempotente e vale em evento cancelado', async () => {

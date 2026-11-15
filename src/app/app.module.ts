@@ -159,7 +159,11 @@ export class AppModule {
               institution,
               course,
               ...(notification === null ? [] : [notification]),
+              ...(event === null || team === null ? [] : [event, team]),
             ],
+            // O artigo nasce com a equipe (RF-EQP-001 RN1): sem `team` e `event` ativos no
+            // processo não há fato a escutar nem a quem perguntar pela composição.
+            ...(event === null || team === null ? {} : { teamFacts: events }),
           })
         : null;
 

@@ -62,6 +62,12 @@ export abstract class EventFacade {
   abstract isAdvisor(eventId: string, userId: string): Promise<boolean>;
 
   /**
+   * Os eventos em que o usuário orienta. Leitura para o alcance do orientador do evento
+   * sobre os artigos das suas equipes (RF-ART-001 RN3). Uma consulta.
+   */
+  abstract advisedEventIdsOf(userId: string): Promise<readonly string[]>;
+
+  /**
    * O ator é dono do escopo deste evento?
    *
    * É a pergunta de `RF-EQP-005`, que reserva ao dono do escopo a nomeação do responsável

@@ -23,12 +23,15 @@ import {
   ArticleRepository,
   type ArticleAssessment,
   type ArticleCreateData,
+  type ArticleListFilters,
+  type ArticleSummary,
   type ArticleCorpusRecord,
   type ArticleProgressRecord,
   type CitationData,
   type ReferenceData,
   type RemarkData,
   type SubmissionData,
+  type TeamRosterData,
   type TemplateCreateData,
   type TemplateUpdateData,
   type ExternalPublication,
@@ -243,10 +246,105 @@ export class PrismaArticleRepository extends ArticleRepository {
     return toArticle(row);
   }
 
+  async createTeamArticle(data: ArticleCreateData): Promise<Article | 'ALREADY_EXISTS'> {
+    try {
+      return await this.createArticle(data);
+    } catch (error: unknown) {
+      if (isPrismaError(error, UNIQUE_CONSTRAINT)) {
+        return 'ALREADY_EXISTS';
+      }
+
+      throw error;
+    }
+  }
+
   async findArticle(id: string): Promise<Article | null> {
     const row = await this.prisma.article.findUnique({ where: { id } });
 
     return row === null ? null : toArticle(row);
+  }
+
+  async findArticleByTeam(teamId: string): Promise<Article | null> {
+    const row = await this.prisma.article.findUnique({ where: { teamId } });
+
+    return row === null ? null : toArticle(row);
+  }
+
+  async listArticles(
+    filters: ArticleListFilters,
+    request: PageRequest,
+  ): Promise<Page<ArticleSummary>> {
+    const where: Prisma.ArticleWhereInput = {
+      institutionId: filters.institutionId,
+      ...(filters.eventId === undefined ? {} : { eventId: filters.eventId }),
+      ...(filters.teamId === undefined ? {} : { teamId: filters.teamId }),
+      ...(filters.courseId === undefined ? {} : { courseId: filters.courseId }),
+      ...(filters.status === undefined ? {} : { status: filters.status }),
+      ...(filters.reach === null
+        ? {}
+        : {
+            OR: [
+              { memberIds: { has: filters.reach.userId } },
+              { advisorId: filters.reach.userId },
+              ...(filters.reach.advisedEventIds.length === 0
+                ? []
+                : [{ eventId: { in: [...filters.reach.advisedEventIds] } }]),
+            ],
+          }),
+    };
+    const rows = await this.prisma.article.findMany({
+      where,
+      select: {
+        id: true,
+        institutionId: true,
+        courseId: true,
+        eventId: true,
+        teamId: true,
+        advisorId: true,
+        memberIds: true,
+        status: true,
+        currentMilestoneId: true,
+        currentMilestoneOrder: true,
+        currentMilestoneDeadline: true,
+        updatedAt: true,
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      skip: offsetOf(request),
+      take: takeOf(request),
+    });
+    const total = request.withTotal ? await this.prisma.article.count({ where }) : undefined;
+
+    return toPage(
+      request,
+      rows.map((row) => ({ ...row, status: row.status as ArticleSummary['status'] })),
+      total,
+    );
+  }
+
+  async updateTeamRoster(teamId: string, roster: TeamRosterData): Promise<Article | null> {
+    const current = await this.prisma.article.findUnique({
+      where: { teamId },
+      select: { currentMilestoneId: true },
+    });
+
+    if (current === null) {
+      return null;
+    }
+
+    const milestone =
+      current.currentMilestoneId === null && roster.currentMilestone !== null
+        ? {
+            currentMilestoneId: roster.currentMilestone.id,
+            currentMilestoneOrder: roster.currentMilestone.order,
+            currentMilestoneDeadline: roster.currentMilestone.deadline,
+          }
+        : {};
+    const row = await this.prisma.article.update({
+      where: { teamId },
+      data: { memberIds: [...roster.memberIds], advisorId: roster.advisorId, ...milestone },
+    });
+
+    return toArticle(row);
   }
 
   async listProgress(

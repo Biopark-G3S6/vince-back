@@ -218,6 +218,30 @@ export interface ActorCommand {
   readonly actorId: string;
 }
 
+/** O resumo do artigo na listagem (RF-ART-001): sem o conteúdo. */
+export interface ArticleSummaryDto {
+  readonly id: string;
+  readonly institutionId: string;
+  readonly courseId: string | null;
+  readonly eventId: string;
+  readonly teamId: string;
+  readonly advisorId: string | null;
+  readonly memberIds: readonly string[];
+  readonly status: ArticleStatus;
+  readonly currentMilestoneId: string | null;
+  readonly currentMilestoneOrder: number | null;
+  readonly currentMilestoneDeadline: Date | null;
+  readonly updatedAt: Date;
+}
+
+export interface ListArticlesQuery extends ActorCommand {
+  readonly request: PageRequest;
+  readonly eventId?: string;
+  readonly teamId?: string;
+  readonly courseId?: string;
+  readonly status?: ArticleStatus;
+}
+
 export interface CreateTemplateCommand extends ActorCommand {
   readonly name: string;
   readonly description?: string | null;

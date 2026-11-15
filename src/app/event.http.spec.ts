@@ -474,6 +474,7 @@ describe('contrato HTTP da vertical event', () => {
       .expect(200);
     expect(bodyOf(advisors).data).toEqual([{ eventId, userId: fixture.professor.id }]);
     expect(await events.isAdvisor(eventId, fixture.professor.id)).toBe(true);
+    expect(await events.advisedEventIdsOf(fixture.professor.id)).toEqual([eventId]);
 
     await request(server as never)
       .delete(`${PREFIX}/events/${eventId}/advisors/${fixture.professor.id}`)
@@ -486,6 +487,7 @@ describe('contrato HTTP da vertical event', () => {
       .set('X-CSRF-Token', cookies.csrf)
       .expect(204);
     expect(await events.isAdvisor(eventId, fixture.professor.id)).toBe(false);
+    expect(await events.advisedEventIdsOf(fixture.professor.id)).toEqual([]);
   });
 
   it('recusa reduzir limite abaixo do uso projetado e consome o fato uma vez só', async () => {

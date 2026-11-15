@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { v7 as uuidv7 } from 'uuid';
 
+import { DomainEventBus } from '@shared/events/event-bus';
+
 import { EventFacade } from '@modules/event/contracts/event.facade';
 
 import type { TeamAdvisorCommand } from '../contracts/team.dto';
 import { advisorOf } from '../domain/advisor';
 import { FAILURE, fail, ok, type Result } from '../domain/failure';
 import { TeamRepository } from '../domain/ports/team-repository';
+import { publishFacts } from './publish-facts';
 import { TeamScope } from './team-scope';
 
 /**
@@ -26,6 +29,7 @@ export class AssignTeamAdvisorUseCase {
     private readonly teams: TeamRepository,
     private readonly scope: TeamScope,
     private readonly events: EventFacade,
+    private readonly bus: DomainEventBus,
   ) {}
 
   async assign(command: TeamAdvisorCommand): Promise<Result<void>> {
@@ -45,10 +49,12 @@ export class AssignTeamAdvisorUseCase {
       return fail(FAILURE.ADVISOR_NOT_ASSIGNED_TO_EVENT);
     }
 
-    await this.teams.assignAdvisor(
+    const facts = await this.teams.assignAdvisor(
       advisorOf(uuidv7(), command.teamId, command.userId),
       command.actorId,
     );
+
+    await publishFacts(this.bus, facts);
 
     return ok(undefined);
   }
@@ -65,7 +71,10 @@ export class AssignTeamAdvisorUseCase {
       return fail(FAILURE.PERMISSION_DENIED);
     }
 
-    await this.teams.revokeAdvisor(command.teamId, command.userId, command.actorId);
+    await publishFacts(
+      this.bus,
+      await this.teams.revokeAdvisor(command.teamId, command.userId, command.actorId),
+    );
 
     return ok(undefined);
   }

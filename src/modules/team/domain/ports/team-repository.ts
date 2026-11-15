@@ -113,8 +113,16 @@ export abstract class TeamRepository {
 
   abstract declineInvitation(invitationId: string): Promise<boolean>;
 
-  /** Designa o responsável, revogando o anterior. Devolve se algo mudou. */
-  abstract assignAdvisor(advisor: TeamAdvisor, actorId: string): Promise<boolean>;
-  abstract revokeAdvisor(teamId: string, userId: string, actorId: string): Promise<boolean>;
+  /**
+   * Designa o responsável, revogando o anterior. Devolve os fatos gravados na outbox —
+   * vazio quando nada mudou.
+   */
+  abstract assignAdvisor(advisor: TeamAdvisor, actorId: string): Promise<readonly OutboxFact[]>;
+  /** Revoga o responsável. Devolve os fatos gravados na outbox — vazio quando nada mudou. */
+  abstract revokeAdvisor(
+    teamId: string,
+    userId: string,
+    actorId: string,
+  ): Promise<readonly OutboxFact[]>;
   abstract activeAdvisorOf(teamId: string): Promise<TeamAdvisor | null>;
 }
