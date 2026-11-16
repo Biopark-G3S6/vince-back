@@ -41,28 +41,30 @@ export class CreateArticleUseCase {
       return institution;
     }
 
+    const institutionId = command.institutionId ?? institution.value.id;
+    if (institutionId !== institution.value.id) {
+      return fail(FAILURE.PERMISSION_DENIED);
+    }
+
     let content: JsonValue = {};
 
     if (command.templateVersionId !== undefined && command.templateVersionId !== null) {
-      const templates = await this.repo.listTemplates(
-        institution.value.id,
-        {
-          page: 1,
-          pageSize: 100,
-          withTotal: false,
-        },
-        { includeInactive: true },
-      );
-      const template = templates.items.find(
-        (item) => item.currentVersionId === command.templateVersionId,
-      );
-      content = template?.content ?? {};
+      const templateVersion = await this.repo.findTemplateVersion(command.templateVersionId);
+      if (
+        templateVersion === null ||
+        templateVersion.institutionId !== institutionId ||
+        (templateVersion.courseId !== null &&
+          templateVersion.courseId !== (command.courseId ?? null))
+      ) {
+        return fail(FAILURE.RESOURCE_NOT_FOUND);
+      }
+      content = templateVersion.content;
     }
 
     return ok(
       await this.repo.createArticle({
         id: uuidv7(),
-        institutionId: command.institutionId ?? institution.value.id,
+        institutionId,
         courseId: command.courseId ?? null,
         eventId: command.eventId,
         teamId: command.teamId,

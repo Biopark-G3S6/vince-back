@@ -74,6 +74,13 @@ export interface Template {
   readonly createdBy: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;
+  readonly versions?: readonly {
+    readonly id: string;
+    readonly versionNumber: number;
+    readonly content: JsonValue;
+    readonly createdBy: string;
+    readonly createdAt: Date;
+  }[];
 }
 
 export interface TemplateSelection {

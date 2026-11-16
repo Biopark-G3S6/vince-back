@@ -44,6 +44,13 @@ export interface TemplateDto {
   readonly createdBy: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;
+  readonly versions?: readonly {
+    readonly id: string;
+    readonly versionNumber: number;
+    readonly content: JsonValue;
+    readonly createdBy: string;
+    readonly createdAt: Date;
+  }[];
 }
 
 export interface TemplateSelectionDto {
@@ -256,7 +263,7 @@ export interface ArticleQuery extends ActorCommand {
 export interface ArticleProgressQuery extends ActorCommand {
   readonly request: PageRequest;
   readonly courseId?: string;
-  readonly scope: 'advisor' | 'course' | 'institution';
+  readonly scope: 'advisor' | 'course' | 'institution' | 'member';
 }
 
 export type ArticleCorpusQuery = ArticleQuery;
