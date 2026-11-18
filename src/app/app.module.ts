@@ -103,7 +103,10 @@ export class AppModule {
     // `access` ativo não há a quem pedir o papel — daí a conjunção.
     const institution =
       active('institution') && access !== null
-        ? InstitutionModule.forRoot(getPrismaClient(), getRedisClient(), { imports: [access] })
+        ? InstitutionModule.forRoot(getPrismaClient(), getRedisClient(), {
+            imports: [access],
+            events,
+          })
         : null;
 
     const course =

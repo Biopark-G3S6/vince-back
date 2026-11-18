@@ -172,3 +172,14 @@ revisar" nas concessões (`RF-ACS-008`); `/entrar` com sessão ativa leva ao pai
 A carga inicial grava os vínculos de papel novos, mas não invalida o cache de permissões efetivas
 (Redis, TTL de 1 hora): no ambiente local, as contas já autenticadas só recebem a permissão nova
 depois de expirar o cache ou de limpá-lo.
+
+## Auditoria do contexto de instituição (2026-11-18)
+
+Todas as rotas de `RF-INS-001` e `002` passaram a ser usadas pela tela, inclusive a lista e a
+revogação de convites. Corrigidos:
+
+- `institution-admin-by-invitation`: o convite de administrador institucional aceito não criava o
+  vínculo com a instituição, e a revogação pela tela concluía sem efeito. Contas aceitas antes da
+  correção se resolvem com uma nova designação pela tela.
+- Tela: domínio opcional também na edição; mensagem para e-mail de outra instituição; seção de
+  convites com situação, validade e revogação; validade escolhida na emissão e cópia do link.

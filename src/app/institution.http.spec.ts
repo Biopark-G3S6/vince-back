@@ -659,6 +659,38 @@ describe('contrato da API — instituição', () => {
         .expect(401);
     });
 
+    it('o convite de administrador aceito vincula a conta à instituição (RF-INS-002)', async () => {
+      const cookies = await asSystemAdmin();
+      const institution = await anInstitution();
+      const email = anEmail();
+      const url = await issue(cookies, institution.id, {
+        roleCode: 'INSTITUTION_ADMIN',
+        targetEmail: email,
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      });
+      const accepted = await request(server as never)
+        .post(`${PREFIX}/invitations/${url.split('/').pop()}/acceptance`)
+        .send({ name: 'Admin Convidada', password: PASSWORD })
+        .expect(201);
+      const userId = (bodyOf(accepted).data as { userId: string }).userId;
+
+      // O vínculo existe: a revogação o remove e, sem outro vínculo, derruba o papel (RN3).
+      await request(server as never)
+        .delete(`${PREFIX}/institutions/${institution.id}/admins/${userId}`)
+        .set('Cookie', header(cookies))
+        .set('X-CSRF-Token', cookies.csrf)
+        .expect(204);
+
+      const listed = await request(server as never)
+        .get(`${PREFIX}/users?institutionId=${institution.id}`)
+        .set('Cookie', header(cookies))
+        .expect(200);
+      const account = (bodyOf(listed).data as { id: string; roleCodes: string[] }[]).find(
+        (person) => person.id === userId,
+      );
+      expect(account?.roleCodes).toEqual([]);
+    });
+
     it('percorre a cadeia desde o primeiro acesso sem intervenção no banco', async () => {
       const resetUrl = seedReport.systemAdmin.passwordResetUrl as string;
       const token = new URL(resetUrl, 'http://localhost').searchParams.get('token');

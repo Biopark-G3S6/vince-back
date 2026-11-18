@@ -1,11 +1,15 @@
-import { Module, type DynamicModule, type ModuleMetadata } from '@nestjs/common';
+import { Module, type DynamicModule, type ModuleMetadata, type Provider } from '@nestjs/common';
 import type { PrismaClient } from '@prisma/client';
 import type Redis from 'ioredis';
+
+import { DomainEventBus } from '@shared/events/event-bus';
 
 import { AssignInstitutionAdminUseCase } from './application/assign-institution-admin.use-case';
 import { CreateInstitutionUseCase } from './application/create-institution.use-case';
 import { FindInstitutionUseCase } from './application/find-institution.use-case';
+import { InstitutionEventConsumer } from './application/institution-event.consumer';
 import { InstitutionFacadeImpl } from './application/institution.facade.impl';
+import { LinkInvitedAdminUseCase } from './application/link-invited-admin.use-case';
 import { ListInstitutionsUseCase } from './application/list-institutions.use-case';
 import { ListInvitationsUseCase } from './application/list-invitations.use-case';
 import { IssueInvitationUseCase } from './application/issue-invitation.use-case';
@@ -36,6 +40,8 @@ import { InstitutionController } from './presentation/institution.controller';
  */
 export interface InstitutionModuleOptions {
   readonly imports: ModuleMetadata['imports'];
+  /** O barramento de fatos: o aceite de convite de administrador vira vínculo (RF-INS-002). */
+  readonly events?: DomainEventBus;
 }
 
 /**
@@ -55,6 +61,11 @@ export class InstitutionModule {
     redis: Redis,
     options: InstitutionModuleOptions,
   ): DynamicModule {
+    const consumers: Provider[] =
+      options.events === undefined
+        ? []
+        : [{ provide: DomainEventBus, useValue: options.events }, InstitutionEventConsumer];
+
     return {
       module: InstitutionModule,
       imports: options.imports,
@@ -75,6 +86,8 @@ export class InstitutionModule {
         ReadAdminLinksUseCase,
         ReadInstitutionStateUseCase,
         AssignInstitutionAdminUseCase,
+        LinkInvitedAdminUseCase,
+        ...consumers,
         { provide: InstitutionFacade, useClass: InstitutionFacadeImpl },
       ],
       exports: [InstitutionFacade],
