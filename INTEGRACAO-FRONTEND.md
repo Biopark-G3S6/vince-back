@@ -183,3 +183,14 @@ revogação de convites. Corrigidos:
   correção se resolvem com uma nova designação pela tela.
 - Tela: domínio opcional também na edição; mensagem para e-mail de outra instituição; seção de
   convites com situação, validade e revogação; validade escolhida na emissão e cópia do link.
+
+## Auditoria do contexto de curso (2026-11-18)
+
+Todas as rotas de `RF-CUR-001` e `002` são usadas pela tela (a consulta por identificador é coberta
+pela lista). Correções só no frontend: coordenação ocupada exige revogar antes (`RF-CUR-002` E1),
+curso desativado não oferece designação, busca de professor no seletor, destaque do curso
+selecionado e limites de tamanho dos campos.
+
+- Curso desativado é definitivo: não há reativação, conforme `RF-CUR-001` (decisão do usuário).
+- Designar coordenador ou criar turma em curso desativado responde `VALIDATION_FAILED` sem indicar o
+  campo; a tela evita a chamada, mas a resposta segue pouco informativa.
