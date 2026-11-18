@@ -89,11 +89,11 @@ export class InstitutionFacadeImpl extends InstitutionFacade {
   }
 
   async findById(query: InstitutionQuery): Promise<InstitutionResult<InstitutionDto>> {
-    return toResult(await this.findInstitution.execute(query.institutionId), toDto);
+    return toResult(await this.findInstitution.execute(query.institutionId, query.actorId), toDto);
   }
 
-  async list(request: PageRequest): Promise<Page<InstitutionDto>> {
-    const page = await this.listInstitutions.execute(request);
+  async list(request: PageRequest, actorId?: string): Promise<Page<InstitutionDto>> {
+    const page = await this.listInstitutions.execute(request, actorId);
 
     return { items: page.items.map(toDto), pagination: page.pagination };
   }

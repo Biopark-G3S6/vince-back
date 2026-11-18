@@ -37,6 +37,10 @@ e listar as instituições. A listagem SHALL ser paginada, SHALL informar `page`
 e `totalPages` SHALL ser devolvidos apenas quando solicitados explicitamente. A listagem SHALL incluir
 instituições ativas e inativas, distinguindo-as pelo estado.
 
+O ator vinculado a uma instituição SHALL consultar apenas a própria instituição (`RF-INS-001` RN4):
+a listagem SHALL conter só ela, e a consulta de instituição alheia SHALL responder
+`RESOURCE_NOT_FOUND`. O ator sem instituição (`SYSTEM_ADMIN`) SHALL consultar e listar todas.
+
 #### Scenario: Consulta por identificador
 
 - **WHEN** um ator com `INSTITUTION:READ` consulta uma instituição existente
@@ -67,6 +71,21 @@ instituições ativas e inativas, distinguindo-as pelo estado.
 
 - **WHEN** a listagem devolve um registro e depois dez registros
 - **THEN** a quantidade de consultas ao banco é a mesma nas duas execuções
+
+#### Scenario: Aluno consulta a própria instituição
+
+- **WHEN** um aluno consulta a instituição a que está vinculado
+- **THEN** recebe seus dados e seu estado
+
+#### Scenario: Usuário vinculado consulta instituição alheia
+
+- **WHEN** um professor consulta uma instituição à qual não está vinculado
+- **THEN** a resposta é `RESOURCE_NOT_FOUND` com status HTTP `404`
+
+#### Scenario: Usuário vinculado lista instituições
+
+- **WHEN** um coordenador solicita a listagem
+- **THEN** a resposta contém apenas a instituição a que está vinculado
 
 ### Requirement: Alteração de instituição
 

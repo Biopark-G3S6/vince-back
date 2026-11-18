@@ -802,4 +802,55 @@ describe('contrato da API — instituição', () => {
       expect(bodyOf(response).pagination).toEqual({ page: 1, pageSize: 20, hasNext: false });
     });
   });
+
+  describe('leitura pelo usuário vinculado (RF-INS-001 RN4)', () => {
+    it('o aluno lê a própria instituição e lista só ela', async () => {
+      const own = await anInstitution();
+      await anInstitution();
+      const student = await createAccount({ roleCode: 'STUDENT', institutionId: own.id });
+      const cookies = await authenticate(student.email);
+
+      const found = await request(server as never)
+        .get(`${PREFIX}/institutions/${own.id}`)
+        .set('Cookie', header(cookies))
+        .expect(200);
+      expect((bodyOf(found).data as { id: string }).id).toBe(own.id);
+
+      const listed = await request(server as never)
+        .get(`${PREFIX}/institutions?withTotal=true`)
+        .set('Cookie', header(cookies))
+        .expect(200);
+      expect((bodyOf(listed).data as { id: string }[]).map((item) => item.id)).toEqual([own.id]);
+      expect(bodyOf(listed).pagination).toMatchObject({ hasNext: false, totalItems: 1 });
+    });
+
+    it('o professor não alcança instituição alheia: 404, sem revelar a existência', async () => {
+      const own = await anInstitution();
+      const other = await anInstitution();
+      const professor = await createAccount({ roleCode: 'PROFESSOR', institutionId: own.id });
+      const cookies = await authenticate(professor.email);
+
+      const response = await request(server as never)
+        .get(`${PREFIX}/institutions/${other.id}`)
+        .set('Cookie', header(cookies))
+        .expect(404);
+      expect(bodyOf(response).status.code).toBe('RESOURCE_NOT_FOUND');
+    });
+
+    it('o administrador de sistema continua listando todas', async () => {
+      const first = await anInstitution();
+      const second = await anInstitution();
+      const cookies = await asSystemAdmin();
+
+      const ids = new Set<string>();
+      for (const id of [first.id, second.id]) {
+        const response = await request(server as never)
+          .get(`${PREFIX}/institutions/${id}`)
+          .set('Cookie', header(cookies))
+          .expect(200);
+        ids.add((bodyOf(response).data as { id: string }).id);
+      }
+      expect(ids.size).toBe(2);
+    });
+  });
 });

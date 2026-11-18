@@ -118,6 +118,12 @@ URS/ADR — sai da tela.
 **Pendente de ratificação na URS** (`vince-docs`): cidade/UF da instituição, título do artigo,
 parecer da nota do artigo e papel do integrante.
 
+Em 2026-11-18, também por decisão do usuário, `INSTITUTION:READ` passou a compor
+`INSTITUTION_ADMIN`, `COORDINATOR`, `PROFESSOR` e `STUDENT`, com a nova regra `RF-INS-001` RN4 (o
+vinculado lê só a própria instituição), para a tela "Meu acesso" exibir o nome da instituição. A
+URS foi alterada em `vince-docs` (branch `feat/institution-read-by-members`) e também está
+**pendente de ratificação**.
+
 Todas as mudanças acima foram implementadas e arquivadas em `openspec/changes/archive/2026-11-15-*`.
 
 ### Defeitos encontrados na integração (corrigidos)
@@ -148,3 +154,21 @@ local (`vince-front/e2e/integration`, `pnpm run test:integration`).
   avança sozinha quando a etapa vence: fica para a entrega automática de `RF-REV-003`.
 - `src/features/review/api/newArticle.spec.ts`, no frontend, já falhava na `main`, na área de
   revisão, que continua em demonstração.
+
+## Auditoria do contexto de acesso (2026-11-18)
+
+Todas as funções de `RF-ACS-001` a `009` foram exercitadas pela tela contra o backend. Ficam fora da
+apresentação, por decisão do usuário:
+
+- `POST /password/recovery` não envia o e-mail (dívida declarada no README do módulo `access`); a
+  tela informa "Solicitação registrada", mas o link não chega.
+- Por consequência, a conta criada por matrícula (`RF-TUR-003`), que nasce sem senha, não consegue
+  entrar (`RF-ACS-001` E4).
+
+Corrigidos: idioma de prévia oculto dos seletores (o backend só aceita `pt-BR`); nome da instituição
+na sessão (`institution-read-by-members`); resumo das permissões efetivas reais; filtro "Usuário a
+revisar" nas concessões (`RF-ACS-008`); `/entrar` com sessão ativa leva ao painel.
+
+A carga inicial grava os vínculos de papel novos, mas não invalida o cache de permissões efetivas
+(Redis, TTL de 1 hora): no ambiente local, as contas já autenticadas só recebem a permissão nova
+depois de expirar o cache ou de limpá-lo.
