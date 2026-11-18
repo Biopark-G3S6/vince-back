@@ -20,6 +20,9 @@ export class TeamResponse {
     description: 'O orientador responsável corrente (RF-EQP-005).',
   })
   responsibleAdvisorId!: string | null;
+
+  @ApiProperty({ description: 'Integrantes ativos; as vagas são o tamanho máximo menos este.' })
+  activeMemberCount!: number;
 }
 
 export class CreateTeamRequest {

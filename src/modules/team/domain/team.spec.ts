@@ -16,7 +16,7 @@ describe('regras de equipe', () => {
     ]);
   });
 
-  it('apara a identificação, guarda o evento e a instituição, e nasce sem responsável', () => {
+  it('apara a identificação, guarda o evento e a instituição, e nasce sem responsável nem integrantes', () => {
     expect(
       teamOf('team-id', 'event-id', 'institution-id', { identification: '  Equipe A  ' }),
     ).toEqual({
@@ -25,6 +25,7 @@ describe('regras de equipe', () => {
       institutionId: 'institution-id',
       identification: 'Equipe A',
       responsibleAdvisorId: null,
+      activeMemberCount: 0,
     });
   });
 

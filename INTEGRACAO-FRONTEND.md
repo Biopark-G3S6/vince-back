@@ -217,3 +217,17 @@ agrupada por escopo e atalho para as equipes do evento.
 
 - Pendência de Templates (fora dos contextos desta rodada): o modelo de artigo só é escolhido na
   criação do evento; não há troca posterior pela tela.
+
+## Auditoria do contexto de equipe (2026-11-18)
+
+Todas as rotas de `RF-EQP-001` a `006` são usadas, inclusive a consulta da equipe por identificador
+(nome da equipe no convite recebido).
+
+- `team-vacancies`: a equipe traz `activeMemberCount`, para o aluno ver as vagas antes de ingressar
+  (`RF-EQP-002`); o aluno só lê o artigo da própria equipe e não tinha como contá-las.
+- Tela: evento lido do endereço (atalho vindo de Eventos), gestão de integrantes só para orientadores
+  do evento, sem consultas negadas a quem não orienta, vagas por equipe, "Ingressar" apenas com vaga
+  e sem equipe no evento, convite recebido com equipe e evento.
+- Conflito na URS, mantido por decisão do usuário: `RF-EQP-005` lista o Professor como ator, mas a
+  composição de §2.3.1 não lhe dá `TEAM:ASSIGN_ADVISOR`. Em evento de turma, quem nomeia o
+  responsável é o coordenador do curso ou o administrador institucional.

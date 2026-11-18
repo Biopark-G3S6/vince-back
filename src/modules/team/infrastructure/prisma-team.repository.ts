@@ -44,6 +44,8 @@ const TEAM_COLUMNS = {
   // O responsável ativo, na mesma consulta: o índice único parcial garante no máximo um
   // (RF-EQP-005 RN3), e trazê-lo aqui evita uma ida ao banco por equipe na listagem.
   advisors: { where: { status: 'ACTIVE' }, select: { userId: true }, take: 1 },
+  // A lotação, na mesma consulta (`team-vacancies`): o aluno vê as vagas antes de ingressar.
+  _count: { select: { members: { where: { status: 'ACTIVE' } } } },
 } as const;
 
 const MEMBER_COLUMNS = {
@@ -80,6 +82,7 @@ function toTeam(row: {
   institutionId: string;
   identification: string;
   advisors: readonly { userId: string }[];
+  _count: { members: number };
 }): Team {
   return {
     id: row.id,
@@ -87,6 +90,7 @@ function toTeam(row: {
     institutionId: row.institutionId,
     identification: row.identification,
     responsibleAdvisorId: row.advisors[0]?.userId ?? null,
+    activeMemberCount: row._count.members,
   };
 }
 

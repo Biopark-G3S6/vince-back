@@ -376,6 +376,18 @@ describe('contrato HTTP da vertical team', () => {
       .expect(422);
     expect(bodyOf(full).status.code).toBe('TEAM_SIZE_LIMIT_REACHED');
 
+    // A lotação vem na listagem do evento, para o aluno ver as vagas (team-vacancies).
+    const occupancy = async () => {
+      const listed = await request(server as never)
+        .get(`${PREFIX}/events/${fixture.eventId}/teams`)
+        .set('Cookie', cookieHeader(student))
+        .expect(200);
+      return (bodyOf(listed).data as { id: string; activeMemberCount: number }[]).find(
+        (item) => item.id === team.id,
+      )?.activeMemberCount;
+    };
+    expect(await occupancy()).toBe(1);
+
     await request(server as never)
       .delete(`${PREFIX}/teams/${team.id}/members/${fixture.student.id}`)
       .set('Cookie', cookieHeader(advisor))
@@ -387,6 +399,7 @@ describe('contrato HTTP da vertical team', () => {
       .set('Cookie', cookieHeader(advisor))
       .expect(200);
     expect(bodyOf(members).data).toMatchObject([{ userId: fixture.student.id, status: 'REMOVED' }]);
+    expect(await occupancy()).toBe(0);
 
     // A participação encerrada continua consultável, e a vaga voltou.
     expect(await teams.membershipOf(team.id, fixture.student.id)).toEqual({

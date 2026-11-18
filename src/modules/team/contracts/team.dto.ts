@@ -13,6 +13,8 @@ export interface TeamDto {
   readonly identification: string;
   /** O orientador responsável corrente (RF-EQP-005), ou `null` (`team-read-extensions`). */
   readonly responsibleAdvisorId: string | null;
+  /** Integrantes ativos, para o cálculo das vagas (`team-vacancies`, RF-EQP-002). */
+  readonly activeMemberCount: number;
 }
 
 export interface CreateTeamCommand {
