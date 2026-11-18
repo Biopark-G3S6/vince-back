@@ -121,8 +121,8 @@ parecer da nota do artigo e papel do integrante.
 Em 2026-11-18, também por decisão do usuário, `INSTITUTION:READ` passou a compor
 `INSTITUTION_ADMIN`, `COORDINATOR`, `PROFESSOR` e `STUDENT`, com a nova regra `RF-INS-001` RN4 (o
 vinculado lê só a própria instituição), para a tela "Meu acesso" exibir o nome da instituição. A
-URS foi alterada em `vince-docs` (branch `feat/institution-read-by-members`) e também está
-**pendente de ratificação**.
+URS publicada ainda não traz essa composição: **pendente de ratificação** em `vince-docs`
+(`pnpm run docs:check-catalog` aponta a diferença).
 
 Todas as mudanças acima foram implementadas e arquivadas em `openspec/changes/archive/2026-11-15-*`.
 
