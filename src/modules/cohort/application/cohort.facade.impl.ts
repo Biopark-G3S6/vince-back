@@ -20,6 +20,7 @@ import type {
   IssueCohortInvitationCommand,
   ListCohortInvitationsCommand,
   ListCohortsCommand,
+  ListReadableCohortsCommand,
   ListEnrollmentsCommand,
   ListCohortProfessorsCommand,
   CohortProfessorPageDto,
@@ -41,6 +42,7 @@ import { FindCohortLinksUseCase } from './find-cohort-links.use-case';
 import { FindCohortUseCase } from './find-cohort.use-case';
 import { IssueInvitationUseCase } from './issue-invitation.use-case';
 import { ListCohortsUseCase } from './list-cohorts.use-case';
+import { ListReadableCohortsUseCase } from './list-readable-cohorts.use-case';
 import { ListEnrollmentsUseCase } from './list-enrollments.use-case';
 import { ListProfessorsUseCase } from './list-professors.use-case';
 import { ListInvitationsUseCase } from './list-invitations.use-case';
@@ -71,6 +73,7 @@ export class CohortFacadeImpl extends CohortFacade {
   constructor(
     private readonly createCohort: CreateCohortUseCase,
     private readonly listCohorts: ListCohortsUseCase,
+    private readonly listReadableCohorts: ListReadableCohortsUseCase,
     private readonly findCohort: FindCohortUseCase,
     private readonly updateCohort: UpdateCohortUseCase,
     private readonly deactivateCohort: DeactivateCohortUseCase,
@@ -100,6 +103,12 @@ export class CohortFacadeImpl extends CohortFacade {
         items: page.items.map(toCohortDto),
       }),
     );
+  }
+
+  async listReadable(command: ListReadableCohortsCommand): Promise<CohortPageDto> {
+    const page = await this.listReadableCohorts.execute(command.actorId, command.request);
+
+    return { ...page, items: page.items.map(toCohortDto) };
   }
 
   async findById(query: CohortQuery): Promise<CohortResult<CohortDto>> {

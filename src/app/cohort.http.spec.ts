@@ -320,4 +320,75 @@ describe('contrato HTTP da vertical cohort', () => {
     if (!enrollments.ok) throw new Error(enrollments.failure.code);
     expect(enrollments.value.items).toHaveLength(2);
   });
+
+  it('lista numa consulta as turmas que cada papel lê (cohort-listing)', async () => {
+    sequence += 1;
+    const institution = await institutions.create({
+      name: `Instituição Listagem ${sequence}`,
+      code: `LIST${sequence}${Date.now() % 10000}`,
+    });
+    if (!institution.ok) throw new Error(institution.failure.code);
+
+    const admin = await createAccount(institution.value.id, 'INSTITUTION_ADMIN');
+    const coordinator = await createAccount(institution.value.id, 'PROFESSOR');
+    const professor = await createAccount(institution.value.id, 'PROFESSOR');
+    const course = await courses.create({
+      actorId: admin.id,
+      name: 'Curso Listagem',
+      identification: `L${sequence}`,
+    });
+    if (!course.ok) throw new Error(course.failure.code);
+    await courses.assignCoordinator({
+      actorId: admin.id,
+      courseId: course.value.id,
+      userId: coordinator.id,
+    });
+
+    const coordinatorCookies = await authenticate(coordinator.email);
+    const createCohort = async (identification: string) => {
+      const response = await request(server as never)
+        .post(`${PREFIX}/courses/${course.value.id}/cohorts`)
+        .set('Cookie', cookieHeader(coordinatorCookies))
+        .set('X-CSRF-Token', coordinatorCookies.csrf)
+        .send({
+          identification,
+          term: '2026/2',
+          startsAt: '2026-08-01T00:00:00.000Z',
+          endsAt: '2026-12-15T00:00:00.000Z',
+        })
+        .expect(201);
+      return (bodyOf(response).data as { readonly id: string }).id;
+    };
+    const mine = await createCohort('MINHA');
+    const other = await createCohort('OUTRA');
+    await request(server as never)
+      .post(`${PREFIX}/cohorts/${mine}/professors/${professor.id}`)
+      .set('Cookie', cookieHeader(coordinatorCookies))
+      .set('X-CSRF-Token', coordinatorCookies.csrf)
+      .expect(204);
+
+    const professorCookies = await authenticate(professor.email);
+    const studentEmail = `listagem-${uuidv7()}@exemplo.test`;
+    await request(server as never)
+      .post(`${PREFIX}/cohorts/${mine}/enrollments`)
+      .set('Cookie', cookieHeader(professorCookies))
+      .set('X-CSRF-Token', professorCookies.csrf)
+      .send({ name: 'Aluno Listagem', email: studentEmail })
+      .expect(201);
+    const issued = await access.requestPasswordReset({ email: studentEmail });
+    if (issued === null) throw new Error('redefinição não emitida');
+    await access.resetPassword({ token: issued.token, password: PASSWORD });
+
+    const listed = async (cookies: Cookies) => {
+      const response = await request(server as never)
+        .get(`${PREFIX}/cohorts?pageSize=100`)
+        .set('Cookie', cookieHeader(cookies))
+        .expect(200);
+      return (bodyOf(response).data as { readonly id: string }[]).map((item) => item.id).sort();
+    };
+
+    expect(await listed(coordinatorCookies)).toEqual([mine, other].sort());
+    expect(await listed(professorCookies)).toEqual([mine]);
+    expect(await listed(await authenticate(studentEmail))).toEqual([mine]);
+  });
 });

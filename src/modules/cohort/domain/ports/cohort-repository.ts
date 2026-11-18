@@ -55,6 +55,15 @@ export abstract class CohortRepository {
     userId: string,
     request: PageRequest,
   ): Promise<CohortRows>;
+  /**
+   * As turmas que o usuário lê (`cohort-listing`): as dos cursos que coordena, aquelas em que
+   * é professor designado e aquela em que tem matrícula ativa. Uma consulta por página.
+   */
+  abstract listReadableBy(
+    userId: string,
+    coordinatedCourseIds: readonly string[],
+    request: PageRequest,
+  ): Promise<CohortRows>;
   /** O usuário é professor designado ou aluno com matrícula ativa da turma? */
   abstract isMember(cohortId: string, userId: string): Promise<boolean>;
   abstract save(cohort: Cohort): Promise<Cohort | null>;

@@ -194,3 +194,15 @@ selecionado e limites de tamanho dos campos.
 - Curso desativado é definitivo: não há reativação, conforme `RF-CUR-001` (decisão do usuário).
 - Designar coordenador ou criar turma em curso desativado responde `VALIDATION_FAILED` sem indicar o
   campo; a tela evita a chamada, mas a resposta segue pouco informativa.
+
+## Auditoria do contexto de turma (2026-11-18)
+
+Todas as rotas de `RF-TUR-001` a `005` passaram a ser usadas, inclusive a alteração da turma.
+
+- `cohort-listing`: `GET /cohorts` devolve numa consulta as turmas que o ator lê; a tela fazia uma
+  requisição por curso.
+- Tela de turmas: edição, confirmação antes de encerrar, busca no seletor de professor, cópia do
+  link e convites legíveis. O administrador institucional, que não tem `COHORT:READ`, deixou de ver
+  "Turmas" no menu.
+- "Professores e alunos" deixou de ser simulada: diretório da instituição e convite de professor
+  pelo coordenador e pelo administrador institucional (`RF-ACS-009`), com situação e revogação.

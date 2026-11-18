@@ -1,9 +1,21 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentSession } from '@shared/auth/request-session';
 import type { Session } from '@shared/auth/session-store';
-import { ApiEnvelope, ApiFailures } from '@shared/http/openapi';
+import { ApiEnvelope, ApiFailures, ApiPageQuery, ApiPagedEnvelope } from '@shared/http/openapi';
+import { pageRequestSchema, toPageRequest } from '@shared/http/pagination';
+import { respondWithPage, type EnvelopeResult } from '@shared/http/response-envelope';
 import { RequiresPermission } from '@shared/http/route-access';
 import { parseOrFail } from '@shared/http/validation';
 
@@ -15,6 +27,27 @@ import { unwrap } from './result-mapper';
 @Controller('cohorts')
 export class CohortController {
   constructor(private readonly cohorts: CohortFacade) {}
+
+  @Get()
+  @RequiresPermission('COHORT:READ')
+  @ApiOperation({
+    summary: 'Lista as turmas que o ator lê, paginado',
+    description:
+      'As turmas dos cursos que o ator coordena, aquelas em que é professor designado e a da ' +
+      'sua matrícula ativa, numa única consulta (cohort-listing).',
+  })
+  @ApiPageQuery()
+  @ApiPagedEnvelope(CohortResponse)
+  @ApiFailures('PERMISSION_DENIED', 'VALIDATION_FAILED')
+  async listReadable(
+    @Query() query: Record<string, unknown>,
+    @CurrentSession() session: Session,
+  ): Promise<EnvelopeResult<readonly CohortResponse[]>> {
+    const request = toPageRequest(parseOrFail(pageRequestSchema, query));
+    const page = await this.cohorts.listReadable({ actorId: session.state.userId, request });
+
+    return respondWithPage(page.items, page.pagination);
+  }
 
   @Get(':cohortId')
   @RequiresPermission('COHORT:READ')

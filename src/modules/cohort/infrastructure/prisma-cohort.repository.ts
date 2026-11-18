@@ -161,6 +161,34 @@ export class PrismaCohortRepository extends CohortRepository {
       : { rows: cohorts };
   }
 
+  async listReadableBy(
+    userId: string,
+    coordinatedCourseIds: readonly string[],
+    request: PageRequest,
+  ): Promise<CohortRows> {
+    const where = {
+      OR: [
+        ...(coordinatedCourseIds.length === 0
+          ? []
+          : [{ courseId: { in: [...coordinatedCourseIds] } }]),
+        { professors: { some: { userId } } },
+        { enrollments: { some: { userId, status: ENROLLMENT_STATUS.ACTIVE } } },
+      ],
+    };
+    const rows = await this.prisma.cohort.findMany({
+      where,
+      select: COHORT_COLUMNS,
+      orderBy: [{ startsAt: 'desc' }, { id: 'desc' }],
+      skip: offsetOf(request),
+      take: takeOf(request),
+    });
+    const cohorts = rows.map(toCohort);
+
+    return request.withTotal
+      ? { rows: cohorts, totalItems: await this.prisma.cohort.count({ where }) }
+      : { rows: cohorts };
+  }
+
   async isMember(cohortId: string, userId: string): Promise<boolean> {
     const [professor, enrollment] = await Promise.all([
       this.prisma.cohortProfessor.count({ where: { cohortId, userId } }),

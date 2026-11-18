@@ -25,6 +25,11 @@ export interface ListCohortsCommand {
   readonly request: PageRequest;
 }
 
+export interface ListReadableCohortsCommand {
+  readonly actorId: string;
+  readonly request: PageRequest;
+}
+
 export interface CohortQuery {
   readonly actorId: string;
   readonly cohortId: string;
