@@ -206,3 +206,14 @@ Todas as rotas de `RF-TUR-001` a `005` passaram a ser usadas, inclusive a altera
   "Turmas" no menu.
 - "Professores e alunos" deixou de ser simulada: diretório da instituição e convite de professor
   pelo coordenador e pelo administrador institucional (`RF-ACS-009`), com situação e revogação.
+
+## Auditoria do contexto de evento (2026-11-18)
+
+Todas as rotas de `RF-EVT-001` a `004` passaram a ser usadas, inclusive a alteração de etapa. A
+visibilidade por papel (`RF-EVT-004` RN1) foi confirmada pela API. Correções só no frontend: escopos
+oferecidos conforme o vínculo, controles de gestão apenas para o dono do escopo (a mesma hierarquia
+de `EventScope`, `ADR-0032`), edição de etapa, confirmação ao cancelar, busca de orientador, lista
+agrupada por escopo e atalho para as equipes do evento.
+
+- Pendência de Templates (fora dos contextos desta rodada): o modelo de artigo só é escolhido na
+  criação do evento; não há troca posterior pela tela.
