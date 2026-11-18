@@ -221,7 +221,7 @@ export class PrismaUserRepository extends UserRepository {
   ): Promise<Page<DirectoryEntry>> {
     const search = filters.search?.trim();
     const where = {
-      institutionId: filters.institutionId,
+      ...(filters.institutionId === undefined ? {} : { institutionId: filters.institutionId }),
       ...(filters.active === undefined ? {} : { active: filters.active }),
       ...(filters.ids === undefined ? {} : { id: { in: [...filters.ids] } }),
       ...(filters.roleCode === undefined
@@ -243,6 +243,7 @@ export class PrismaUserRepository extends UserRepository {
         name: true,
         email: true,
         active: true,
+        institutionId: true,
         roles: { select: { role: { select: { code: true } } } },
       },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
@@ -259,6 +260,7 @@ export class PrismaUserRepository extends UserRepository {
         email: row.email,
         active: row.active,
         roleCodes: row.roles.map((link) => link.role.code).sort(),
+        institutionId: row.institutionId,
       })),
       total,
     );

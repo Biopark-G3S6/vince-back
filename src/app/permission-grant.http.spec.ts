@@ -371,6 +371,7 @@ describe('contrato HTTP do diretório de usuários (user-directory)', () => {
         email: target.email,
         active: true,
         roleCodes: ['PROFESSOR'],
+        institutionId: own,
       },
     ]);
   });
@@ -405,5 +406,27 @@ describe('contrato HTTP do diretório de usuários (user-directory)', () => {
 
     const found = bodyOf(await directory(cookies, `institutionId=${target}`)).data as Person[];
     expect(found.map((person) => person.id)).toEqual([member.id]);
+  });
+
+  it('o administrador de sistema lista os administradores de todas as instituições numa consulta', async () => {
+    const first = await institution();
+    const second = await institution();
+    const admin = await createAccount(null, 'SYSTEM_ADMIN', 'Administração Geral');
+    const adminOfFirst = await createAccount(first, 'INSTITUTION_ADMIN', 'Admin Primeira');
+    const adminOfSecond = await createAccount(second, 'INSTITUTION_ADMIN', 'Admin Segunda');
+    const professor = await createAccount(first, 'PROFESSOR', 'Professor Primeira');
+    const cookies = await authenticate(admin.email);
+
+    const found = bodyOf(await directory(cookies, 'role=INSTITUTION_ADMIN&pageSize=100'))
+      .data as (Person & { institutionId: string })[];
+    const byId = new Map(found.map((person) => [person.id, person.institutionId]));
+
+    expect(byId.get(adminOfFirst.id)).toBe(first);
+    expect(byId.get(adminOfSecond.id)).toBe(second);
+    expect(byId.has(professor.id)).toBe(false);
+    expect(found.every((person) => person.roleCodes?.includes('INSTITUTION_ADMIN'))).toBe(true);
+
+    const otherRole = await directory(cookies, 'role=PROFESSOR', 400);
+    expect(bodyOf(otherRole).status.code).toBe('VALIDATION_FAILED');
   });
 });

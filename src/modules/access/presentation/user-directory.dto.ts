@@ -17,6 +17,9 @@ export class DirectoryUserResponseDto {
 
   @ApiPropertyOptional({ type: [String] })
   roleCodes?: string[];
+
+  @ApiPropertyOptional({ format: 'uuid', nullable: true, type: String })
+  institutionId?: string | null;
 }
 
 const MAX_IDS = 100;

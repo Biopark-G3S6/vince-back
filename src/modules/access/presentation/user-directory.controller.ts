@@ -74,5 +74,6 @@ function toResponse(user: DirectoryUserDto): DirectoryUserResponseDto {
     ...(user.email === undefined ? {} : { email: user.email }),
     ...(user.active === undefined ? {} : { active: user.active }),
     ...(user.roleCodes === undefined ? {} : { roleCodes: [...user.roleCodes] }),
+    ...(user.institutionId === undefined ? {} : { institutionId: user.institutionId }),
   };
 }

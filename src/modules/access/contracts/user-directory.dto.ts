@@ -10,6 +10,7 @@ export interface DirectoryUserDto {
   readonly email?: string;
   readonly active?: boolean;
   readonly roleCodes?: readonly string[];
+  readonly institutionId?: string | null;
 }
 
 export interface SearchDirectoryQuery {

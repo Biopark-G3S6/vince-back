@@ -28,9 +28,12 @@ contrato de resposta.
 
   Caso contrário, a resposta é `403` com `PERMISSION_DENIED`.
 
-- **Itens:** identificador, nome, e-mail, papéis e situação, apenas da instituição do ator.
-- **Administrador de sistema:** como não tem instituição, MUST informar `institutionId` e precisa de
-  `INSTITUTION:ASSIGN_ADMIN`. Sem `institutionId`, a resposta é `400` com `VALIDATION_FAILED`.
+- **Itens:** identificador, nome, e-mail, papéis, situação e `institutionId`, apenas da instituição
+  do ator.
+- **Administrador de sistema:** como não tem instituição, precisa de `INSTITUTION:ASSIGN_ADMIN` e
+  MUST informar `institutionId`, exceto quando filtra `role=INSTITUTION_ADMIN`: nesse caso, sem
+  `institutionId`, a resposta lista os administradores institucionais de todas as instituições.
+  Sem `institutionId` e com outro papel, ou sem papel, a resposta é `400` com `VALIDATION_FAILED`.
 
 #### Scenario: Coordenador busca professor por nome
 
@@ -47,6 +50,18 @@ contrato de resposta.
 
 - **WHEN** o administrador de sistema busca com `institutionId` de uma instituição existente
 - **THEN** a resposta lista os usuários daquela instituição
+
+#### Scenario: Administrador de sistema lista os administradores de todas as instituições
+
+- **WHEN** o administrador de sistema busca com `role=INSTITUTION_ADMIN` e sem `institutionId`
+- **THEN** a resposta lista os administradores institucionais de todas as instituições
+- **AND** cada item traz o `institutionId` da sua instituição
+- **AND** nenhum usuário com outro papel consta
+
+#### Scenario: Administrador de sistema sem instituição e com outro papel
+
+- **WHEN** o administrador de sistema busca com `role=PROFESSOR` e sem `institutionId`
+- **THEN** a resposta é `400` com `VALIDATION_FAILED`
 
 ### Requirement: Resolução de nomes por identificador
 

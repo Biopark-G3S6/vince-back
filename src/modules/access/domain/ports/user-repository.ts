@@ -35,9 +35,12 @@ export interface NewUserAccount {
   readonly actorId: string | null;
 }
 
-/** Filtros do diretório de usuários (`user-directory`). Sempre dentro de uma instituição. */
+/**
+ * Filtros do diretório de usuários (`user-directory`). Sem `institutionId`, só o caso de uso
+ * do administrador de sistema, restrito ao papel de administrador institucional.
+ */
 export interface DirectoryFilters {
-  readonly institutionId: string;
+  readonly institutionId?: string;
   readonly search?: string;
   readonly roleCode?: string;
   readonly active?: boolean;
@@ -50,6 +53,7 @@ export interface DirectoryEntry {
   readonly email: string;
   readonly active: boolean;
   readonly roleCodes: readonly string[];
+  readonly institutionId: string | null;
 }
 
 export abstract class UserRepository {
