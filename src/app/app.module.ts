@@ -103,7 +103,10 @@ export class AppModule {
     // `access` ativo não há a quem pedir o papel — daí a conjunção.
     const institution =
       active('institution') && access !== null
-        ? InstitutionModule.forRoot(getPrismaClient(), getRedisClient(), { imports: [access] })
+        ? InstitutionModule.forRoot(getPrismaClient(), getRedisClient(), {
+            imports: [access],
+            events,
+          })
         : null;
 
     const course =
@@ -159,7 +162,11 @@ export class AppModule {
               institution,
               course,
               ...(notification === null ? [] : [notification]),
+              ...(event === null || team === null ? [] : [event, team]),
             ],
+            // O artigo nasce com a equipe (RF-EQP-001 RN1): sem `team` e `event` ativos no
+            // processo não há fato a escutar nem a quem perguntar pela composição.
+            ...(event === null || team === null ? {} : { teamFacts: events }),
           })
         : null;
 

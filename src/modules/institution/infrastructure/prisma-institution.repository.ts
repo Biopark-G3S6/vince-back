@@ -50,6 +50,8 @@ interface InstitutionRow {
   cnpj: string | null;
   website: string | null;
   contactEmail: string | null;
+  city: string | null;
+  state: string | null;
   active: boolean;
 }
 
@@ -61,6 +63,8 @@ function toInstitution(row: InstitutionRow): Institution {
     cnpj: row.cnpj,
     website: row.website,
     contactEmail: row.contactEmail,
+    city: row.city,
+    state: row.state,
     active: row.active,
   };
 }
@@ -73,6 +77,8 @@ const INSTITUTION_COLUMNS = {
   cnpj: true,
   website: true,
   contactEmail: true,
+  city: true,
+  state: true,
   active: true,
 } as const;
 

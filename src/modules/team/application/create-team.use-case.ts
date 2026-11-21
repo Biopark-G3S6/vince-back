@@ -43,7 +43,11 @@ export class CreateTeamUseCase {
     }
 
     const team = teamOf(uuidv7(), command.eventId, event.value.institutionId as string, command);
-    const outcome = await this.teams.createTeam(team, event.value.maxTeams);
+    const outcome = await this.teams.createTeam(
+      team,
+      event.value.maxTeams,
+      command.articleTitle?.trim() || null,
+    );
 
     if (outcome.kind === 'LIMIT_REACHED') {
       return fail(FAILURE.EVENT_TEAM_LIMIT_REACHED);

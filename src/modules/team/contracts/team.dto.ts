@@ -11,12 +11,21 @@ export interface TeamDto {
   readonly eventId: string;
   readonly institutionId: string;
   readonly identification: string;
+  /** O orientador responsável corrente (RF-EQP-005), ou `null` (`team-read-extensions`). */
+  readonly responsibleAdvisorId: string | null;
+  /** Integrantes ativos, para o cálculo das vagas (`team-vacancies`, RF-EQP-002). */
+  readonly activeMemberCount: number;
 }
 
 export interface CreateTeamCommand {
   readonly actorId: string;
   readonly eventId: string;
   readonly identification: string;
+  /**
+   * O título com que o artigo da equipe nasce (`article-title-and-feedback`). A equipe não
+   * o guarda: só o transporta no fato de criação, para o módulo do artigo.
+   */
+  readonly articleTitle?: string | null;
 }
 
 export interface TeamQuery {
@@ -36,6 +45,8 @@ export interface MemberDto {
   readonly eventId: string;
   readonly userId: string;
   readonly status: string;
+  /** `LEADER`, `AUTHOR` ou `COAUTHOR` (`team-member-role`). */
+  readonly role: string;
   readonly joinedAt: Date;
   readonly leftAt: Date | null;
 }
@@ -46,6 +57,10 @@ export type JoinTeamCommand = TeamQuery;
 /** A designação e a remoção pelo orientador (RF-EQP-003). */
 export interface MemberCommand extends TeamQuery {
   readonly userId: string;
+}
+
+export interface MemberRoleCommand extends MemberCommand {
+  readonly role: string;
 }
 
 export interface ListMembersCommand extends TeamQuery {
@@ -99,6 +114,8 @@ export interface TeamStateDto {
   readonly institutionId: string | null;
   /** O orientador responsável corrente, ou `null`. É ele quem avalia (RF-EQP-005 RN2). */
   readonly responsibleAdvisorId: string | null;
+  /** O nome da equipe, para a cópia que o artigo mantém (`article-team-name`). */
+  readonly identification?: string | null;
 }
 
 /**
@@ -116,4 +133,10 @@ export interface TeamMembershipDto {
 export type TeamPageDto = Page<TeamDto>;
 export type MemberPageDto = Page<MemberDto>;
 export type TeamInvitationPageDto = Page<TeamInvitationDto>;
+
+/** Os convites pendentes endereçados ao próprio ator (`team-read-extensions`, RF-EQP-004). */
+export interface ListReceivedInvitationsCommand {
+  readonly actorId: string;
+  readonly request: PageRequest;
+}
 export type EligibleStudentPageDto = Page<string>;

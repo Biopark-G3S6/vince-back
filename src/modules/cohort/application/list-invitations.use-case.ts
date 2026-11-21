@@ -42,6 +42,9 @@ export class ListInvitationsUseCase {
       invitationId: item.id,
       cohortId,
       professorId: professors.get(item.id) ?? actorId,
+      expiresAt: item.expiresAt.toISOString(),
+      state: item.state,
+      useCount: item.useCount,
     }));
 
     return { ok: true, value: toPage(request, items, page.pagination.totalItems) };

@@ -241,6 +241,48 @@ describe('contrato da API — instituição', () => {
     });
   });
 
+  describe('cidade e UF (institution-location)', () => {
+    it('grava, devolve e altera cidade e UF; recusa UF malformada', async () => {
+      const cookies = await asSystemAdmin();
+      sequence += 1;
+      const created = await request(server as never)
+        .post(`${PREFIX}/institutions`)
+        .set('Cookie', header(cookies))
+        .set('X-CSRF-Token', cookies.csrf)
+        .send({
+          name: `Instituição Local ${sequence}`,
+          code: `LOC${sequence}${Date.now() % 100000}`,
+          city: '  Toledo ',
+          state: 'PR',
+        })
+        .expect(201);
+      const institution = bodyOf(created).data as { readonly id: string };
+      expect(bodyOf(created).data).toMatchObject({ city: 'Toledo', state: 'PR' });
+
+      const found = await request(server as never)
+        .get(`${PREFIX}/institutions/${institution.id}`)
+        .set('Cookie', header(cookies))
+        .expect(200);
+      expect(bodyOf(found).data).toMatchObject({ city: 'Toledo', state: 'PR' });
+
+      const invalid = await request(server as never)
+        .patch(`${PREFIX}/institutions/${institution.id}`)
+        .set('Cookie', header(cookies))
+        .set('X-CSRF-Token', cookies.csrf)
+        .send({ state: 'Paraná' })
+        .expect(400);
+      expect(bodyOf(invalid).errors).toEqual([{ field: 'state', code: 'MALFORMED' }]);
+
+      const cleared = await request(server as never)
+        .patch(`${PREFIX}/institutions/${institution.id}`)
+        .set('Cookie', header(cookies))
+        .set('X-CSRF-Token', cookies.csrf)
+        .send({ city: 'Cascavel', state: null })
+        .expect(200);
+      expect(bodyOf(cleared).data).toMatchObject({ city: 'Cascavel', state: null });
+    });
+  });
+
   describe('listagem paginada (ADR-0025 §21 a §25)', () => {
     it('o envelope traz pagination com page, pageSize e hasNext, e não o total', async () => {
       const cookies = await asSystemAdmin();
@@ -617,6 +659,38 @@ describe('contrato da API — instituição', () => {
         .expect(401);
     });
 
+    it('o convite de administrador aceito vincula a conta à instituição (RF-INS-002)', async () => {
+      const cookies = await asSystemAdmin();
+      const institution = await anInstitution();
+      const email = anEmail();
+      const url = await issue(cookies, institution.id, {
+        roleCode: 'INSTITUTION_ADMIN',
+        targetEmail: email,
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      });
+      const accepted = await request(server as never)
+        .post(`${PREFIX}/invitations/${url.split('/').pop()}/acceptance`)
+        .send({ name: 'Admin Convidada', password: PASSWORD })
+        .expect(201);
+      const userId = (bodyOf(accepted).data as { userId: string }).userId;
+
+      // O vínculo existe: a revogação o remove e, sem outro vínculo, derruba o papel (RN3).
+      await request(server as never)
+        .delete(`${PREFIX}/institutions/${institution.id}/admins/${userId}`)
+        .set('Cookie', header(cookies))
+        .set('X-CSRF-Token', cookies.csrf)
+        .expect(204);
+
+      const listed = await request(server as never)
+        .get(`${PREFIX}/users?institutionId=${institution.id}`)
+        .set('Cookie', header(cookies))
+        .expect(200);
+      const account = (bodyOf(listed).data as { id: string; roleCodes: string[] }[]).find(
+        (person) => person.id === userId,
+      );
+      expect(account?.roleCodes).toEqual([]);
+    });
+
     it('percorre a cadeia desde o primeiro acesso sem intervenção no banco', async () => {
       const resetUrl = seedReport.systemAdmin.passwordResetUrl as string;
       const token = new URL(resetUrl, 'http://localhost').searchParams.get('token');
@@ -758,6 +832,57 @@ describe('contrato da API — instituição', () => {
 
       expect((bodyOf(response).data as readonly unknown[]).length).toBe(1);
       expect(bodyOf(response).pagination).toEqual({ page: 1, pageSize: 20, hasNext: false });
+    });
+  });
+
+  describe('leitura pelo usuário vinculado (RF-INS-001 RN4)', () => {
+    it('o aluno lê a própria instituição e lista só ela', async () => {
+      const own = await anInstitution();
+      await anInstitution();
+      const student = await createAccount({ roleCode: 'STUDENT', institutionId: own.id });
+      const cookies = await authenticate(student.email);
+
+      const found = await request(server as never)
+        .get(`${PREFIX}/institutions/${own.id}`)
+        .set('Cookie', header(cookies))
+        .expect(200);
+      expect((bodyOf(found).data as { id: string }).id).toBe(own.id);
+
+      const listed = await request(server as never)
+        .get(`${PREFIX}/institutions?withTotal=true`)
+        .set('Cookie', header(cookies))
+        .expect(200);
+      expect((bodyOf(listed).data as { id: string }[]).map((item) => item.id)).toEqual([own.id]);
+      expect(bodyOf(listed).pagination).toMatchObject({ hasNext: false, totalItems: 1 });
+    });
+
+    it('o professor não alcança instituição alheia: 404, sem revelar a existência', async () => {
+      const own = await anInstitution();
+      const other = await anInstitution();
+      const professor = await createAccount({ roleCode: 'PROFESSOR', institutionId: own.id });
+      const cookies = await authenticate(professor.email);
+
+      const response = await request(server as never)
+        .get(`${PREFIX}/institutions/${other.id}`)
+        .set('Cookie', header(cookies))
+        .expect(404);
+      expect(bodyOf(response).status.code).toBe('RESOURCE_NOT_FOUND');
+    });
+
+    it('o administrador de sistema continua listando todas', async () => {
+      const first = await anInstitution();
+      const second = await anInstitution();
+      const cookies = await asSystemAdmin();
+
+      const ids = new Set<string>();
+      for (const id of [first.id, second.id]) {
+        const response = await request(server as never)
+          .get(`${PREFIX}/institutions/${id}`)
+          .set('Cookie', header(cookies))
+          .expect(200);
+        ids.add((bodyOf(response).data as { id: string }).id);
+      }
+      expect(ids.size).toBe(2);
     });
   });
 });

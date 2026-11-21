@@ -122,7 +122,9 @@ export class AcceptInvitationUseCase {
       }
     }
 
-    if (invitation.scopeType !== null && invitation.scopeId !== null && outcome.ok) {
+    // Todo aceite vira fato: a turma vincula o aluno (escopo `COHORT`), e a instituição
+    // vincula o administrador convidado (RF-INS-002). Cada consumidor filtra o que é seu.
+    if (outcome.ok) {
       await this.events?.publish({
         type: 'InvitationAccepted',
         payload: {

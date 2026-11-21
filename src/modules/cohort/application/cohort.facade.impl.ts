@@ -20,7 +20,10 @@ import type {
   IssueCohortInvitationCommand,
   ListCohortInvitationsCommand,
   ListCohortsCommand,
+  ListReadableCohortsCommand,
   ListEnrollmentsCommand,
+  ListCohortProfessorsCommand,
+  CohortProfessorPageDto,
   ProfessorCommand,
   RevokeCohortInvitationCommand,
   UpdateCohortCommand,
@@ -39,7 +42,9 @@ import { FindCohortLinksUseCase } from './find-cohort-links.use-case';
 import { FindCohortUseCase } from './find-cohort.use-case';
 import { IssueInvitationUseCase } from './issue-invitation.use-case';
 import { ListCohortsUseCase } from './list-cohorts.use-case';
+import { ListReadableCohortsUseCase } from './list-readable-cohorts.use-case';
 import { ListEnrollmentsUseCase } from './list-enrollments.use-case';
+import { ListProfessorsUseCase } from './list-professors.use-case';
 import { ListInvitationsUseCase } from './list-invitations.use-case';
 import { RevokeInvitationUseCase } from './revoke-invitation.use-case';
 import { RevokeProfessorUseCase } from './revoke-professor.use-case';
@@ -68,6 +73,7 @@ export class CohortFacadeImpl extends CohortFacade {
   constructor(
     private readonly createCohort: CreateCohortUseCase,
     private readonly listCohorts: ListCohortsUseCase,
+    private readonly listReadableCohorts: ListReadableCohortsUseCase,
     private readonly findCohort: FindCohortUseCase,
     private readonly updateCohort: UpdateCohortUseCase,
     private readonly deactivateCohort: DeactivateCohortUseCase,
@@ -75,6 +81,7 @@ export class CohortFacadeImpl extends CohortFacade {
     private readonly revokeProfessorUseCase: RevokeProfessorUseCase,
     private readonly enrollStudent: EnrollStudentUseCase,
     private readonly listEnrollmentsUseCase: ListEnrollmentsUseCase,
+    private readonly listProfessorsUseCase: ListProfessorsUseCase,
     private readonly issueInvitationUseCase: IssueInvitationUseCase,
     private readonly listInvitationsUseCase: ListInvitationsUseCase,
     private readonly revokeInvitationUseCase: RevokeInvitationUseCase,
@@ -96,6 +103,12 @@ export class CohortFacadeImpl extends CohortFacade {
         items: page.items.map(toCohortDto),
       }),
     );
+  }
+
+  async listReadable(command: ListReadableCohortsCommand): Promise<CohortPageDto> {
+    const page = await this.listReadableCohorts.execute(command.actorId, command.request);
+
+    return { ...page, items: page.items.map(toCohortDto) };
   }
 
   async findById(query: CohortQuery): Promise<CohortResult<CohortDto>> {
@@ -123,6 +136,15 @@ export class CohortFacadeImpl extends CohortFacade {
 
   async enroll(command: EnrollmentCommand): Promise<CohortResult<EnrollmentDto>> {
     return toResult(await this.enrollStudent.execute(command), toEnrollmentDto);
+  }
+
+  async listProfessors(
+    command: ListCohortProfessorsCommand,
+  ): Promise<CohortResult<CohortProfessorPageDto>> {
+    return toResult(
+      await this.listProfessorsUseCase.execute(command.actorId, command.cohortId, command.request),
+      (page) => page,
+    );
   }
 
   async listEnrollments(command: ListEnrollmentsCommand): Promise<CohortResult<EnrollmentPageDto>> {

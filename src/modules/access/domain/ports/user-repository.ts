@@ -1,4 +1,4 @@
-import type { PageRequest } from '@shared/http/pagination';
+import type { Page, PageRequest } from '@shared/http/pagination';
 
 import type { UserAccount } from '../user';
 
@@ -33,6 +33,27 @@ export interface NewUserAccount {
   readonly roleCode: string;
   /** Quem criou. Nulo na carga inicial, que não tem ator. */
   readonly actorId: string | null;
+}
+
+/**
+ * Filtros do diretório de usuários (`user-directory`). Sem `institutionId`, só o caso de uso
+ * do administrador de sistema, restrito ao papel de administrador institucional.
+ */
+export interface DirectoryFilters {
+  readonly institutionId?: string;
+  readonly search?: string;
+  readonly roleCode?: string;
+  readonly active?: boolean;
+  readonly ids?: readonly string[];
+}
+
+export interface DirectoryEntry {
+  readonly id: string;
+  readonly name: string;
+  readonly email: string;
+  readonly active: boolean;
+  readonly roleCodes: readonly string[];
+  readonly institutionId: string | null;
 }
 
 export abstract class UserRepository {
@@ -87,6 +108,12 @@ export abstract class UserRepository {
    * elegíveis (`RF-EQP-006`). A ordem é estável por identificador, porque a paginação sem
    * ordem total devolve a mesma linha em duas páginas.
    */
+  /** Uma consulta por página, com os papéis na mesma ida ao banco (`ADR-0011` §9). */
+  abstract searchDirectory(
+    filters: DirectoryFilters,
+    request: PageRequest,
+  ): Promise<Page<DirectoryEntry>>;
+
   abstract listByRole(
     institutionId: string,
     roleCode: string,

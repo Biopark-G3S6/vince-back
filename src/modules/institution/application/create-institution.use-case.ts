@@ -25,6 +25,8 @@ export class CreateInstitutionUseCase {
     readonly cnpj?: string | null;
     readonly website?: string | null;
     readonly contactEmail?: string | null;
+    readonly city?: string | null;
+    readonly state?: string | null;
   }): Promise<Result<Institution>> {
     const violations = violationsOfDraft(draft);
 

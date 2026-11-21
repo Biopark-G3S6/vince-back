@@ -14,6 +14,9 @@ import type {
   ArticleProgressQuery,
   ArticlePresenceDto,
   ArticleQuery,
+  ArticleSummaryDto,
+  ListArticlesQuery,
+  UpdateArticleTitleCommand,
   ArticleReferenceDto,
   ArticleRemarkDto,
   ArticleSubmissionDto,
@@ -57,6 +60,8 @@ import {
   CreateArticleUseCase,
   ExportArticleUseCase,
   FindArticleUseCase,
+  ListArticlesUseCase,
+  UpdateArticleTitleUseCase,
   ImportArticleUseCase,
   ListHistoryUseCase,
   MarkPresenceUseCase,
@@ -120,6 +125,8 @@ export class ArticleFacadeImpl extends ArticleFacade {
     private readonly selectTemplateUseCase: SelectTemplateUseCase,
     private readonly createArticleUseCase: CreateArticleUseCase,
     private readonly findArticleUseCase: FindArticleUseCase,
+    private readonly listArticlesUseCase: ListArticlesUseCase,
+    private readonly updateArticleTitleUseCase: UpdateArticleTitleUseCase,
     private readonly listArticleProgressUseCase: ListArticleProgressUseCase,
     private readonly listSystemArticleProgressUseCase: ListSystemArticleProgressUseCase,
     private readonly listSimilarityCorpusUseCase: ListSimilarityCorpusUseCase,
@@ -191,6 +198,14 @@ export class ArticleFacadeImpl extends ArticleFacade {
 
   findArticle(query: ArticleQuery): Promise<ArticleResult<ArticleDto>> {
     return this.findArticleUseCase.execute(query);
+  }
+
+  updateTitle(command: UpdateArticleTitleCommand): Promise<ArticleResult<ArticleDto>> {
+    return this.updateArticleTitleUseCase.execute(command);
+  }
+
+  listArticles(query: ListArticlesQuery): Promise<ArticleResult<Page<ArticleSummaryDto>>> {
+    return this.listArticlesUseCase.execute(query);
   }
 
   listProgress(query: ArticleProgressQuery): Promise<ArticleResult<Page<ArticleProgressDto>>> {

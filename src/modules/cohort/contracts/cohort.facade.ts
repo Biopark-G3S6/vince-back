@@ -16,7 +16,10 @@ import type {
   IssueCohortInvitationCommand,
   ListCohortInvitationsCommand,
   ListCohortsCommand,
+  ListReadableCohortsCommand,
   ListEnrollmentsCommand,
+  ListCohortProfessorsCommand,
+  CohortProfessorPageDto,
   ProfessorCommand,
   RevokeCohortInvitationCommand,
   UpdateCohortCommand,
@@ -39,12 +42,17 @@ export interface InvitationAcceptedEvent {
 export abstract class CohortFacade {
   abstract create(command: CreateCohortCommand): Promise<CohortResult<CohortDto>>;
   abstract list(command: ListCohortsCommand): Promise<CohortResult<CohortPageDto>>;
+  /** As turmas que o ator lê, de qualquer curso (`cohort-listing`). */
+  abstract listReadable(command: ListReadableCohortsCommand): Promise<CohortPageDto>;
   abstract findById(query: CohortQuery): Promise<CohortResult<CohortDto>>;
   abstract update(command: UpdateCohortCommand): Promise<CohortResult<CohortDto>>;
   abstract deactivate(query: CohortQuery): Promise<CohortResult<CohortDto>>;
   abstract assignProfessor(command: ProfessorCommand): Promise<CohortResult<void>>;
   abstract revokeProfessor(command: ProfessorCommand): Promise<CohortResult<void>>;
   abstract enroll(command: EnrollmentCommand): Promise<CohortResult<EnrollmentDto>>;
+  abstract listProfessors(
+    command: ListCohortProfessorsCommand,
+  ): Promise<CohortResult<CohortProfessorPageDto>>;
   abstract listEnrollments(
     command: ListEnrollmentsCommand,
   ): Promise<CohortResult<EnrollmentPageDto>>;

@@ -80,17 +80,19 @@ export class InstitutionController {
   @ApiOperation({
     summary: 'Lista as instituições, paginado',
     description:
-      'Inclui ativas e inativas, distinguidas por `active`. `hasNext` é apurado sem ' +
+      'Inclui ativas e inativas, distinguidas por `active`. O usuário vinculado recebe só a ' +
+      'própria instituição (RF-INS-001 RN4). `hasNext` é apurado sem ' +
       'consulta de contagem; `totalItems` e `totalPages` só com `withTotal=true`.',
   })
   @ApiPageQuery()
   @ApiPagedEnvelope(InstitutionDtoResponse)
   @ApiFailures('AUTHENTICATION_FAILED', 'PERMISSION_DENIED', 'VALIDATION_FAILED')
   async list(
+    @CurrentSession() session: Session,
     @Query() query: Record<string, unknown>,
   ): Promise<EnvelopeResult<readonly InstitutionDtoResponse[]>> {
     const request = toPageRequest(parseOrFail(pageRequestSchema, query));
-    const page = await this.institutions.list(request);
+    const page = await this.institutions.list(request, session.state.userId);
 
     return respondWithPage(page.items.map(toResponse), page.pagination);
   }
@@ -101,9 +103,12 @@ export class InstitutionController {
   @ApiEnvelope(InstitutionDtoResponse)
   @ApiFailures('AUTHENTICATION_FAILED', 'PERMISSION_DENIED', 'RESOURCE_NOT_FOUND')
   async find(
+    @CurrentSession() session: Session,
     @Param('institutionId', ParseUUIDPipe) institutionId: string,
   ): Promise<InstitutionDtoResponse> {
-    return toResponse(unwrap(await this.institutions.findById({ institutionId })));
+    return toResponse(
+      unwrap(await this.institutions.findById({ institutionId, actorId: session.state.userId })),
+    );
   }
 
   @Patch(':institutionId')
@@ -244,6 +249,8 @@ function toResponse(institution: InstitutionDto): InstitutionDtoResponse {
     cnpj: institution.cnpj,
     website: institution.website,
     contactEmail: institution.contactEmail,
+    city: institution.city,
+    state: institution.state,
     active: institution.active,
   };
 }

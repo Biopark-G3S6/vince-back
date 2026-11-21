@@ -66,6 +66,8 @@ model Article {
   courseId                 String?   @map("course_id") @db.Uuid
   eventId                  String    @map("event_id") @db.Uuid
   teamId                   String    @unique @map("team_id") @db.Uuid
+  /// Cópia do nome da equipe, mantida pela sincronização (`article-team-name`).
+  teamIdentification       String?   @map("team_identification")
   advisorId                String?   @map("advisor_id") @db.Uuid
   memberIds                String[]  @map("member_ids") @db.Uuid
   status                   String
@@ -74,6 +76,9 @@ model Article {
   currentMilestoneDeadline DateTime? @map("current_milestone_deadline") @db.Timestamptz(3)
   lastMilestoneOrder       Int?      @map("last_milestone_order")
   templateVersionId        String?   @map("template_version_id") @db.Uuid
+  /// Título do artigo (`article-title-and-feedback`), fora da URS v0.4 e pendente de
+  /// ratificação. Ausente é estado válido.
+  title                    String?
   content                  Json      @db.JsonB
   formatProfile            Json      @map("format_profile") @db.JsonB
   createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -226,6 +231,9 @@ model ArticleAssessmentHistory {
   articleId   String   @map("article_id") @db.Uuid
   memberId    String?  @map("member_id") @db.Uuid
   score       Float
+  /// Parecer textual da nota do artigo (`article-title-and-feedback`). Nulo na nota
+  /// individual e quando não informado.
+  feedback    String?
   evaluatedBy String   @map("evaluated_by") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 

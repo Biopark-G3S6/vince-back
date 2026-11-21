@@ -127,3 +127,28 @@ export class TeamInvitationResponseController {
     unwrap(await this.teams.declineInvitation({ actorId: session.state.userId, invitationId }));
   }
 }
+
+/** Os convites recebidos pelo próprio aluno (`team-read-extensions`, RF-EQP-004). */
+@ApiTags('Convite de equipe')
+@Controller('team-invitations')
+export class ReceivedTeamInvitationController {
+  constructor(private readonly teams: TeamFacade) {}
+
+  @Get()
+  @RequiresPermission('TEAM:JOIN')
+  @ApiOperation({ summary: 'Lista os convites de equipe pendentes endereçados ao ator' })
+  @ApiPageQuery()
+  @ApiPagedEnvelope(TeamInvitationResponse)
+  @ApiFailures('AUTHENTICATION_FAILED', 'PERMISSION_DENIED')
+  async list(
+    @Query() query: Record<string, unknown>,
+    @CurrentSession() session: Session,
+  ): Promise<EnvelopeResult<readonly TeamInvitationResponse[]>> {
+    const request = toPageRequest(parseOrFail(pageRequestSchema, query));
+    const page = unwrap(
+      await this.teams.listReceivedInvitations({ actorId: session.state.userId, request }),
+    );
+
+    return respondWithPage(page.items, page.pagination);
+  }
+}

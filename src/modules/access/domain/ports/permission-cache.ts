@@ -30,7 +30,15 @@ export abstract class PermissionCache {
   abstract read(userId: string): Promise<ResolvedPermissions | null>;
 
   /** Grava o apurado. O conjunto vazio é valor legítimo, e não ausência. */
-  abstract write(userId: string, resolved: ResolvedPermissions): Promise<void>;
+  abstract write(
+    userId: string,
+    resolved: ResolvedPermissions,
+    /**
+     * Teto de validade da entrada, em segundos. Presente quando uma concessão com prazo
+     * compõe as permissões: a entrada não pode sobreviver ao vencimento (`ADR-0014` §19).
+     */
+    maxTtlSeconds?: number,
+  ): Promise<void>;
 
   /** Apaga a chave da conta. Apagar chave inexistente conclui com sucesso. */
   abstract invalidate(userId: string): Promise<void>;

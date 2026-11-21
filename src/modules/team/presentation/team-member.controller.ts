@@ -1,10 +1,12 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
   HttpCode,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
@@ -19,7 +21,7 @@ import { RequiresPermission } from '@shared/http/route-access';
 import { parseOrFail } from '@shared/http/validation';
 
 import { TeamFacade } from '../contracts/team.facade';
-import { MemberResponse } from './team.dto';
+import { MemberResponse, SetMemberRoleRequest, setMemberRoleSchema } from './team.dto';
 import { unwrap } from './result-mapper';
 
 /**
@@ -80,6 +82,34 @@ export class TeamMemberController {
     @CurrentSession() session: Session,
   ): Promise<MemberResponse> {
     return unwrap(await this.teams.assignMember({ actorId: session.state.userId, teamId, userId }));
+  }
+
+  @Patch(':userId')
+  @RequiresPermission('TEAM:ASSIGN_MEMBER')
+  @ApiOperation({ summary: 'Define o papel do integrante: líder, autor ou coautor' })
+  @ApiEnvelope(MemberResponse)
+  @ApiFailures(
+    'PERMISSION_DENIED',
+    'VALIDATION_FAILED',
+    'RESOURCE_NOT_FOUND',
+    'ADVISOR_NOT_ASSIGNED_TO_EVENT',
+  )
+  async setRole(
+    @Param('teamId', ParseUUIDPipe) teamId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() body: SetMemberRoleRequest,
+    @CurrentSession() session: Session,
+  ): Promise<MemberResponse> {
+    const input = parseOrFail(setMemberRoleSchema, body);
+
+    return unwrap(
+      await this.teams.setMemberRole({
+        actorId: session.state.userId,
+        teamId,
+        userId,
+        role: input.role,
+      }),
+    );
   }
 
   @Delete(':userId')

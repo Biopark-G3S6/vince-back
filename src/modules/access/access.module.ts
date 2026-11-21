@@ -23,6 +23,11 @@ import { RequestPasswordResetUseCase } from './application/request-password-rese
 import { ResetPasswordUseCase } from './application/reset-password.use-case';
 import { RevokeInvitationUseCase } from './application/revoke-invitation.use-case';
 import { ResolveEffectivePermissionsUseCase } from './application/resolve-effective-permissions.use-case';
+import {
+  GrantPermissionUseCase,
+  ListPermissionGrantsUseCase,
+  RevokePermissionGrantUseCase,
+} from './application/permission-grant.use-cases';
 import { SeedCatalogUseCase } from './application/seed-catalog.use-case';
 import {
   SeedSystemAdminUseCase,
@@ -39,6 +44,7 @@ import { CredentialSettings } from './domain/ports/credential-settings';
 import { InvitationRepository } from './domain/ports/invitation-repository';
 import { PasswordHasher } from './domain/ports/password-hasher';
 import { PermissionCache } from './domain/ports/permission-cache';
+import { PermissionGrantRepository } from './domain/ports/permission-grant-repository';
 import {
   RoleAssignmentAuditRepository,
   RoleAssignmentRepository,
@@ -55,9 +61,13 @@ import {
 } from './infrastructure/prisma-role-assignment.repository';
 import { PrismaUserRepository } from './infrastructure/prisma-user.repository';
 import { RedisPermissionCache } from './infrastructure/redis-permission-cache';
+import { PrismaPermissionGrantRepository } from './infrastructure/prisma-permission-grant.repository';
 import { PasswordController } from './presentation/password.controller';
 import { ProfileController } from './presentation/profile.controller';
 import { InvitationController } from './presentation/invitation.controller';
+import { PermissionGrantController } from './presentation/permission-grant.controller';
+import { UserDirectoryController } from './presentation/user-directory.controller';
+import { SearchUserDirectoryUseCase } from './application/search-user-directory.use-case';
 
 /**
  * O que o composition root fornece ao módulo além das conexões.
@@ -100,7 +110,13 @@ export class AccessModule {
 
     return {
       module: AccessModule,
-      controllers: [ProfileController, PasswordController, InvitationController],
+      controllers: [
+        ProfileController,
+        PasswordController,
+        InvitationController,
+        PermissionGrantController,
+        UserDirectoryController,
+      ],
       providers: [
         { provide: SessionStore, useValue: options.sessions },
         { provide: DomainEventBus, useValue: events },
@@ -115,6 +131,7 @@ export class AccessModule {
         { provide: PermissionCache, useValue: new RedisPermissionCache(redis) },
         { provide: CatalogRepository, useClass: PrismaCatalogRepository },
         { provide: UserRepository, useClass: PrismaUserRepository },
+        { provide: PermissionGrantRepository, useClass: PrismaPermissionGrantRepository },
         { provide: RoleAssignmentRepository, useClass: PrismaRoleAssignmentRepository },
         {
           provide: RoleAssignmentAuditRepository,
@@ -141,6 +158,10 @@ export class AccessModule {
         RevokeInvitationUseCase,
         SeedCatalogUseCase,
         SeedSystemAdminUseCase,
+        GrantPermissionUseCase,
+        RevokePermissionGrantUseCase,
+        ListPermissionGrantsUseCase,
+        SearchUserDirectoryUseCase,
         { provide: AccessFacade, useClass: AccessFacadeImpl },
       ],
       exports: [AccessFacade],

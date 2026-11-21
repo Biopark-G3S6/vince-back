@@ -4,6 +4,8 @@ import request from 'supertest';
 import { v7 as uuidv7 } from 'uuid';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { DomainEventBus } from '@shared/events/event-bus';
+
 import { AccessModule } from '@modules/access/access.module';
 import { AccessFacade } from '@modules/access/contracts/access.facade';
 import { CohortFacade } from '@modules/cohort/contracts/cohort.facade';
@@ -374,6 +376,18 @@ describe('contrato HTTP da vertical team', () => {
       .expect(422);
     expect(bodyOf(full).status.code).toBe('TEAM_SIZE_LIMIT_REACHED');
 
+    // A lotação vem na listagem do evento, para o aluno ver as vagas (team-vacancies).
+    const occupancy = async () => {
+      const listed = await request(server as never)
+        .get(`${PREFIX}/events/${fixture.eventId}/teams`)
+        .set('Cookie', cookieHeader(student))
+        .expect(200);
+      return (bodyOf(listed).data as { id: string; activeMemberCount: number }[]).find(
+        (item) => item.id === team.id,
+      )?.activeMemberCount;
+    };
+    expect(await occupancy()).toBe(1);
+
     await request(server as never)
       .delete(`${PREFIX}/teams/${team.id}/members/${fixture.student.id}`)
       .set('Cookie', cookieHeader(advisor))
@@ -385,6 +399,7 @@ describe('contrato HTTP da vertical team', () => {
       .set('Cookie', cookieHeader(advisor))
       .expect(200);
     expect(bodyOf(members).data).toMatchObject([{ userId: fixture.student.id, status: 'REMOVED' }]);
+    expect(await occupancy()).toBe(0);
 
     // A participação encerrada continua consultável, e a vaga voltou.
     expect(await teams.membershipOf(team.id, fixture.student.id)).toEqual({
@@ -431,6 +446,17 @@ describe('contrato HTTP da vertical team', () => {
       .expect(200);
     expect(bodyOf(invitations).data).toHaveLength(1);
 
+    // team-read-extensions: o convidado encontra o convite; a colega, não.
+    const received = (cookies: Cookies) =>
+      request(server as never)
+        .get(`${PREFIX}/team-invitations`)
+        .set('Cookie', cookieHeader(cookies))
+        .expect(200);
+    expect(bodyOf(await received(student)).data).toEqual([
+      expect.objectContaining({ id: invitation.id, teamId: team.id }),
+    ]);
+    expect(bodyOf(await received(mate)).data).toEqual([]);
+
     // Só o convidado responde ao convite.
     const notMine = await request(server as never)
       .post(`${PREFIX}/team-invitations/${invitation.id}/acceptance`)
@@ -465,6 +491,8 @@ describe('contrato HTTP da vertical team', () => {
       .set('X-CSRF-Token', student.csrf)
       .expect(201);
     expect(bodyOf(accepted).data).toMatchObject({ userId: fixture.student.id });
+    // Aceito, o convite deixa de constar entre os recebidos.
+    expect(bodyOf(await received(student)).data).toEqual([]);
 
     const again = await request(server as never)
       .post(`${PREFIX}/team-invitations/${invitation.id}/acceptance`)
@@ -507,12 +535,32 @@ describe('contrato HTTP da vertical team', () => {
       .expect(204);
     expect((await teams.stateOf(team.id)).responsibleAdvisorId).toBe(fixture.professor.id);
 
+    // team-read-extensions: a consulta e a listagem trazem o responsável.
+    const found = await request(server as never)
+      .get(`${PREFIX}/teams/${team.id}`)
+      .set('Cookie', cookieHeader(owner))
+      .expect(200);
+    expect(bodyOf(found).data).toMatchObject({ responsibleAdvisorId: fixture.professor.id });
+    const listed = await request(server as never)
+      .get(`${PREFIX}/events/${fixture.eventId}/teams`)
+      .set('Cookie', cookieHeader(owner))
+      .expect(200);
+    expect(bodyOf(listed).data).toEqual([
+      expect.objectContaining({ id: team.id, responsibleAdvisorId: fixture.professor.id }),
+    ]);
+
     await request(server as never)
       .delete(`${PREFIX}/teams/${team.id}/advisor/${fixture.professor.id}`)
       .set('Cookie', cookieHeader(owner))
       .set('X-CSRF-Token', owner.csrf)
       .expect(204);
     expect((await teams.stateOf(team.id)).responsibleAdvisorId).toBeNull();
+
+    const cleared = await request(server as never)
+      .get(`${PREFIX}/teams/${team.id}`)
+      .set('Cookie', cookieHeader(owner))
+      .expect(200);
+    expect(bodyOf(cleared).data).toMatchObject({ responsibleAdvisorId: null });
   });
 
   it('lista os alunos elegíveis sem equipe e a esvazia quando todos ingressam', async () => {
@@ -645,5 +693,309 @@ describe('contrato HTTP da vertical team', () => {
       .set('Cookie', cookieHeader(student))
       .expect(200);
     expect(bodyOf(listed).data).toHaveLength(1);
+  });
+  describe('o artigo acompanha a equipe (article-follows-team, article-listing)', () => {
+    interface ArticleItem {
+      readonly id: string;
+      readonly teamId: string;
+      readonly status: string;
+      readonly advisorId: string | null;
+      readonly memberIds: readonly string[];
+      readonly title?: string | null;
+      readonly teamIdentification?: string | null;
+    }
+
+    const listArticles = async (cookies: Cookies, query: string): Promise<ArticleItem[]> =>
+      bodyOf(
+        await request(server as never)
+          .get(`${PREFIX}/articles?${query}`)
+          .set('Cookie', cookieHeader(cookies))
+          .expect(200),
+      ).data as ArticleItem[];
+
+    const createTeam = async (advisor: Cookies, eventId: string, identification: string) =>
+      (
+        bodyOf(
+          await request(server as never)
+            .post(`${PREFIX}/events/${eventId}/teams`)
+            .set('Cookie', cookieHeader(advisor))
+            .set('X-CSRF-Token', advisor.csrf)
+            .send({ identification })
+            .expect(201),
+        ).data as { readonly id: string }
+      ).id;
+
+    it('cria o artigo uma vez, segue a composição e o responsável', async () => {
+      const fixture = await teamScenario();
+      const advisor = await authenticate(fixture.professor.email);
+      const owner = await authenticate(fixture.coordinator.email);
+      const student = await authenticate(fixture.student.email);
+      const teamId = await createTeam(advisor, fixture.eventId, 'Equipe Artigo');
+
+      // RF-EQP-001 RN1: a equipe nasce com o seu artigo em STARTED.
+      const [article] = await listArticles(advisor, `teamId=${teamId}`);
+      expect(article).toMatchObject({ teamId, status: 'STARTED', memberIds: [] });
+      const articleId = article?.id ?? '';
+
+      // Reprocessar o fato de criação não cria um segundo artigo.
+      await app
+        .get(DomainEventBus, { strict: false })
+        .publish({ type: 'TeamCreated', payload: { teamId, eventId: fixture.eventId } });
+      expect(await listArticles(advisor, `eventId=${fixture.eventId}`)).toHaveLength(1);
+
+      // A aluna fora da equipe não alcança o artigo; ingressando, alcança.
+      expect(await listArticles(student, `eventId=${fixture.eventId}`)).toHaveLength(0);
+      await request(server as never)
+        .get(`${PREFIX}/articles/${articleId}`)
+        .set('Cookie', cookieHeader(student))
+        .expect(404);
+      await request(server as never)
+        .post(`${PREFIX}/teams/${teamId}/membership`)
+        .set('Cookie', cookieHeader(student))
+        .set('X-CSRF-Token', student.csrf)
+        .expect(201);
+      await request(server as never)
+        .get(`${PREFIX}/articles/${articleId}`)
+        .set('Cookie', cookieHeader(student))
+        .expect(200);
+      expect(await listArticles(student, `eventId=${fixture.eventId}`)).toHaveLength(1);
+
+      // O orientador do evento lê, mas só o responsável avalia (RF-ART-002 E1).
+      const grade = (status: number) =>
+        request(server as never)
+          .post(`${PREFIX}/articles/${articleId}/assessments`)
+          .set('Cookie', cookieHeader(advisor))
+          .set('X-CSRF-Token', advisor.csrf)
+          .send({ score: 8.5 })
+          .expect(status);
+
+      expect(bodyOf(await grade(403)).status.code).toBe('PERMISSION_DENIED');
+
+      await request(server as never)
+        .post(`${PREFIX}/teams/${teamId}/advisor/${fixture.professor.id}`)
+        .set('Cookie', cookieHeader(owner))
+        .set('X-CSRF-Token', owner.csrf)
+        .expect(204);
+      await grade(201);
+
+      await request(server as never)
+        .delete(`${PREFIX}/teams/${teamId}/advisor/${fixture.professor.id}`)
+        .set('Cookie', cookieHeader(owner))
+        .set('X-CSRF-Token', owner.csrf)
+        .expect(204);
+      expect(bodyOf(await grade(403)).status.code).toBe('PERMISSION_DENIED');
+
+      // Removida, a integrante perde a edição.
+      await request(server as never)
+        .delete(`${PREFIX}/teams/${teamId}/members/${fixture.student.id}`)
+        .set('Cookie', cookieHeader(advisor))
+        .set('X-CSRF-Token', advisor.csrf)
+        .expect(204);
+      await request(server as never)
+        .put(`${PREFIX}/articles/${articleId}/content`)
+        .set('Cookie', cookieHeader(student))
+        .set('X-CSRF-Token', student.csrf)
+        .send({ content: { type: 'doc' } })
+        .expect(404);
+    });
+
+    it('coordenador alcança só o seu curso; orientador do evento mantém publicação; nome da equipe', async () => {
+      const fixture = await teamScenario();
+      const advisor = await authenticate(fixture.professor.email);
+      const owner = await authenticate(fixture.coordinator.email);
+      const teamId = await createTeam(advisor, fixture.eventId, 'Equipe Nomeada');
+
+      // article-team-name: o artigo traz o nome da equipe.
+      const [article] = await listArticles(advisor, `teamId=${teamId}`);
+      expect(article).toMatchObject({ teamId, teamIdentification: 'Equipe Nomeada' });
+      const articleId = article?.id ?? '';
+
+      // publication-actors: o coordenador, orientador do evento mas não responsável, registra
+      // e consulta a publicação; o professor de fora, não.
+      const assigned = await events.assignAdvisor({
+        actorId: fixture.coordinator.id,
+        eventId: fixture.eventId,
+        userId: fixture.coordinator.id,
+      });
+      if (!assigned.ok) throw new Error(assigned.failure.code);
+      await request(server as never)
+        .post(`${PREFIX}/articles/${articleId}/publications`)
+        .set('Cookie', cookieHeader(owner))
+        .set('X-CSRF-Token', owner.csrf)
+        .send({
+          venueName: 'Revista Externa',
+          kind: 'JOURNAL',
+          publicationDate: '2026-10-01T12:00:00.000Z',
+          url: 'https://revista.example/1',
+        })
+        .expect(201);
+      const listed = await request(server as never)
+        .get(`${PREFIX}/articles/${articleId}/publications`)
+        .set('Cookie', cookieHeader(owner))
+        .expect(200);
+      expect(bodyOf(listed).data).toHaveLength(1);
+
+      // article-course-scope: o coordenador de outro curso da instituição não alcança.
+      const otherCourse = await courses.create({
+        actorId: fixture.admin.id,
+        name: `Outro curso ${Date.now()}`,
+        identification: `O${Date.now() % 100000}`,
+      });
+      if (!otherCourse.ok) throw new Error(otherCourse.failure.code);
+      const designated = await courses.assignCoordinator({
+        actorId: fixture.admin.id,
+        courseId: otherCourse.value.id,
+        userId: fixture.outsider.id,
+      });
+      if (!designated.ok) throw new Error(designated.failure.code);
+      const outsider = await authenticate(fixture.outsider.email);
+      expect(await listArticles(outsider, `eventId=${fixture.eventId}`)).toHaveLength(0);
+      await request(server as never)
+        .get(`${PREFIX}/articles/${articleId}`)
+        .set('Cookie', cookieHeader(outsider))
+        .expect(404);
+      // O coordenador do curso do evento continua alcançando.
+      expect(await listArticles(owner, `eventId=${fixture.eventId}`)).toHaveLength(1);
+    });
+
+    it('título na criação e pelo integrante, parecer na nota e papel do integrante', async () => {
+      const fixture = await teamScenario();
+      const advisor = await authenticate(fixture.professor.email);
+      const owner = await authenticate(fixture.coordinator.email);
+      const student = await authenticate(fixture.student.email);
+
+      // article-title-and-feedback: o título viaja da criação da equipe ao artigo.
+      const created = await request(server as never)
+        .post(`${PREFIX}/events/${fixture.eventId}/teams`)
+        .set('Cookie', cookieHeader(advisor))
+        .set('X-CSRF-Token', advisor.csrf)
+        .send({ identification: 'Equipe Título', articleTitle: '  Mobilidade urbana  ' })
+        .expect(201);
+      const teamId = (bodyOf(created).data as { readonly id: string }).id;
+      const [article] = (await listArticles(
+        advisor,
+        `teamId=${teamId}`,
+      )) as readonly (ArticleItem & {
+        readonly title: string | null;
+      })[];
+      expect(article?.title).toBe('Mobilidade urbana');
+      const articleId = article?.id ?? '';
+
+      await request(server as never)
+        .post(`${PREFIX}/teams/${teamId}/membership`)
+        .set('Cookie', cookieHeader(student))
+        .set('X-CSRF-Token', student.csrf)
+        .expect(201);
+      const renamed = await request(server as never)
+        .patch(`${PREFIX}/articles/${articleId}`)
+        .set('Cookie', cookieHeader(student))
+        .set('X-CSRF-Token', student.csrf)
+        .send({ title: 'Mobilidade e dados abertos' })
+        .expect(200);
+      expect(bodyOf(renamed).data).toMatchObject({ title: 'Mobilidade e dados abertos' });
+
+      // O orientador não integra a equipe: não muda o título.
+      await request(server as never)
+        .patch(`${PREFIX}/articles/${articleId}`)
+        .set('Cookie', cookieHeader(advisor))
+        .set('X-CSRF-Token', advisor.csrf)
+        .send({ title: 'Outro' })
+        .expect(403);
+
+      // Parecer junto da nota do artigo; recusado na nota individual.
+      await request(server as never)
+        .post(`${PREFIX}/teams/${teamId}/advisor/${fixture.professor.id}`)
+        .set('Cookie', cookieHeader(owner))
+        .set('X-CSRF-Token', owner.csrf)
+        .expect(204);
+      await request(server as never)
+        .post(`${PREFIX}/articles/${articleId}/assessments`)
+        .set('Cookie', cookieHeader(advisor))
+        .set('X-CSRF-Token', advisor.csrf)
+        .send({ score: 9, feedback: 'Boa fundamentação.' })
+        .expect(201);
+      const memberFeedback = await request(server as never)
+        .post(`${PREFIX}/articles/${articleId}/member-assessments`)
+        .set('Cookie', cookieHeader(advisor))
+        .set('X-CSRF-Token', advisor.csrf)
+        .send({ score: 8, memberId: fixture.student.id, feedback: 'não cabe' })
+        .expect(400);
+      expect(bodyOf(memberFeedback).status.code).toBe('VALIDATION_FAILED');
+      const grades = await request(server as never)
+        .get(`${PREFIX}/articles/${articleId}/assessments`)
+        .set('Cookie', cookieHeader(advisor))
+        .expect(200);
+      expect(bodyOf(grades).data).toEqual([
+        expect.objectContaining({ score: 9, feedback: 'Boa fundamentação.', memberId: null }),
+      ]);
+
+      // team-member-role: nasce coautor; o orientador do evento o faz líder.
+      const members = async () =>
+        bodyOf(
+          await request(server as never)
+            .get(`${PREFIX}/teams/${teamId}/members`)
+            .set('Cookie', cookieHeader(advisor))
+            .expect(200),
+        ).data as readonly { readonly userId: string; readonly role: string }[];
+      expect(await members()).toEqual([
+        expect.objectContaining({ userId: fixture.student.id, role: 'COAUTHOR' }),
+      ]);
+      await request(server as never)
+        .patch(`${PREFIX}/teams/${teamId}/members/${fixture.student.id}`)
+        .set('Cookie', cookieHeader(advisor))
+        .set('X-CSRF-Token', advisor.csrf)
+        .send({ role: 'LEADER' })
+        .expect(200);
+      expect(await members()).toEqual([
+        expect.objectContaining({ userId: fixture.student.id, role: 'LEADER' }),
+      ]);
+      const notMember = await request(server as never)
+        .patch(`${PREFIX}/teams/${teamId}/members/${fixture.mate.id}`)
+        .set('Cookie', cookieHeader(advisor))
+        .set('X-CSRF-Token', advisor.csrf)
+        .send({ role: 'AUTHOR' })
+        .expect(404);
+      expect(bodyOf(notMember).status.code).toBe('RESOURCE_NOT_FOUND');
+      await request(server as never)
+        .patch(`${PREFIX}/teams/${teamId}/members/${fixture.student.id}`)
+        .set('Cookie', cookieHeader(advisor))
+        .set('X-CSRF-Token', advisor.csrf)
+        .send({ role: 'CHEFE' })
+        .expect(400);
+    });
+
+    it('o orientador do evento lista todas as equipes; aluno vê só a sua', async () => {
+      const fixture = await teamScenario();
+      const advisor = await authenticate(fixture.professor.email);
+      const student = await authenticate(fixture.student.email);
+      const outsider = await authenticate(fixture.outsider.email);
+      const first = await createTeam(advisor, fixture.eventId, 'Equipe 1');
+      await createTeam(advisor, fixture.eventId, 'Equipe 2');
+
+      await request(server as never)
+        .post(`${PREFIX}/teams/${first}/membership`)
+        .set('Cookie', cookieHeader(student))
+        .set('X-CSRF-Token', student.csrf)
+        .expect(201);
+
+      expect(await listArticles(advisor, `eventId=${fixture.eventId}`)).toHaveLength(2);
+      const own = await listArticles(student, `eventId=${fixture.eventId}`);
+      expect(own.map((item) => item.teamId)).toEqual([first]);
+
+      // Professor sem vínculo com o evento: nem lista, nem consulta.
+      expect(await listArticles(outsider, `eventId=${fixture.eventId}`)).toHaveLength(0);
+      const articleId = own[0]?.id ?? '';
+      const hidden = await request(server as never)
+        .get(`${PREFIX}/articles/${articleId}`)
+        .set('Cookie', cookieHeader(outsider))
+        .expect(404);
+      expect(bodyOf(hidden).status.code).toBe('RESOURCE_NOT_FOUND');
+
+      const invalid = await request(server as never)
+        .get(`${PREFIX}/articles?status=DRAFT`)
+        .set('Cookie', cookieHeader(advisor))
+        .expect(400);
+      expect(bodyOf(invalid).status.code).toBe('VALIDATION_FAILED');
+    });
   });
 });

@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { CourseFacade } from '@modules/course/contracts/course.facade';
 
 import { CohortRepository } from '../domain/ports/cohort-repository';
-import { coordinatorCohort } from './cohort-scope';
+import { readableCohort } from './cohort-scope';
 import { type Result } from '../domain/failure';
 import type { Cohort } from '../domain/cohort';
 
@@ -15,7 +15,7 @@ export class FindCohortUseCase {
   ) {}
 
   async execute(actorId: string, cohortId: string): Promise<Result<Cohort>> {
-    const scoped = await coordinatorCohort(this.courses, this.cohorts, actorId, cohortId, false);
+    const scoped = await readableCohort(this.courses, this.cohorts, actorId, cohortId);
 
     return scoped.ok ? ok(scoped.value.cohort) : { ok: false, failure: scoped.failure };
   }

@@ -136,3 +136,81 @@ a operação e SHALL usar o envelope, a paginação, os códigos estáveis e a e
 
 - **WHEN** visitante consulta ou aceita endereço de convite válido
 - **THEN** a operação não exige sessão e a resposta segue o envelope HTTP publicado
+
+### Requirement: Consulta de professores da turma
+
+O sistema SHALL expor `GET /api/v1/cohorts/:cohortId/professors`, exigindo `COHORT:READ`, paginado
+conforme o contrato de resposta, devolvendo para cada designação ativa o identificador da turma e o do
+professor. Turma inexistente ou de outra instituição MUST resultar em `RESOURCE_NOT_FOUND`.
+Professor revogado MUST NOT constar.
+
+#### Scenario: Professores designados
+
+- **WHEN** um coordenador consulta os professores de uma turma com dois professores designados e um
+  revogado
+- **THEN** a resposta contém os dois professores ativos
+
+#### Scenario: Turma de outra instituição
+
+- **WHEN** o ator consulta os professores de uma turma de outra instituição
+- **THEN** a resposta é `404` com `RESOURCE_NOT_FOUND`
+
+### Requirement: Situação do convite na listagem
+
+Cada item de `GET /api/v1/cohorts/:cohortId/invitations` SHALL conter, além dos campos atuais,
+`expiresAt`, `state` (`ACTIVE`, `EXPIRED`, `EXHAUSTED` ou `REVOKED`, conforme o convite de acesso) e
+`useCount`.
+
+#### Scenario: Convite revogado na listagem
+
+- **WHEN** um convite de turma é revogado e a listagem é consultada
+- **THEN** o item do convite apresenta `state` `REVOKED`, a validade e a contagem de usos
+
+### Requirement: Leitura da turma por professores e alunos
+
+O professor designado e o aluno com matrícula ativa SHALL poder consultar a turma e a lista de
+professores dela.
+
+- **Listagem por curso:** para quem não coordena o curso, a listagem SHALL conter apenas as turmas
+  em que o ator é professor designado ou aluno matriculado.
+- **Turma de outro vínculo:** consultá-la MUST resultar em `403` com `PERMISSION_DENIED`, como antes.
+- **Escrita:** alteração, desativação e designação de professor MUST continuar restritas ao
+  coordenador do curso.
+
+#### Scenario: Professor lista as próprias turmas
+
+- **WHEN** um professor designado a uma turma lista as turmas do curso
+- **THEN** a resposta contém essa turma e nenhuma turma em que ele não está designado
+
+#### Scenario: Aluno consulta a turma em que está matriculado
+
+- **WHEN** um aluno com matrícula ativa consulta a turma
+- **THEN** a resposta é `200` com a turma
+
+#### Scenario: Professor sem vínculo
+
+- **WHEN** um professor não designado consulta a turma
+- **THEN** a resposta é `403` com `PERMISSION_DENIED`
+
+### Requirement: Listagem das turmas legíveis pelo ator
+
+O sistema SHALL expor `GET /api/v1/cohorts`, paginada conforme o contrato de resposta e exigindo
+`COHORT:READ`, que devolve numa única consulta as turmas que o ator pode ler: as dos cursos que
+coordena, aquelas em que é professor designado e aquela em que tem matrícula ativa. Nenhuma outra
+turma SHALL constar.
+
+#### Scenario: Professor lista as suas turmas
+
+- **WHEN** um professor designado a uma turma lista as turmas
+- **THEN** a resposta contém essa turma
+- **AND** não contém turma do mesmo curso a que não foi designado
+
+#### Scenario: Coordenador lista as turmas do curso
+
+- **WHEN** o coordenador de um curso lista as turmas
+- **THEN** a resposta contém todas as turmas desse curso
+
+#### Scenario: Aluno lista a turma em que está matriculado
+
+- **WHEN** um aluno com matrícula ativa lista as turmas
+- **THEN** a resposta contém apenas a turma da matrícula

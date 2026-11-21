@@ -1,8 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { v7 as uuidv7 } from 'uuid';
 
+import type { Page } from '@shared/http/pagination';
+
 import type {
   ArticleDto,
+  ArticleSummaryDto,
+  ListArticlesQuery,
+  UpdateArticleTitleCommand,
   ArticlePresenceDto,
   ArticleQuery,
   ArticleVersionDto,
@@ -73,9 +78,64 @@ export class CreateArticleUseCase {
         currentMilestoneDeadline: command.currentMilestoneDeadline ?? null,
         lastMilestoneOrder: command.lastMilestoneOrder ?? null,
         templateVersionId: command.templateVersionId ?? null,
+        title: command.title ?? null,
         content,
       }),
     );
+  }
+}
+
+@Injectable()
+export class ListArticlesUseCase {
+  constructor(
+    private readonly repo: ArticleRepository,
+    private readonly scope: ArticleScope,
+  ) {}
+
+  async execute(query: ListArticlesQuery): Promise<Result<Page<ArticleSummaryDto>>> {
+    const reach = await this.scope.readingReach(query.actorId);
+
+    if (!reach.ok) {
+      return reach;
+    }
+
+    return ok(
+      await this.repo.listArticles(
+        {
+          institutionId: reach.value.institutionId,
+          reach: reach.value.reach,
+          ...(query.eventId === undefined ? {} : { eventId: query.eventId }),
+          ...(query.teamId === undefined ? {} : { teamId: query.teamId }),
+          ...(query.courseId === undefined ? {} : { courseId: query.courseId }),
+          ...(query.status === undefined ? {} : { status: query.status }),
+        },
+        query.request,
+      ),
+    );
+  }
+}
+
+/**
+ * O título do artigo (`article-title-and-feedback`): dos integrantes ativos, com as mesmas
+ * recusas da edição de conteúdo — o artigo em avaliação ou concluído não muda de título.
+ */
+@Injectable()
+export class UpdateArticleTitleUseCase {
+  constructor(
+    private readonly repo: ArticleRepository,
+    private readonly scope: ArticleScope,
+  ) {}
+
+  async execute(command: UpdateArticleTitleCommand): Promise<Result<ArticleDto>> {
+    const article = await this.scope.editableArticle(command.actorId, command.articleId);
+
+    if (!article.ok) {
+      return article;
+    }
+
+    const updated = await this.repo.updateArticleTitle(command.articleId, command.title);
+
+    return updated === null ? fail(FAILURE.RESOURCE_NOT_FOUND) : ok(updated);
   }
 }
 

@@ -7,6 +7,8 @@ import type {
   ListEligibleStudentsCommand,
   ListMembersCommand,
   ListTeamInvitationsCommand,
+  ListReceivedInvitationsCommand,
+  MemberRoleCommand,
   ListTeamsCommand,
   MemberCommand,
   MemberDto,
@@ -43,11 +45,15 @@ export abstract class TeamFacade {
   abstract join(command: JoinTeamCommand): Promise<TeamResult<MemberDto>>;
   abstract assignMember(command: MemberCommand): Promise<TeamResult<MemberDto>>;
   /** Idempotente, e **não destrutivo**: encerra a participação sem apagá-la. */
+  abstract setMemberRole(command: MemberRoleCommand): Promise<TeamResult<MemberDto>>;
   abstract removeMember(command: MemberCommand): Promise<TeamResult<void>>;
   abstract listMembers(command: ListMembersCommand): Promise<TeamResult<MemberPageDto>>;
 
   abstract invite(command: InviteMemberCommand): Promise<TeamResult<TeamInvitationDto>>;
   /** Reavalia elegibilidade, unicidade e lotação no instante do aceite (RF-EQP-004 RN2). */
+  abstract listReceivedInvitations(
+    command: ListReceivedInvitationsCommand,
+  ): Promise<TeamResult<TeamInvitationPageDto>>;
   abstract acceptInvitation(command: InvitationResponseCommand): Promise<TeamResult<MemberDto>>;
   abstract declineInvitation(command: InvitationResponseCommand): Promise<TeamResult<void>>;
   abstract listInvitations(

@@ -5,7 +5,7 @@ import { v7 as uuidv7 } from 'uuid';
 import { offsetOf, takeOf, type PageRequest } from '@shared/http/pagination';
 
 import type { Cohort } from '../domain/cohort';
-import type { CohortInvitation, Enrollment } from '../domain/enrollment';
+import { ENROLLMENT_STATUS, type CohortInvitation, type Enrollment } from '../domain/enrollment';
 import {
   CohortRepository,
   type CohortLink,
@@ -135,6 +135,71 @@ export class PrismaCohortRepository extends CohortRepository {
       : { rows: cohorts };
   }
 
+  async listByCourseForMember(
+    courseId: string,
+    userId: string,
+    request: PageRequest,
+  ): Promise<CohortRows> {
+    const where = {
+      courseId,
+      OR: [
+        { professors: { some: { userId } } },
+        { enrollments: { some: { userId, status: ENROLLMENT_STATUS.ACTIVE } } },
+      ],
+    };
+    const rows = await this.prisma.cohort.findMany({
+      where,
+      select: COHORT_COLUMNS,
+      orderBy: [{ startsAt: 'desc' }, { id: 'desc' }],
+      skip: offsetOf(request),
+      take: takeOf(request),
+    });
+    const cohorts = rows.map(toCohort);
+
+    return request.withTotal
+      ? { rows: cohorts, totalItems: await this.prisma.cohort.count({ where }) }
+      : { rows: cohorts };
+  }
+
+  async listReadableBy(
+    userId: string,
+    coordinatedCourseIds: readonly string[],
+    request: PageRequest,
+  ): Promise<CohortRows> {
+    const where = {
+      OR: [
+        ...(coordinatedCourseIds.length === 0
+          ? []
+          : [{ courseId: { in: [...coordinatedCourseIds] } }]),
+        { professors: { some: { userId } } },
+        { enrollments: { some: { userId, status: ENROLLMENT_STATUS.ACTIVE } } },
+      ],
+    };
+    const rows = await this.prisma.cohort.findMany({
+      where,
+      select: COHORT_COLUMNS,
+      orderBy: [{ startsAt: 'desc' }, { id: 'desc' }],
+      skip: offsetOf(request),
+      take: takeOf(request),
+    });
+    const cohorts = rows.map(toCohort);
+
+    return request.withTotal
+      ? { rows: cohorts, totalItems: await this.prisma.cohort.count({ where }) }
+      : { rows: cohorts };
+  }
+
+  async isMember(cohortId: string, userId: string): Promise<boolean> {
+    const [professor, enrollment] = await Promise.all([
+      this.prisma.cohortProfessor.count({ where: { cohortId, userId } }),
+      this.prisma.enrollment.count({
+        where: { cohortId, userId, status: ENROLLMENT_STATUS.ACTIVE },
+      }),
+    ]);
+
+    return professor + enrollment > 0;
+  }
+
   async save(cohort: Cohort): Promise<Cohort | null> {
     try {
       return toCohort(
@@ -183,6 +248,24 @@ export class PrismaCohortRepository extends CohortRepository {
         select: { cohortId: true },
       })) !== null
     );
+  }
+
+  async listProfessors(
+    cohortId: string,
+    request: PageRequest,
+  ): Promise<{ readonly rows: readonly string[]; readonly totalItems?: number }> {
+    const rows = await this.prisma.cohortProfessor.findMany({
+      where: { cohortId },
+      select: { userId: true },
+      orderBy: [{ createdAt: 'asc' }, { userId: 'asc' }],
+      skip: offsetOf(request),
+      take: takeOf(request),
+    });
+    const ids = rows.map((row) => row.userId);
+
+    return request.withTotal
+      ? { rows: ids, totalItems: await this.prisma.cohortProfessor.count({ where: { cohortId } }) }
+      : { rows: ids };
   }
 
   async addProfessor(cohortId: string, userId: string, actorId: string): Promise<void> {

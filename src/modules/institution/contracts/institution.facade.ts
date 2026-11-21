@@ -45,7 +45,7 @@ export abstract class InstitutionFacade {
    * A listagem paginada (`ADR-0025` §21 a §25). Inclui ativas e inativas, distinguidas
    * pelo estado: a desativação não some com a instituição da lista.
    */
-  abstract list(request: PageRequest): Promise<Page<InstitutionDto>>;
+  abstract list(request: PageRequest, actorId?: string): Promise<Page<InstitutionDto>>;
 
   abstract update(command: UpdateInstitutionCommand): Promise<InstitutionResult<InstitutionDto>>;
 

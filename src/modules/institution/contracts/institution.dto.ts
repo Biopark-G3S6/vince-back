@@ -12,6 +12,8 @@ export interface InstitutionDto {
   readonly cnpj: string | null;
   readonly website: string | null;
   readonly contactEmail: string | null;
+  readonly city: string | null;
+  readonly state: string | null;
   readonly active: boolean;
 }
 
@@ -22,6 +24,8 @@ export interface CreateInstitutionCommand {
   readonly cnpj?: string | null;
   readonly website?: string | null;
   readonly contactEmail?: string | null;
+  readonly city?: string | null;
+  readonly state?: string | null;
 }
 
 /**
@@ -37,10 +41,14 @@ export interface UpdateInstitutionCommand {
   readonly cnpj?: string | null;
   readonly website?: string | null;
   readonly contactEmail?: string | null;
+  readonly city?: string | null;
+  readonly state?: string | null;
 }
 
 export interface InstitutionQuery {
   readonly institutionId: string;
+  /** Quem lê, pela borda HTTP: o vinculado só alcança a própria instituição (RF-INS-001 RN4). */
+  readonly actorId?: string;
 }
 
 /** Desativação e reativação, ambas idempotentes (`ADR-0028` §11). */

@@ -61,6 +61,10 @@ export class ReadEventStateUseCase {
     return this.events.hasAdvisor(eventId, userId);
   }
 
+  async advisedEventIdsOf(userId: string): Promise<readonly string[]> {
+    return this.events.advisorEventIds(userId);
+  }
+
   async isScopeOwner(eventId: string, userId: string): Promise<boolean> {
     const event = await this.events.findById(eventId);
 

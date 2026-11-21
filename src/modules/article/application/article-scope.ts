@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 
 import { AccessFacade } from '@modules/access/contracts/access.facade';
 import type { UserProfileDto } from '@modules/access/contracts/user.dto';
 import { CourseFacade } from '@modules/course/contracts/course.facade';
+import { EventFacade } from '@modules/event/contracts/event.facade';
 import { InstitutionFacade } from '@modules/institution/contracts/institution.facade';
 
 import {
@@ -14,7 +15,11 @@ import {
   type Template,
 } from '../domain/article';
 import { FAILURE, fail, ok, type Result } from '../domain/failure';
-import { ArticleRepository, type ArticleCorpusRecord } from '../domain/ports/article-repository';
+import {
+  ArticleRepository,
+  type ArticleCorpusRecord,
+  type ArticleReach,
+} from '../domain/ports/article-repository';
 
 const ROLE = {
   INSTITUTION_ADMIN: 'INSTITUTION_ADMIN',
@@ -28,7 +33,46 @@ export class ArticleScope {
     private readonly access: AccessFacade,
     private readonly institutions: InstitutionFacade,
     private readonly courses: CourseFacade,
+    /**
+     * Ausente quando o processo não ativa `event`: então ninguém é orientador de evento e
+     * o alcance se reduz a integrante e responsável.
+     */
+    @Optional() private readonly events?: EventFacade,
   ) {}
+
+  /**
+   * O alcance de leitura do ator sobre os artigos da sua instituição.
+   *
+   * `null` significa a instituição inteira — só o administrador institucional, como em
+   * `readableArticle`. Os demais alcançam o artigo das equipes que integram, das que
+   * orientam como responsáveis, das equipes dos eventos que orientam e, o coordenador, dos
+   * cursos que coordena (RF-ART-001 RN3, `article-course-scope`).
+   */
+  async readingReach(
+    actorId: string,
+  ): Promise<Result<{ readonly institutionId: string; readonly reach: ArticleReach | null }>> {
+    const institution = await this.actorInstitution(actorId);
+
+    if (!institution.ok) {
+      return institution;
+    }
+
+    const roles = new Set(institution.value.profile.roleCodes);
+
+    if (roles.has(ROLE.INSTITUTION_ADMIN)) {
+      return ok({ institutionId: institution.value.id, reach: null });
+    }
+
+    const [advisedEventIds, coordinatedCourseIds] = await Promise.all([
+      this.events?.advisedEventIdsOf(actorId) ?? Promise.resolve([]),
+      roles.has(ROLE.COORDINATOR) ? this.courses.coordinatedBy(actorId) : Promise.resolve([]),
+    ]);
+
+    return ok({
+      institutionId: institution.value.id,
+      reach: { userId: actorId, advisedEventIds, coordinatedCourseIds },
+    });
+  }
 
   async actorInstitution(
     actorId: string,
@@ -112,10 +156,47 @@ export class ArticleScope {
       return ok(article);
     }
 
+    // O orientador do evento alcança os artigos de todas as equipes do evento (RN3).
+    if (this.events !== undefined && (await this.events.isAdvisor(article.eventId, actorId))) {
+      return ok(article);
+    }
+
     const roles = new Set(institution.value.profile.roleCodes);
 
-    return roles.has(ROLE.INSTITUTION_ADMIN) || roles.has(ROLE.COORDINATOR)
-      ? ok(article)
+    if (roles.has(ROLE.INSTITUTION_ADMIN)) {
+      return ok(article);
+    }
+
+    // O coordenador alcança os artigos dos cursos que coordena (RN3, `article-course-scope`).
+    if (
+      roles.has(ROLE.COORDINATOR) &&
+      article.courseId !== null &&
+      (await this.courses.coordinatedBy(actorId)).includes(article.courseId)
+    ) {
+      return ok(article);
+    }
+
+    return fail(FAILURE.RESOURCE_NOT_FOUND);
+  }
+
+  /**
+   * Quem mantém o registro de publicação externa (`publication-actors`, RF-ART-004): o
+   * integrante ativo, o orientador responsável e qualquer orientador do evento.
+   */
+  async publicationWriter(actorId: string, articleId: string): Promise<Result<Article>> {
+    const article = await this.readableArticle(actorId, articleId);
+
+    if (!article.ok) {
+      return article;
+    }
+
+    if (isTeamMember(article.value, actorId) || isResponsibleAdvisor(article.value, actorId)) {
+      return article;
+    }
+
+    return this.events !== undefined &&
+      (await this.events.isAdvisor(article.value.eventId, actorId))
+      ? article
       : fail(FAILURE.RESOURCE_NOT_FOUND);
   }
 

@@ -3,11 +3,13 @@ import { Prisma } from '@prisma/client';
 import { v7 as uuidv7 } from 'uuid';
 
 import { AUDIT_OPERATION } from '../domain/ports/role-assignment-repository';
-import { offsetOf, takeOf, type PageRequest } from '@shared/http/pagination';
+import { offsetOf, takeOf, toPage, type Page, type PageRequest } from '@shared/http/pagination';
 
 import {
   UserRepository,
   type AccountIdRows,
+  type DirectoryEntry,
+  type DirectoryFilters,
   type NewUserAccount,
   type NotificationRecipientRecord,
   type UserAccountWithRoles,
@@ -213,6 +215,57 @@ export class PrismaUserRepository extends UserRepository {
    * permitida (`ADR-0018` §12). A ordem é por identificador — UUIDv7 é monotônico no
    * tempo, de modo que ordenar por ele é ordenar por criação, sem segunda coluna.
    */
+  async searchDirectory(
+    filters: DirectoryFilters,
+    request: PageRequest,
+  ): Promise<Page<DirectoryEntry>> {
+    const search = filters.search?.trim();
+    const where = {
+      ...(filters.institutionId === undefined ? {} : { institutionId: filters.institutionId }),
+      ...(filters.active === undefined ? {} : { active: filters.active }),
+      ...(filters.ids === undefined ? {} : { id: { in: [...filters.ids] } }),
+      ...(filters.roleCode === undefined
+        ? {}
+        : { roles: { some: { role: { code: filters.roleCode } } } }),
+      ...(search === undefined || search === ''
+        ? {}
+        : {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' as const } },
+              { email: { contains: search, mode: 'insensitive' as const } },
+            ],
+          }),
+    };
+    const rows = await this.prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        active: true,
+        institutionId: true,
+        roles: { select: { role: { select: { code: true } } } },
+      },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      skip: offsetOf(request),
+      take: takeOf(request),
+    });
+    const total = request.withTotal ? await this.prisma.user.count({ where }) : undefined;
+
+    return toPage(
+      request,
+      rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        active: row.active,
+        roleCodes: row.roles.map((link) => link.role.code).sort(),
+        institutionId: row.institutionId,
+      })),
+      total,
+    );
+  }
+
   async listByRole(
     institutionId: string,
     roleCode: string,

@@ -17,6 +17,7 @@ export interface ArticleDto {
   readonly courseId: string | null;
   readonly eventId: string;
   readonly teamId: string;
+  readonly teamIdentification: string | null;
   readonly advisorId: string | null;
   readonly memberIds: readonly string[];
   readonly status: ArticleStatus;
@@ -25,6 +26,7 @@ export interface ArticleDto {
   readonly currentMilestoneDeadline: Date | null;
   readonly lastMilestoneOrder: number | null;
   readonly templateVersionId: string | null;
+  readonly title: string | null;
   readonly content: JsonValue;
   readonly formatProfile: JsonValue;
   readonly createdAt: Date;
@@ -141,6 +143,7 @@ export interface ArticleAssessmentDto {
   readonly articleId: string;
   readonly memberId: string | null;
   readonly score: number;
+  readonly feedback: string | null;
   readonly evaluatedBy: string;
   readonly createdAt: Date;
 }
@@ -161,6 +164,12 @@ export interface ExternalPublicationDto {
 export interface GradeCommand extends ArticleQuery {
   readonly score: number;
   readonly memberId?: string;
+  /** Só na nota do artigo (`article-title-and-feedback`). */
+  readonly feedback?: string | null;
+}
+
+export interface UpdateArticleTitleCommand extends ArticleQuery {
+  readonly title: string | null;
 }
 export interface PublicationCommand extends ArticleQuery {
   readonly venueName: string;
@@ -218,6 +227,32 @@ export interface ActorCommand {
   readonly actorId: string;
 }
 
+/** O resumo do artigo na listagem (RF-ART-001): sem o conteúdo. */
+export interface ArticleSummaryDto {
+  readonly id: string;
+  readonly institutionId: string;
+  readonly courseId: string | null;
+  readonly eventId: string;
+  readonly teamId: string;
+  readonly teamIdentification: string | null;
+  readonly advisorId: string | null;
+  readonly memberIds: readonly string[];
+  readonly status: ArticleStatus;
+  readonly currentMilestoneId: string | null;
+  readonly currentMilestoneOrder: number | null;
+  readonly currentMilestoneDeadline: Date | null;
+  readonly title: string | null;
+  readonly updatedAt: Date;
+}
+
+export interface ListArticlesQuery extends ActorCommand {
+  readonly request: PageRequest;
+  readonly eventId?: string;
+  readonly teamId?: string;
+  readonly courseId?: string;
+  readonly status?: ArticleStatus;
+}
+
 export interface CreateTemplateCommand extends ActorCommand {
   readonly name: string;
   readonly description?: string | null;
@@ -273,6 +308,7 @@ export interface CreateArticleCommand extends ActorCommand {
   readonly currentMilestoneDeadline?: Date | null;
   readonly lastMilestoneOrder?: number | null;
   readonly templateVersionId?: string | null;
+  readonly title?: string | null;
 }
 
 export interface SaveContentCommand extends ArticleQuery {

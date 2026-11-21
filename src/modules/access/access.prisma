@@ -13,7 +13,8 @@ model Permission {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  roles RolePermission[]
+  roles  RolePermission[]
+  grants PermissionGrant[]
 
   @@map("permission")
   @@schema("access")
@@ -170,17 +171,17 @@ model Invitation {
 /// Não há chaves estrangeiras: a trilha sobrevive ao convite e à conta que documenta.
 /// `operation` é enumeração de negócio em texto, nunca ENUM nativo (ADR-0018 §19).
 model InvitationAudit {
-  id              String    @id @db.Uuid
-  invitationId    String    @map("invitation_id") @db.Uuid
-  actorId         String?   @map("actor_id") @db.Uuid
-  accountId       String?   @map("account_id") @db.Uuid
-  roleCode        String    @map("role_code")
-  institutionId   String    @map("institution_id") @db.Uuid
-  institutionName String    @map("institution_name")
+  id              String   @id @db.Uuid
+  invitationId    String   @map("invitation_id") @db.Uuid
+  actorId         String?  @map("actor_id") @db.Uuid
+  accountId       String?  @map("account_id") @db.Uuid
+  roleCode        String   @map("role_code")
+  institutionId   String   @map("institution_id") @db.Uuid
+  institutionName String   @map("institution_name")
   /// `ISSUED`, `ACCEPTED` ou `REVOKED`.
-  operation String
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  operation       String
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@index([invitationId, createdAt])
   @@map("invitation_audit")
@@ -238,6 +239,39 @@ model RoleAssignmentAudit {
 
   @@index([subjectId, createdAt])
   @@map("role_assignment_audit")
+  @@schema("access")
+}
+
+/// A concessão direta de permissão entre contas (ADR-0027 §5, ADR-0014 §15–§21,
+/// RF-ACS-006 a RF-ACS-008).
+///
+/// **A linha é a própria trilha** (ADR-0014 §18): nunca é removida, e a revogação apenas
+/// preenche `revoked_at` e `revoked_by`, uma única vez. É por isso que não existe tabela
+/// de auditoria de concessão — o ADR-0027 §6 não a admite, e ela repetiria esta.
+///
+/// Sem chave estrangeira para `user`: a trilha não depende da conta que documenta, como em
+/// `role_assignment_audit`. Com chave para `permission` (ADR-0018 §12): concede-se apenas o
+/// que existe no catálogo. `institution_id` é a instituição do concedente, que isola a
+/// listagem e a revogação (RF-INS-001 RN1).
+model PermissionGrant {
+  id            String    @id @db.Uuid
+  granterId     String    @map("granter_id") @db.Uuid
+  beneficiaryId String    @map("beneficiary_id") @db.Uuid
+  institutionId String    @map("institution_id") @db.Uuid
+  permissionId  String    @map("permission_id") @db.Uuid
+  /// Ausente: sem prazo. Vencido, a concessão deixa de compor as efetivas (§19).
+  validUntil    DateTime? @map("valid_until") @db.Timestamptz(3)
+  revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(3)
+  revokedBy     String?   @map("revoked_by") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+
+  @@index([beneficiaryId])
+  @@index([institutionId, createdAt])
+  @@index([permissionId])
+  @@map("permission_grant")
   @@schema("access")
 }
 

@@ -6,6 +6,22 @@ export const MEMBER_STATUS = {
 export type MemberStatus = (typeof MEMBER_STATUS)[keyof typeof MEMBER_STATUS];
 
 /**
+ * O papel do integrante na organização da equipe (`team-member-role`). Rótulo, e não
+ * permissão: não muda o que o integrante pode fazer no artigo.
+ */
+export const MEMBER_ROLE = {
+  LEADER: 'LEADER',
+  AUTHOR: 'AUTHOR',
+  COAUTHOR: 'COAUTHOR',
+} as const;
+
+export type MemberRole = (typeof MEMBER_ROLE)[keyof typeof MEMBER_ROLE];
+
+export function isMemberRole(value: string): value is MemberRole {
+  return (Object.values(MEMBER_ROLE) as string[]).includes(value);
+}
+
+/**
  * A participação do aluno na equipe.
  *
  * A remoção **encerra** a linha, e não a apaga (`ADR-0033` §9): a contribuição já
@@ -18,6 +34,7 @@ export interface TeamMember {
   readonly teamId: string;
   readonly userId: string;
   readonly status: MemberStatus;
+  readonly role: MemberRole;
   readonly joinedAt: Date;
   readonly leftAt: Date | null;
 }
@@ -35,6 +52,7 @@ export function memberOf(
     teamId,
     userId,
     status: MEMBER_STATUS.ACTIVE,
+    role: MEMBER_ROLE.COAUTHOR,
     joinedAt,
     leftAt: null,
   };

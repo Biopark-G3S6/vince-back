@@ -67,3 +67,33 @@ export async function professorCohort(
     ? { ok: true, value: { cohort, institutionId: course.institutionId as string } }
     : fail(FAILURE.PERMISSION_DENIED);
 }
+
+/**
+ * O alcance de **leitura** da turma (`cohort-read-by-members`): o coordenador do curso, o
+ * professor designado e o aluno com matrícula ativa. A URS dá `COHORT:READ` aos três papéis
+ * (§2.3.1); a escrita continua com `coordinatorCohort`.
+ */
+export async function readableCohort(
+  courses: CourseFacade,
+  cohorts: CohortRepository,
+  actorId: string,
+  cohortId: string,
+): Promise<Result<ScopedCohort>> {
+  const scoped = await coordinatorCohort(courses, cohorts, actorId, cohortId, false);
+
+  if (scoped.ok || scoped.failure.code !== FAILURE.PERMISSION_DENIED) {
+    return scoped;
+  }
+
+  const cohort = await cohorts.findById(cohortId);
+
+  if (cohort === null) {
+    return fail(FAILURE.RESOURCE_NOT_FOUND);
+  }
+
+  const course = await courses.stateOf(cohort.courseId);
+
+  return (await cohorts.isMember(cohortId, actorId))
+    ? { ok: true, value: { cohort, institutionId: course.institutionId as string } }
+    : fail(FAILURE.PERMISSION_DENIED);
+}

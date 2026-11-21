@@ -16,6 +16,7 @@ import { ArticleScope } from './article-scope';
 
 const MIN_SCORE = 0;
 const MAX_SCORE = 10;
+const MAX_FEEDBACK = 4000;
 
 @Injectable()
 export class RecordGradeUseCase {
@@ -31,12 +32,18 @@ export class RecordGradeUseCase {
       return failValidation([{ field: 'score', code: 'MALFORMED' }]);
     if (command.memberId !== undefined && !article.value.memberIds.includes(command.memberId))
       return fail(FAILURE.RESOURCE_NOT_FOUND);
+    const feedback = command.feedback?.trim() ?? '';
+    if (command.memberId !== undefined && feedback !== '')
+      return failValidation([{ field: 'feedback', code: 'MALFORMED' }]);
+    if (feedback.length > MAX_FEEDBACK)
+      return failValidation([{ field: 'feedback', code: 'TOO_LONG' }]);
     return ok(
       toAssessment(
         await this.articles.createAssessment({
           articleId: command.articleId,
           memberId: command.memberId ?? null,
           score: command.score,
+          feedback: feedback === '' ? null : feedback,
           evaluatedBy: command.actorId,
         }),
       ),
@@ -65,13 +72,8 @@ export class CreatePublicationUseCase {
     private readonly scope: ArticleScope,
   ) {}
   async execute(command: PublicationCommand): Promise<Result<ExternalPublicationDto>> {
-    const article = await this.scope.readableArticle(command.actorId, command.articleId);
+    const article = await this.scope.publicationWriter(command.actorId, command.articleId);
     if (!article.ok) return article;
-    if (
-      !article.value.memberIds.includes(command.actorId) &&
-      article.value.advisorId !== command.actorId
-    )
-      return fail(FAILURE.RESOURCE_NOT_FOUND);
     const violations = publicationViolations(command);
     if (violations.length > 0) return failValidation(violations);
     return ok(
@@ -98,13 +100,9 @@ export class ListPublicationsUseCase {
     private readonly scope: ArticleScope,
   ) {}
   async execute(query: ArticleQuery): Promise<Result<readonly ExternalPublicationDto[]>> {
+    // Consulta: quem lê o artigo (`publication-actors`).
     const article = await this.scope.readableArticle(query.actorId, query.articleId);
     if (!article.ok) return article;
-    if (
-      !article.value.memberIds.includes(query.actorId) &&
-      article.value.advisorId !== query.actorId
-    )
-      return fail(FAILURE.RESOURCE_NOT_FOUND);
     return ok((await this.articles.listPublications(query.articleId)).map(toPublication));
   }
 }
@@ -116,13 +114,8 @@ export class UpdatePublicationUseCase {
     private readonly scope: ArticleScope,
   ) {}
   async execute(command: UpdatePublicationCommand): Promise<Result<ExternalPublicationDto>> {
-    const article = await this.scope.readableArticle(command.actorId, command.articleId);
+    const article = await this.scope.publicationWriter(command.actorId, command.articleId);
     if (!article.ok) return article;
-    if (
-      !article.value.memberIds.includes(command.actorId) &&
-      article.value.advisorId !== command.actorId
-    )
-      return fail(FAILURE.RESOURCE_NOT_FOUND);
     if ((await this.articles.findPublication(command.articleId, command.publicationId)) === null)
       return fail(FAILURE.RESOURCE_NOT_FOUND);
     const violations = publicationViolations(command);
@@ -147,13 +140,8 @@ export class DeletePublicationUseCase {
     private readonly scope: ArticleScope,
   ) {}
   async execute(query: PublicationQuery): Promise<Result<void>> {
-    const article = await this.scope.readableArticle(query.actorId, query.articleId);
+    const article = await this.scope.publicationWriter(query.actorId, query.articleId);
     if (!article.ok) return article;
-    if (
-      !article.value.memberIds.includes(query.actorId) &&
-      article.value.advisorId !== query.actorId
-    )
-      return fail(FAILURE.RESOURCE_NOT_FOUND);
     return (await this.articles.deletePublication(query.articleId, query.publicationId))
       ? ok(undefined)
       : fail(FAILURE.RESOURCE_NOT_FOUND);
@@ -195,6 +183,7 @@ function toAssessment(value: ArticleAssessment): ArticleAssessmentDto {
     articleId: value.articleId,
     memberId: value.memberId,
     score: value.score,
+    feedback: value.feedback,
     evaluatedBy: value.evaluatedBy,
     createdAt: value.createdAt,
   };

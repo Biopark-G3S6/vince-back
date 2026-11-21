@@ -278,23 +278,22 @@ export class PrismaInvitationRepository extends InvitationRepository {
             },
           });
 
-          if (invitation.scopeType !== null && invitation.scopeId !== null) {
-            await tx.accessOutbox.create({
-              data: {
-                id: uuidv7(),
-                eventType: 'InvitationAccepted',
-                eventVersion: 1,
-                payload: {
-                  invitationId: invitation.id,
-                  userId: created.id,
-                  roleCode: role.code,
-                  institutionId: invitation.institutionId,
-                  scopeType: invitation.scopeType,
-                  scopeId: invitation.scopeId,
-                },
+          // Todo aceite vira fato (turma e instituição consomem o que lhes cabe).
+          await tx.accessOutbox.create({
+            data: {
+              id: uuidv7(),
+              eventType: 'InvitationAccepted',
+              eventVersion: 1,
+              payload: {
+                invitationId: invitation.id,
+                userId: created.id,
+                roleCode: role.code,
+                institutionId: invitation.institutionId,
+                scopeType: invitation.scopeType,
+                scopeId: invitation.scopeId,
               },
-            });
-          }
+            },
+          });
 
           return {
             ok: true,

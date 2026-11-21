@@ -37,6 +37,10 @@ e listar as instituições. A listagem SHALL ser paginada, SHALL informar `page`
 e `totalPages` SHALL ser devolvidos apenas quando solicitados explicitamente. A listagem SHALL incluir
 instituições ativas e inativas, distinguindo-as pelo estado.
 
+O ator vinculado a uma instituição SHALL consultar apenas a própria instituição (`RF-INS-001` RN4):
+a listagem SHALL conter só ela, e a consulta de instituição alheia SHALL responder
+`RESOURCE_NOT_FOUND`. O ator sem instituição (`SYSTEM_ADMIN`) SHALL consultar e listar todas.
+
 #### Scenario: Consulta por identificador
 
 - **WHEN** um ator com `INSTITUTION:READ` consulta uma instituição existente
@@ -67,6 +71,21 @@ instituições ativas e inativas, distinguindo-as pelo estado.
 
 - **WHEN** a listagem devolve um registro e depois dez registros
 - **THEN** a quantidade de consultas ao banco é a mesma nas duas execuções
+
+#### Scenario: Aluno consulta a própria instituição
+
+- **WHEN** um aluno consulta a instituição a que está vinculado
+- **THEN** recebe seus dados e seu estado
+
+#### Scenario: Usuário vinculado consulta instituição alheia
+
+- **WHEN** um professor consulta uma instituição à qual não está vinculado
+- **THEN** a resposta é `RESOURCE_NOT_FOUND` com status HTTP `404`
+
+#### Scenario: Usuário vinculado lista instituições
+
+- **WHEN** um coordenador solicita a listagem
+- **THEN** a resposta contém apenas a instituição a que está vinculado
 
 ### Requirement: Alteração de instituição
 
@@ -240,3 +259,35 @@ informados.
 
 - **WHEN** a consulta informa dez identificadores
 - **THEN** devolve o estado de cada um em número de consultas independente da quantidade informada
+
+### Requirement: Cidade e UF da instituição
+
+A criação e a alteração de instituição SHALL aceitar `city` e `state`, ambos opcionais. A consulta e
+a listagem SHALL devolvê-los, com `null` quando ausentes.
+
+- `city` MUST ter entre 1 e 120 caracteres após aparar os espaços.
+- `state` MUST ter exatamente duas letras maiúsculas.
+- Valor fora dessas regras resulta em `VALIDATION_FAILED`, com o campo indicado.
+
+#### Scenario: Instituição com cidade e UF
+
+- **WHEN** o administrador de sistema cria uma instituição com `city` "Toledo" e `state` "PR"
+- **THEN** a consulta da instituição devolve `city` "Toledo" e `state` "PR"
+
+#### Scenario: UF inválida
+
+- **WHEN** a instituição é alterada com `state` "Paraná"
+- **THEN** a resposta é `400` com `VALIDATION_FAILED` no campo `state`
+
+### Requirement: Administrador institucional por convite
+
+Aceito o convite de administrador institucional emitido para uma instituição, o sistema SHALL
+vincular a nova conta àquela instituição como administradora (`RF-INS-002`), da mesma forma que a
+designação direta. O vínculo SHALL ser criado uma única vez, ainda que o aceite seja processado mais
+de uma vez.
+
+#### Scenario: Convite aceito vira administrador vinculado
+
+- **WHEN** a pessoa aceita o convite de `INSTITUTION_ADMIN` emitido pelo administrador de sistema
+- **THEN** a instituição passa a listá-la entre os seus administradores
+- **AND** a revogação do vínculo remove também o papel `INSTITUTION_ADMIN`

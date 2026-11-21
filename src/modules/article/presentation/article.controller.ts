@@ -12,7 +12,7 @@ import {
   Query,
   Res,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { CurrentSession } from '@shared/auth/request-session';
@@ -26,6 +26,7 @@ import { parseOrFail } from '@shared/http/validation';
 import type {
   ArticleCitationDto,
   ArticleDto,
+  ArticleSummaryDto,
   ArticleReferenceDto,
   ArticleRemarkDto,
   ArticleSubmissionDto,
@@ -40,6 +41,7 @@ import type {
 import { ArticleFacade } from '../contracts/article.facade';
 import {
   ArticleResponseDto,
+  ArticleSummaryResponseDto,
   CitationRequestDto,
   CitationResponseDto,
   ComparisonResponseDto,
@@ -74,6 +76,9 @@ import {
   presenceSchema,
   referenceSchema,
   remarkSchema,
+  listArticlesQuerySchema,
+  updateArticleSchema,
+  UpdateArticleRequestDto,
   selectTemplateSchema,
   updateRemarkSchema,
   updateTemplateSchema,
@@ -204,6 +209,33 @@ export class ArticleController {
     );
   }
 
+  @Get('articles')
+  @RequiresPermission('ARTICLE:READ')
+  @ApiOperation({ summary: 'Lista os artigos alcançados pelos vínculos do ator (RF-ART-001)' })
+  @ApiPageQuery()
+  @ApiQuery({ name: 'eventId', required: false, format: 'uuid' })
+  @ApiQuery({ name: 'teamId', required: false, format: 'uuid' })
+  @ApiQuery({ name: 'courseId', required: false, format: 'uuid' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['STARTED', 'IN_PROGRESS', 'IN_REVIEW', 'FINISHED'],
+  })
+  @ApiPagedEnvelope(ArticleSummaryResponseDto)
+  @ApiFailures('AUTHENTICATION_FAILED', 'PERMISSION_DENIED', 'VALIDATION_FAILED')
+  async listArticles(
+    @Query() query: Record<string, unknown>,
+    @CurrentSession() session: Session,
+  ): Promise<EnvelopeResult<readonly ArticleSummaryResponseDto[]>> {
+    const request = toPageRequest(parseOrFail(pageRequestSchema, query));
+    const filters = parseOrFail(listArticlesQuerySchema, query);
+    const page = unwrap(
+      await this.articles.listArticles({ actorId: session.state.userId, request, ...filters }),
+    );
+
+    return respondWithPage(page.items.map(toArticleSummaryResponse), page.pagination);
+  }
+
   @Get('articles/:articleId')
   @RequiresPermission('ARTICLE:READ')
   @ApiOperation({ summary: 'Consulta o artigo estruturado e seu estado' })
@@ -215,6 +247,35 @@ export class ArticleController {
   ): Promise<ArticleResponseDto> {
     return toArticleResponse(
       unwrap(await this.articles.findArticle({ actorId: session.state.userId, articleId })),
+    );
+  }
+
+  @Patch('articles/:articleId')
+  @RequiresPermission('ARTICLE:EDIT')
+  @ApiOperation({ summary: 'Altera o título do artigo (integrante ativo)' })
+  @ApiEnvelope(ArticleResponseDto)
+  @ApiFailures(
+    'AUTHENTICATION_FAILED',
+    'RESOURCE_NOT_FOUND',
+    'VALIDATION_FAILED',
+    'ARTICLE_LOCKED_FOR_REVIEW',
+    'ARTICLE_ALREADY_FINISHED',
+  )
+  async updateArticle(
+    @Param('articleId', ParseUUIDPipe) articleId: string,
+    @Body() body: UpdateArticleRequestDto,
+    @CurrentSession() session: Session,
+  ): Promise<ArticleResponseDto> {
+    const input = parseOrFail(updateArticleSchema, body);
+
+    return toArticleResponse(
+      unwrap(
+        await this.articles.updateTitle({
+          actorId: session.state.userId,
+          articleId,
+          title: input.title,
+        }),
+      ),
     );
   }
 
@@ -828,6 +889,25 @@ function toSelectionResponse(selection: TemplateSelectionDto): TemplateSelection
   };
 }
 
+function toArticleSummaryResponse(article: ArticleSummaryDto): ArticleSummaryResponseDto {
+  return {
+    id: article.id,
+    institutionId: article.institutionId,
+    courseId: article.courseId,
+    eventId: article.eventId,
+    teamId: article.teamId,
+    teamIdentification: article.teamIdentification,
+    advisorId: article.advisorId,
+    memberIds: [...article.memberIds],
+    status: article.status,
+    currentMilestoneId: article.currentMilestoneId,
+    currentMilestoneOrder: article.currentMilestoneOrder,
+    currentMilestoneDeadline: article.currentMilestoneDeadline?.toISOString() ?? null,
+    title: article.title,
+    updatedAt: article.updatedAt.toISOString(),
+  };
+}
+
 function toArticleResponse(article: ArticleDto): ArticleResponseDto {
   return {
     id: article.id,
@@ -835,12 +915,14 @@ function toArticleResponse(article: ArticleDto): ArticleResponseDto {
     courseId: article.courseId,
     eventId: article.eventId,
     teamId: article.teamId,
+    teamIdentification: article.teamIdentification,
     advisorId: article.advisorId,
     memberIds: [...article.memberIds],
     status: article.status,
     currentMilestoneId: article.currentMilestoneId,
     currentMilestoneOrder: article.currentMilestoneOrder,
     currentMilestoneDeadline: article.currentMilestoneDeadline?.toISOString() ?? null,
+    title: article.title,
     content: article.content,
     formatProfile: article.formatProfile,
   };

@@ -25,6 +25,11 @@ export interface ListCohortsCommand {
   readonly request: PageRequest;
 }
 
+export interface ListReadableCohortsCommand {
+  readonly actorId: string;
+  readonly request: PageRequest;
+}
+
 export interface CohortQuery {
   readonly actorId: string;
   readonly cohortId: string;
@@ -67,7 +72,26 @@ export interface CohortInvitationDto {
   readonly cohortId: string;
   readonly professorId: string;
   readonly url?: string;
+  /**
+   * Presentes na listagem (`cohort-read-extensions`): a situação vem do convite de acesso.
+   * O instante já vai em ISO 8601, como no corpo da resposta.
+   */
+  readonly expiresAt?: string;
+  readonly state?: string;
+  readonly useCount?: number;
 }
+
+/** Uma designação ativa de professor à turma (RF-TUR-002). */
+export interface CohortProfessorDto {
+  readonly cohortId: string;
+  readonly userId: string;
+}
+
+export interface ListCohortProfessorsCommand extends CohortQuery {
+  readonly request: PageRequest;
+}
+
+export type CohortProfessorPageDto = Page<CohortProfessorDto>;
 
 export interface ListCohortInvitationsCommand extends CohortQuery {
   readonly request: PageRequest;

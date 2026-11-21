@@ -23,12 +23,15 @@ import {
   ArticleRepository,
   type ArticleAssessment,
   type ArticleCreateData,
+  type ArticleListFilters,
+  type ArticleSummary,
   type ArticleCorpusRecord,
   type ArticleProgressRecord,
   type CitationData,
   type ReferenceData,
   type RemarkData,
   type SubmissionData,
+  type TeamRosterData,
   type TemplateCreateData,
   type TemplateUpdateData,
   type ExternalPublication,
@@ -227,6 +230,7 @@ export class PrismaArticleRepository extends ArticleRepository {
         courseId: data.courseId,
         eventId: data.eventId,
         teamId: data.teamId,
+        teamIdentification: data.teamIdentification ?? null,
         advisorId: data.advisorId,
         memberIds: [...data.memberIds],
         status: ARTICLE_STATUS.STARTED,
@@ -235,6 +239,7 @@ export class PrismaArticleRepository extends ArticleRepository {
         currentMilestoneDeadline: data.currentMilestoneDeadline,
         lastMilestoneOrder: data.lastMilestoneOrder,
         templateVersionId: data.templateVersionId,
+        title: data.title,
         content: asInput(data.content),
         formatProfile: asInput({ norm: 'ABNT' }),
       },
@@ -243,10 +248,127 @@ export class PrismaArticleRepository extends ArticleRepository {
     return toArticle(row);
   }
 
+  async createTeamArticle(data: ArticleCreateData): Promise<Article | 'ALREADY_EXISTS'> {
+    try {
+      return await this.createArticle(data);
+    } catch (error: unknown) {
+      if (isPrismaError(error, UNIQUE_CONSTRAINT)) {
+        return 'ALREADY_EXISTS';
+      }
+
+      throw error;
+    }
+  }
+
   async findArticle(id: string): Promise<Article | null> {
     const row = await this.prisma.article.findUnique({ where: { id } });
 
     return row === null ? null : toArticle(row);
+  }
+
+  async findArticleByTeam(teamId: string): Promise<Article | null> {
+    const row = await this.prisma.article.findUnique({ where: { teamId } });
+
+    return row === null ? null : toArticle(row);
+  }
+
+  async listArticles(
+    filters: ArticleListFilters,
+    request: PageRequest,
+  ): Promise<Page<ArticleSummary>> {
+    const where: Prisma.ArticleWhereInput = {
+      institutionId: filters.institutionId,
+      ...(filters.eventId === undefined ? {} : { eventId: filters.eventId }),
+      ...(filters.teamId === undefined ? {} : { teamId: filters.teamId }),
+      ...(filters.courseId === undefined ? {} : { courseId: filters.courseId }),
+      ...(filters.status === undefined ? {} : { status: filters.status }),
+      ...(filters.reach === null
+        ? {}
+        : {
+            OR: [
+              { memberIds: { has: filters.reach.userId } },
+              { advisorId: filters.reach.userId },
+              ...(filters.reach.advisedEventIds.length === 0
+                ? []
+                : [{ eventId: { in: [...filters.reach.advisedEventIds] } }]),
+              ...(filters.reach.coordinatedCourseIds.length === 0
+                ? []
+                : [{ courseId: { in: [...filters.reach.coordinatedCourseIds] } }]),
+            ],
+          }),
+    };
+    const rows = await this.prisma.article.findMany({
+      where,
+      select: {
+        id: true,
+        institutionId: true,
+        courseId: true,
+        eventId: true,
+        teamId: true,
+        teamIdentification: true,
+        advisorId: true,
+        memberIds: true,
+        status: true,
+        currentMilestoneId: true,
+        currentMilestoneOrder: true,
+        currentMilestoneDeadline: true,
+        title: true,
+        updatedAt: true,
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      skip: offsetOf(request),
+      take: takeOf(request),
+    });
+    const total = request.withTotal ? await this.prisma.article.count({ where }) : undefined;
+
+    return toPage(
+      request,
+      rows.map((row) => ({ ...row, status: row.status as ArticleSummary['status'] })),
+      total,
+    );
+  }
+
+  async updateArticleTitle(id: string, title: string | null): Promise<Article | null> {
+    try {
+      return toArticle(await this.prisma.article.update({ where: { id }, data: { title } }));
+    } catch (error: unknown) {
+      if (isPrismaError(error, RECORD_NOT_FOUND)) {
+        return null;
+      }
+
+      throw error;
+    }
+  }
+
+  async updateTeamRoster(teamId: string, roster: TeamRosterData): Promise<Article | null> {
+    const current = await this.prisma.article.findUnique({
+      where: { teamId },
+      select: { currentMilestoneId: true },
+    });
+
+    if (current === null) {
+      return null;
+    }
+
+    const milestone =
+      current.currentMilestoneId === null && roster.currentMilestone !== null
+        ? {
+            currentMilestoneId: roster.currentMilestone.id,
+            currentMilestoneOrder: roster.currentMilestone.order,
+            currentMilestoneDeadline: roster.currentMilestone.deadline,
+          }
+        : {};
+    const row = await this.prisma.article.update({
+      where: { teamId },
+      data: {
+        memberIds: [...roster.memberIds],
+        advisorId: roster.advisorId,
+        ...(roster.teamIdentification ? { teamIdentification: roster.teamIdentification } : {}),
+        ...milestone,
+      },
+    });
+
+    return toArticle(row);
   }
 
   async listProgress(
@@ -429,6 +551,7 @@ export class PrismaArticleRepository extends ArticleRepository {
     readonly articleId: string;
     readonly memberId: string | null;
     readonly score: number;
+    readonly feedback: string | null;
     readonly evaluatedBy: string;
   }): Promise<ArticleAssessment> {
     const row = await this.prisma.articleAssessmentHistory.create({
@@ -859,6 +982,7 @@ function toArticle(row: {
   courseId: string | null;
   eventId: string;
   teamId: string;
+  teamIdentification: string | null;
   advisorId: string | null;
   memberIds: string[];
   status: string;
@@ -867,6 +991,7 @@ function toArticle(row: {
   currentMilestoneDeadline: Date | null;
   lastMilestoneOrder: number | null;
   templateVersionId: string | null;
+  title: string | null;
   content: Prisma.JsonValue;
   formatProfile: Prisma.JsonValue;
   createdAt: Date;
@@ -1002,6 +1127,7 @@ function toAssessment(row: ArticleAssessment): ArticleAssessment {
     articleId: row.articleId,
     memberId: row.memberId,
     score: row.score,
+    feedback: row.feedback,
     evaluatedBy: row.evaluatedBy,
     createdAt: row.createdAt,
   };

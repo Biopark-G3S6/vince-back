@@ -1,6 +1,8 @@
 import { Module, type DynamicModule, type ModuleMetadata } from '@nestjs/common';
 import type { PrismaClient } from '@prisma/client';
 
+import { DomainEventBus } from '@shared/events/event-bus';
+
 import { ArticleFacadeImpl } from './application/article.facade.impl';
 import {
   ListArticleCitationsUseCase,
@@ -15,6 +17,8 @@ import {
   ExportArticleUseCase,
   FindArticleUseCase,
   ImportArticleUseCase,
+  ListArticlesUseCase,
+  UpdateArticleTitleUseCase,
   ListHistoryUseCase,
   MarkPresenceUseCase,
   RestoreVersionUseCase,
@@ -50,6 +54,8 @@ import {
   SelectTemplateUseCase,
   UpdateTemplateUseCase,
 } from './application/template.use-cases';
+import { TeamFactsConsumer } from './application/team-facts.consumer';
+import { SyncArticleWithTeamUseCase } from './application/team-sync.use-case';
 import { ArticleFacade } from './contracts/article.facade';
 import { ArticleRepository } from './domain/ports/article-repository';
 import { ArticlePrisma, createArticlePrisma } from './infrastructure/article-prisma';
@@ -68,6 +74,11 @@ import {
 
 export interface ArticleModuleOptions {
   readonly imports: ModuleMetadata['imports'];
+  /**
+   * O barramento dos fatos de equipe. Presente, o módulo cria e mantém o artigo de cada
+   * equipe, e então `imports` DEVE trazer as fachadas de `team` e `event`.
+   */
+  readonly teamFacts?: DomainEventBus;
 }
 
 @Module({})
@@ -89,6 +100,8 @@ export class ArticleModule {
         SelectTemplateUseCase,
         CreateArticleUseCase,
         FindArticleUseCase,
+        ListArticlesUseCase,
+        UpdateArticleTitleUseCase,
         ListArticleProgressUseCase,
         ListSystemArticleProgressUseCase,
         ListSimilarityCorpusUseCase,
@@ -125,6 +138,13 @@ export class ArticleModule {
         DecideRemarkUseCase,
         CompareSubmissionUseCase,
         ConcludeArticleUseCase,
+        ...(options.teamFacts === undefined
+          ? []
+          : [
+              { provide: DomainEventBus, useValue: options.teamFacts },
+              SyncArticleWithTeamUseCase,
+              TeamFactsConsumer,
+            ]),
         { provide: ArticleFacade, useClass: ArticleFacadeImpl },
       ],
       exports: [ArticleFacade],

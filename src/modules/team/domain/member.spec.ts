@@ -15,6 +15,7 @@ describe('regras de participação', () => {
       teamId: 'team-id',
       userId: 'user-id',
       status: 'ACTIVE',
+      role: 'COAUTHOR',
       joinedAt,
       leftAt: null,
     });

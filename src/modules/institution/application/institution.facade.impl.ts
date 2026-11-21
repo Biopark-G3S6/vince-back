@@ -49,6 +49,8 @@ function toDto(institution: Institution): InstitutionDto {
     cnpj: institution.cnpj,
     website: institution.website,
     contactEmail: institution.contactEmail,
+    city: institution.city,
+    state: institution.state,
     active: institution.active,
   };
 }
@@ -87,11 +89,11 @@ export class InstitutionFacadeImpl extends InstitutionFacade {
   }
 
   async findById(query: InstitutionQuery): Promise<InstitutionResult<InstitutionDto>> {
-    return toResult(await this.findInstitution.execute(query.institutionId), toDto);
+    return toResult(await this.findInstitution.execute(query.institutionId, query.actorId), toDto);
   }
 
-  async list(request: PageRequest): Promise<Page<InstitutionDto>> {
-    const page = await this.listInstitutions.execute(request);
+  async list(request: PageRequest, actorId?: string): Promise<Page<InstitutionDto>> {
+    const page = await this.listInstitutions.execute(request, actorId);
 
     return { items: page.items.map(toDto), pagination: page.pagination };
   }

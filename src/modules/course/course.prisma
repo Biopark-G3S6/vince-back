@@ -12,7 +12,7 @@ model Course {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  coordinator CourseCoordinator?
+  coordinator       CourseCoordinator?
   coordinatorAudits CourseCoordinatorAudit[]
 
   @@index([institutionId, name])
@@ -34,13 +34,13 @@ model CourseCoordinator {
 }
 
 model CourseCoordinatorAudit {
-  id           String   @id @db.Uuid
-  courseId     String   @map("course_id") @db.Uuid
-  userId       String   @map("user_id") @db.Uuid
-  actorId      String   @map("actor_id") @db.Uuid
-  operation    String
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id        String   @id @db.Uuid
+  courseId  String   @map("course_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  actorId   String   @map("actor_id") @db.Uuid
+  operation String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
 

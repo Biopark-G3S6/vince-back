@@ -14,7 +14,9 @@ import { FindCohortLinksUseCase } from './application/find-cohort-links.use-case
 import { FindCohortUseCase } from './application/find-cohort.use-case';
 import { IssueInvitationUseCase } from './application/issue-invitation.use-case';
 import { ListCohortsUseCase } from './application/list-cohorts.use-case';
+import { ListReadableCohortsUseCase } from './application/list-readable-cohorts.use-case';
 import { ListEnrollmentsUseCase } from './application/list-enrollments.use-case';
+import { ListProfessorsUseCase } from './application/list-professors.use-case';
 import { ListInvitationsUseCase } from './application/list-invitations.use-case';
 import { RevokeInvitationUseCase } from './application/revoke-invitation.use-case';
 import { RevokeProfessorUseCase } from './application/revoke-professor.use-case';
@@ -53,6 +55,7 @@ export class CohortModule {
         { provide: CohortRepository, useClass: PrismaCohortRepository },
         CreateCohortUseCase,
         ListCohortsUseCase,
+        ListReadableCohortsUseCase,
         FindCohortUseCase,
         FindCohortLinksUseCase,
         UpdateCohortUseCase,
@@ -61,6 +64,7 @@ export class CohortModule {
         RevokeProfessorUseCase,
         EnrollStudentUseCase,
         ListEnrollmentsUseCase,
+        ListProfessorsUseCase,
         IssueInvitationUseCase,
         ListInvitationsUseCase,
         RevokeInvitationUseCase,

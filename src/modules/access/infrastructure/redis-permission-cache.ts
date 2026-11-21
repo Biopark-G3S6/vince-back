@@ -80,7 +80,11 @@ export class RedisPermissionCache extends PermissionCache {
   }
 
   /** O conjunto vazio é valor legítimo — conta inativa —, e não ausência de valor. */
-  async write(userId: string, resolved: ResolvedPermissions): Promise<void> {
+  async write(
+    userId: string,
+    resolved: ResolvedPermissions,
+    maxTtlSeconds?: number,
+  ): Promise<void> {
     await this.redis.set(
       permissionCacheKey(userId),
       JSON.stringify({
@@ -88,7 +92,9 @@ export class RedisPermissionCache extends PermissionCache {
         institutionId: resolved.institutionId,
       }),
       'EX',
-      TTL_SECONDS,
+      maxTtlSeconds === undefined
+        ? TTL_SECONDS
+        : Math.max(1, Math.min(TTL_SECONDS, Math.floor(maxTtlSeconds))),
     );
   }
 

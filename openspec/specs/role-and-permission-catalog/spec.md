@@ -89,6 +89,11 @@ sem curinga e sem abreviação. Nenhum papel SHALL ser escopado a instituição,
 - **WHEN** a composição de um papel referencia permissão ausente do catálogo
 - **THEN** a carga falha, identificando o papel e a permissão
 
+#### Scenario: Usuário vinculado lê a própria instituição
+
+- **WHEN** a carga inicial é executada
+- **THEN** `INSTITUTION_ADMIN`, `COORDINATOR`, `PROFESSOR` e `STUDENT` possuem `INSTITUTION:READ`
+
 ### Requirement: Imutabilidade dos papéis em tempo de execução
 
 O sistema NÃO DEVE expor superfície alguma — rota HTTP, mensagem de fila ou operação de fachada — que

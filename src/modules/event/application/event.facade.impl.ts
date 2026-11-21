@@ -173,6 +173,10 @@ export class EventFacadeImpl extends EventFacade {
     return this.eventState.isAdvisor(eventId, userId);
   }
 
+  async advisedEventIdsOf(userId: string): Promise<readonly string[]> {
+    return this.eventState.advisedEventIdsOf(userId);
+  }
+
   async isScopeOwner(eventId: string, userId: string): Promise<boolean> {
     return this.eventState.isScopeOwner(eventId, userId);
   }

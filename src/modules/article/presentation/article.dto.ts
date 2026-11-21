@@ -66,6 +66,51 @@ export class TemplateSelectionResponseDto {
   createdAt!: string;
 }
 
+/** O resumo do artigo na listagem: o mesmo de `ArticleResponseDto`, sem o conteúdo. */
+export class ArticleSummaryResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  institutionId!: string;
+
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  courseId!: string | null;
+
+  @ApiProperty({ format: 'uuid' })
+  eventId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  teamId!: string;
+
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  advisorId!: string | null;
+
+  @ApiProperty({ type: [String], format: 'uuid' })
+  memberIds!: string[];
+
+  @ApiProperty({ enum: ['STARTED', 'IN_PROGRESS', 'IN_REVIEW', 'FINISHED'] })
+  status!: string;
+
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  currentMilestoneId!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  currentMilestoneOrder!: number | null;
+
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  currentMilestoneDeadline!: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'O nome da equipe (article-team-name).' })
+  teamIdentification!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  title!: string | null;
+
+  @ApiProperty({ format: 'date-time' })
+  updatedAt!: string;
+}
+
 export class ArticleResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
@@ -99,6 +144,12 @@ export class ArticleResponseDto {
 
   @ApiPropertyOptional({ format: 'date-time', nullable: true })
   currentMilestoneDeadline!: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'O nome da equipe (article-team-name).' })
+  teamIdentification!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  title!: string | null;
 
   @ApiProperty({ type: 'object', additionalProperties: true })
   content!: unknown;
@@ -455,6 +506,22 @@ export const updateTemplateSchema = z.object({
   description: optionalString,
   courseId: z.string().uuid().nullable().optional(),
   content: jsonSchema.optional(),
+});
+
+export const updateArticleSchema = z.object({
+  title: z.string().trim().min(1).max(300).nullable(),
+});
+
+export class UpdateArticleRequestDto {
+  @ApiPropertyOptional({ nullable: true, maxLength: 300 })
+  title!: string | null;
+}
+
+export const listArticlesQuerySchema = z.object({
+  eventId: z.string().uuid().optional(),
+  teamId: z.string().uuid().optional(),
+  courseId: z.string().uuid().optional(),
+  status: z.enum(['STARTED', 'IN_PROGRESS', 'IN_REVIEW', 'FINISHED']).optional(),
 });
 
 export const selectTemplateSchema = z.object({

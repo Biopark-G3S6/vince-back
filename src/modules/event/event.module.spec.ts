@@ -362,7 +362,15 @@ class SubstituteCohortFacade extends CohortFacade {
     return expect.unreachable('o módulo `event` não usa esta operação de `cohort`');
   }
 
+  listReadable(): never {
+    return expect.unreachable('o módulo `event` não usa esta operação de `cohort`');
+  }
+
   listEnrollments(): never {
+    return expect.unreachable('o módulo `event` não usa esta operação de `cohort`');
+  }
+
+  listProfessors(): never {
     return expect.unreachable('o módulo `event` não usa esta operação de `cohort`');
   }
 

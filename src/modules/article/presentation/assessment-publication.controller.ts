@@ -10,8 +10,16 @@ import { ArticleFacade } from '../contracts/article.facade';
 import type { ArticleAssessmentDto, ExternalPublicationDto } from '../contracts/article.dto';
 import { unwrap } from './result-mapper';
 
-const scoreSchema = z.object({ score: z.number().finite().min(0).max(10) });
-const memberScoreSchema = scoreSchema.extend({ memberId: z.string().uuid() });
+const scoreSchema = z.object({
+  score: z.number().finite().min(0).max(10),
+  feedback: z.string().max(4000).nullable().optional(),
+});
+// A nota individual não tem parecer: o campo é recusado, e não ignorado em silêncio.
+const memberScoreSchema = z.object({
+  score: z.number().finite().min(0).max(10),
+  memberId: z.string().uuid(),
+  feedback: z.undefined().optional(),
+});
 const publicationSchema = z.object({
   venueName: z.string().trim().min(1).max(300),
   kind: z.enum(['CONFERENCE', 'JOURNAL', 'OTHER']),
@@ -29,6 +37,8 @@ class AssessmentResponseDto {
   @ApiProperty({ format: 'uuid' }) articleId!: string;
   @ApiProperty({ format: 'uuid', nullable: true }) memberId!: string | null;
   @ApiProperty({ minimum: 0, maximum: 10 }) score!: number;
+  @ApiProperty({ nullable: true, description: 'Parecer da nota do artigo.' }) feedback!:
+    string | null;
   @ApiProperty({ format: 'uuid' }) evaluatedBy!: string;
   @ApiProperty({ format: 'date-time' }) createdAt!: string;
 }
@@ -89,6 +99,7 @@ export class AssessmentPublicationController {
           actorId: session.state.userId,
           articleId,
           score: input.score,
+          feedback: input.feedback ?? null,
         }),
       ),
     );

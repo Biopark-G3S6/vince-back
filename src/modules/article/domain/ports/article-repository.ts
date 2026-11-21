@@ -42,6 +42,7 @@ export interface ArticleCreateData {
   readonly courseId: string | null;
   readonly eventId: string;
   readonly teamId: string;
+  readonly teamIdentification?: string | null;
   readonly advisorId: string | null;
   readonly memberIds: readonly string[];
   readonly currentMilestoneId: string | null;
@@ -49,7 +50,41 @@ export interface ArticleCreateData {
   readonly currentMilestoneDeadline: Date | null;
   readonly lastMilestoneOrder: number | null;
   readonly templateVersionId: string | null;
+  readonly title: string | null;
   readonly content: JsonValue;
+}
+
+/** O alcance de quem não lê a instituição inteira: integrante, responsável, orientador do evento. */
+export interface ArticleReach {
+  readonly userId: string;
+  readonly advisedEventIds: readonly string[];
+  /** Os cursos que o ator coordena: alcança os artigos deles (`article-course-scope`). */
+  readonly coordinatedCourseIds: readonly string[];
+}
+
+export interface ArticleListFilters {
+  readonly institutionId: string;
+  readonly reach: ArticleReach | null;
+  readonly eventId?: string;
+  readonly teamId?: string;
+  readonly courseId?: string;
+  readonly status?: Article['status'];
+}
+
+export type ArticleSummary = Omit<
+  Article,
+  'content' | 'formatProfile' | 'lastMilestoneOrder' | 'templateVersionId' | 'createdAt'
+>;
+
+export interface TeamRosterData {
+  readonly teamIdentification?: string | null;
+  readonly memberIds: readonly string[];
+  readonly advisorId: string | null;
+  readonly currentMilestone: {
+    readonly id: string;
+    readonly order: number;
+    readonly deadline: Date;
+  } | null;
 }
 
 export interface ReferenceData {
@@ -150,7 +185,20 @@ export abstract class ArticleRepository {
   }): Promise<TemplateSelection | 'ALREADY_EXISTS'>;
 
   abstract createArticle(data: ArticleCreateData): Promise<Article>;
+  /**
+   * Cria o artigo da equipe. `ALREADY_EXISTS` quando a equipe já tem artigo — a
+   * unicidade de `team_id` é a guarda final contra o reprocessamento (RE-05).
+   */
+  abstract createTeamArticle(data: ArticleCreateData): Promise<Article | 'ALREADY_EXISTS'>;
   abstract findArticle(id: string): Promise<Article | null>;
+  abstract findArticleByTeam(teamId: string): Promise<Article | null>;
+  abstract updateArticleTitle(id: string, title: string | null): Promise<Article | null>;
+  abstract listArticles(
+    filters: ArticleListFilters,
+    request: PageRequest,
+  ): Promise<Page<ArticleSummary>>;
+  /** Substitui a cópia de integrantes e responsável; preenche a etapa corrente se faltar. */
+  abstract updateTeamRoster(teamId: string, roster: TeamRosterData): Promise<Article | null>;
   abstract listProgress(
     filters: {
       readonly advisorId?: string;
@@ -180,6 +228,7 @@ export abstract class ArticleRepository {
     readonly articleId: string;
     readonly memberId: string | null;
     readonly score: number;
+    readonly feedback: string | null;
     readonly evaluatedBy: string;
   }): Promise<ArticleAssessment>;
   abstract listAssessments(articleId: string): Promise<readonly ArticleAssessment[]>;
@@ -243,6 +292,7 @@ export interface ArticleAssessment {
   readonly articleId: string;
   readonly memberId: string | null;
   readonly score: number;
+  readonly feedback: string | null;
   readonly evaluatedBy: string;
   readonly createdAt: Date;
 }

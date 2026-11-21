@@ -10,7 +10,12 @@ import {
   type TeamInvitation,
   type TeamInvitationStatus,
 } from '../domain/invitation';
-import { MEMBER_STATUS, type MemberStatus, type TeamMember } from '../domain/member';
+import {
+  MEMBER_STATUS,
+  type MemberRole,
+  type MemberStatus,
+  type TeamMember,
+} from '../domain/member';
 import type { Team } from '../domain/team';
 import {
   TeamRepository,
@@ -36,6 +41,11 @@ const TEAM_COLUMNS = {
   eventId: true,
   institutionId: true,
   identification: true,
+  // O responsável ativo, na mesma consulta: o índice único parcial garante no máximo um
+  // (RF-EQP-005 RN3), e trazê-lo aqui evita uma ida ao banco por equipe na listagem.
+  advisors: { where: { status: 'ACTIVE' }, select: { userId: true }, take: 1 },
+  // A lotação, na mesma consulta (`team-vacancies`): o aluno vê as vagas antes de ingressar.
+  _count: { select: { members: { where: { status: 'ACTIVE' } } } },
 } as const;
 
 const MEMBER_COLUMNS = {
@@ -44,6 +54,7 @@ const MEMBER_COLUMNS = {
   teamId: true,
   userId: true,
   status: true,
+  role: true,
   joinedAt: true,
   leftAt: true,
 } as const;
@@ -70,8 +81,17 @@ function toTeam(row: {
   eventId: string;
   institutionId: string;
   identification: string;
+  advisors: readonly { userId: string }[];
+  _count: { members: number };
 }): Team {
-  return row;
+  return {
+    id: row.id,
+    eventId: row.eventId,
+    institutionId: row.institutionId,
+    identification: row.identification,
+    responsibleAdvisorId: row.advisors[0]?.userId ?? null,
+    activeMemberCount: row._count.members,
+  };
 }
 
 function toMember(row: {
@@ -80,10 +100,11 @@ function toMember(row: {
   teamId: string;
   userId: string;
   status: string;
+  role: string;
   joinedAt: Date;
   leftAt: Date | null;
 }): TeamMember {
-  return { ...row, status: row.status as MemberStatus };
+  return { ...row, status: row.status as MemberStatus, role: row.role as MemberRole };
 }
 
 function toInvitation(row: {
@@ -117,7 +138,11 @@ export class PrismaTeamRepository extends TeamRepository {
     super();
   }
 
-  async createTeam(team: Team, maxTeams: number): Promise<CreateTeamOutcome> {
+  async createTeam(
+    team: Team,
+    maxTeams: number,
+    articleTitle?: string | null,
+  ): Promise<CreateTeamOutcome> {
     return this.prisma.transaction(async (tx) => {
       await tx.lock(eventLock(team.eventId));
 
@@ -143,6 +168,7 @@ export class PrismaTeamRepository extends TeamRepository {
             eventId: created.eventId,
             institutionId: created.institutionId,
             identification: created.identification,
+            ...(articleTitle === undefined || articleTitle === null ? {} : { articleTitle }),
             ...(await this.usageOf(tx, created.eventId)),
           }),
         ];
@@ -338,6 +364,30 @@ export class PrismaTeamRepository extends TeamRepository {
       : { rows: invitations };
   }
 
+  async listReceivedInvitations(
+    userId: string,
+    now: Date,
+    request: PageRequest,
+  ): Promise<InvitationRows> {
+    const where = {
+      userId,
+      status: TEAM_INVITATION_STATUS.PENDING,
+      expiresAt: { gt: now },
+    };
+    const rows = await this.prisma.invitation.findMany({
+      where,
+      select: INVITATION_COLUMNS,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      skip: offsetOf(request),
+      take: takeOf(request),
+    });
+    const invitations = rows.map(toInvitation);
+
+    return request.withTotal
+      ? { rows: invitations, totalItems: await this.prisma.invitation.count({ where }) }
+      : { rows: invitations };
+  }
+
   /**
    * O aceite, com todas as regras reavaliadas dentro da transação (`ADR-0033` §15).
    *
@@ -396,7 +446,7 @@ export class PrismaTeamRepository extends TeamRepository {
    * parcial o impõe; revogar o corrente dentro da mesma transação é o que permite trocar
    * sem passar por um estado sem responsável.
    */
-  async assignAdvisor(advisor: TeamAdvisor, actorId: string): Promise<boolean> {
+  async assignAdvisor(advisor: TeamAdvisor, actorId: string): Promise<readonly OutboxFact[]> {
     return this.prisma.transaction(async (tx) => {
       await tx.lock(teamLock(advisor.teamId));
 
@@ -406,7 +456,7 @@ export class PrismaTeamRepository extends TeamRepository {
       });
 
       if (current !== null && current.userId === advisor.userId) {
-        return false;
+        return [];
       }
 
       if (current !== null) {
@@ -443,11 +493,15 @@ export class PrismaTeamRepository extends TeamRepository {
         },
       });
 
-      return true;
+      return [await this.recordAdvisorChanged(tx, advisor.teamId, advisor.userId)];
     });
   }
 
-  async revokeAdvisor(teamId: string, userId: string, actorId: string): Promise<boolean> {
+  async revokeAdvisor(
+    teamId: string,
+    userId: string,
+    actorId: string,
+  ): Promise<readonly OutboxFact[]> {
     return this.prisma.transaction(async (tx) => {
       await tx.lock(teamLock(teamId));
 
@@ -457,15 +511,60 @@ export class PrismaTeamRepository extends TeamRepository {
       });
 
       if (revoked.count === 0) {
-        return false;
+        return [];
       }
 
       await tx.teamAdvisorAudit.create({
         data: { id: uuidv7(), teamId, userId, actorId, operation: 'REVOKED' },
       });
 
-      return true;
+      return [await this.recordAdvisorChanged(tx, teamId, null)];
     });
+  }
+
+  /**
+   * O fato da troca de responsável (`TeamAdvisorChanged`), para quem guarda cópia dele —
+   * o artigo, que decide por ele quem avalia. Leva o responsável **resultante**, e não a
+   * operação, para que o consumidor convirja ao estado corrente qualquer que seja a ordem.
+   */
+  private async recordAdvisorChanged(
+    tx: TeamTransaction,
+    teamId: string,
+    advisorId: string | null,
+  ): Promise<OutboxFact> {
+    const team = await tx.team.findUniqueOrThrow({
+      where: { id: teamId },
+      select: { eventId: true, institutionId: true },
+    });
+
+    return this.recordFact(tx, 'TeamAdvisorChanged', {
+      teamId,
+      eventId: team.eventId,
+      institutionId: team.institutionId,
+      advisorId,
+    });
+  }
+
+  async setMemberRole(
+    teamId: string,
+    userId: string,
+    role: MemberRole,
+  ): Promise<TeamMember | null> {
+    const updated = await this.prisma.member.updateMany({
+      where: { teamId, userId, status: MEMBER_STATUS.ACTIVE },
+      data: { role },
+    });
+
+    if (updated.count === 0) {
+      return null;
+    }
+
+    const row = await this.prisma.member.findFirstOrThrow({
+      where: { teamId, userId, status: MEMBER_STATUS.ACTIVE },
+      select: MEMBER_COLUMNS,
+    });
+
+    return toMember(row);
   }
 
   async activeAdvisorOf(teamId: string): Promise<TeamAdvisor | null> {

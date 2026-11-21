@@ -47,6 +47,8 @@ export interface Article {
   readonly courseId: string | null;
   readonly eventId: string;
   readonly teamId: string;
+  /** O nome da equipe (`article-team-name`); `null` antes da primeira sincronização que o grave. */
+  readonly teamIdentification: string | null;
   readonly advisorId: string | null;
   readonly memberIds: readonly string[];
   readonly status: ArticleStatus;
@@ -55,6 +57,7 @@ export interface Article {
   readonly currentMilestoneDeadline: Date | null;
   readonly lastMilestoneOrder: number | null;
   readonly templateVersionId: string | null;
+  readonly title: string | null;
   readonly content: JsonValue;
   readonly formatProfile: JsonValue;
   readonly createdAt: Date;

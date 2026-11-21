@@ -35,6 +35,14 @@ export function setSessionCookie(
 }
 
 /**
+ * O caminho do cookie anti-CSRF. **`/`, e não o prefixo da API** (`csrf-token-readable-by-
+ * client`): o navegador só expõe a `document.cookie` o cookie cujo `Path` contém o caminho
+ * da página, e a aplicação roda fora de `/api/v1`. Com o prefixo, o cliente nunca enxergaria
+ * o token. Não é credencial — sem a sessão, que continua restrita e `HttpOnly`, ele não vale.
+ */
+const CSRF_COOKIE_PATH = '/';
+
+/**
  * O token anti-CSRF vai em cookie **legível por script**: o cliente precisa lê-lo para
  * devolvê-lo em cabeçalho, e é essa dupla via que o sítio atacante não consegue percorrer.
  */
@@ -44,7 +52,11 @@ export function setCsrfCookie(
   token: string,
   maxAgeSeconds: number,
 ): void {
-  response.cookie(name, token, { ...baseOptions(maxAgeSeconds), httpOnly: false });
+  response.cookie(name, token, {
+    ...baseOptions(maxAgeSeconds),
+    path: CSRF_COOKIE_PATH,
+    httpOnly: false,
+  });
 }
 
 /**
@@ -55,7 +67,7 @@ export function clearAuthCookies(response: Response, sessionName: string, csrfNa
   const options: CookieOptions = { secure: true, sameSite: 'lax', path: API_PATH_PREFIX };
 
   response.clearCookie(sessionName, { ...options, httpOnly: true });
-  response.clearCookie(csrfName, { ...options, httpOnly: false });
+  response.clearCookie(csrfName, { ...options, path: CSRF_COOKIE_PATH, httpOnly: false });
 }
 
 /** O identificador de sessão que a requisição porta, ou `null`. */

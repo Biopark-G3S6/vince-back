@@ -2,7 +2,7 @@ import type { PageRequest } from '@shared/http/pagination';
 
 import type { TeamAdvisor } from '../advisor';
 import type { TeamInvitation } from '../invitation';
-import type { TeamMember } from '../member';
+import type { MemberRole, TeamMember } from '../member';
 import type { Team } from '../team';
 
 export interface TeamRows {
@@ -57,7 +57,11 @@ export abstract class TeamRepository {
    * O limite chega como argumento porque é declarado pelo evento, de quem este módulo o
    * recebe; a guarda, porém, é daqui: entre ler o limite e gravar cabe outra criação.
    */
-  abstract createTeam(team: Team, maxTeams: number): Promise<CreateTeamOutcome>;
+  abstract createTeam(
+    team: Team,
+    maxTeams: number,
+    articleTitle?: string | null,
+  ): Promise<CreateTeamOutcome>;
 
   abstract findById(id: string): Promise<Team | null>;
   abstract listByEvent(eventId: string, request: PageRequest): Promise<TeamRows>;
@@ -98,6 +102,13 @@ export abstract class TeamRepository {
   abstract findInvitation(id: string): Promise<TeamInvitation | null>;
   abstract listInvitations(teamId: string, request: PageRequest): Promise<InvitationRows>;
 
+  /** Os convites pendentes e não vencidos endereçados ao usuário. */
+  abstract listReceivedInvitations(
+    userId: string,
+    now: Date,
+    request: PageRequest,
+  ): Promise<InvitationRows>;
+
   /**
    * Aceita o convite e cria a participação na mesma transação (§15).
    *
@@ -113,8 +124,23 @@ export abstract class TeamRepository {
 
   abstract declineInvitation(invitationId: string): Promise<boolean>;
 
-  /** Designa o responsável, revogando o anterior. Devolve se algo mudou. */
-  abstract assignAdvisor(advisor: TeamAdvisor, actorId: string): Promise<boolean>;
-  abstract revokeAdvisor(teamId: string, userId: string, actorId: string): Promise<boolean>;
+  /**
+   * Designa o responsável, revogando o anterior. Devolve os fatos gravados na outbox —
+   * vazio quando nada mudou.
+   */
+  abstract assignAdvisor(advisor: TeamAdvisor, actorId: string): Promise<readonly OutboxFact[]>;
+  /** Revoga o responsável. Devolve os fatos gravados na outbox — vazio quando nada mudou. */
+  abstract revokeAdvisor(
+    teamId: string,
+    userId: string,
+    actorId: string,
+  ): Promise<readonly OutboxFact[]>;
   abstract activeAdvisorOf(teamId: string): Promise<TeamAdvisor | null>;
+
+  /** O papel do integrante ativo; `null` quando o usuário não integra a equipe. */
+  abstract setMemberRole(
+    teamId: string,
+    userId: string,
+    role: MemberRole,
+  ): Promise<TeamMember | null>;
 }

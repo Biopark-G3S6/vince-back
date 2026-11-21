@@ -237,6 +237,81 @@ describe('contrato HTTP da vertical cohort', () => {
       .expect(422);
     expect(bodyOf(revokedAcceptance).status.code).toBe('INVITATION_REVOKED');
 
+    // cohort-read-extensions: a lista traz validade, situação e usos de cada convite…
+    const invitations = bodyOf(
+      await request(server as never)
+        .get(`${PREFIX}/cohorts/${cohort.id}/invitations`)
+        .set('Cookie', cookieHeader(professorCookies))
+        .expect(200),
+    ).data as readonly {
+      readonly invitationId: string;
+      readonly expiresAt: string;
+      readonly state: string;
+      readonly useCount: number;
+    }[];
+    expect(
+      invitations.find((item) => item.invitationId === revocableData.invitationId),
+    ).toMatchObject({
+      expiresAt: '2030-01-01T00:00:00.000Z',
+      state: 'REVOKED',
+      useCount: 0,
+    });
+
+    // …e os professores designados podem ser consultados (RF-TUR-002), sem os revogados.
+    const other = await createAccount(institution.value.id, 'PROFESSOR');
+    await request(server as never)
+      .post(`${PREFIX}/cohorts/${cohort.id}/professors/${other.id}`)
+      .set('Cookie', cookieHeader(coordinatorCookies))
+      .set('X-CSRF-Token', coordinatorCookies.csrf)
+      .expect(204);
+    await request(server as never)
+      .delete(`${PREFIX}/cohorts/${cohort.id}/professors/${other.id}`)
+      .set('Cookie', cookieHeader(coordinatorCookies))
+      .set('X-CSRF-Token', coordinatorCookies.csrf)
+      .expect(204);
+    const professors = await request(server as never)
+      .get(`${PREFIX}/cohorts/${cohort.id}/professors`)
+      .set('Cookie', cookieHeader(coordinatorCookies))
+      .expect(200);
+    expect(bodyOf(professors).data).toEqual([{ cohortId: cohort.id, userId: professor.id }]);
+
+    // cohort-read-by-members: o professor designado e o aluno matriculado leem a turma.
+    const ownList = await request(server as never)
+      .get(`${PREFIX}/courses/${course.value.id}/cohorts`)
+      .set('Cookie', cookieHeader(professorCookies))
+      .expect(200);
+    expect((bodyOf(ownList).data as { id: string }[]).map((item) => item.id)).toEqual([cohort.id]);
+    await request(server as never)
+      .get(`${PREFIX}/cohorts/${cohort.id}`)
+      .set('Cookie', cookieHeader(professorCookies))
+      .expect(200);
+
+    const acceptedStudent = await authenticate(
+      (bodyOf(accepted).data as { readonly email: string }).email,
+    );
+    await request(server as never)
+      .get(`${PREFIX}/cohorts/${cohort.id}`)
+      .set('Cookie', cookieHeader(acceptedStudent))
+      .expect(200);
+
+    const stranger = await createAccount(institution.value.id, 'PROFESSOR');
+    const strangerCookies = await authenticate(stranger.email);
+    const denied = await request(server as never)
+      .get(`${PREFIX}/cohorts/${cohort.id}`)
+      .set('Cookie', cookieHeader(strangerCookies))
+      .expect(403);
+    expect(bodyOf(denied).status.code).toBe('PERMISSION_DENIED');
+    const emptyList = await request(server as never)
+      .get(`${PREFIX}/courses/${course.value.id}/cohorts`)
+      .set('Cookie', cookieHeader(strangerCookies))
+      .expect(200);
+    expect(bodyOf(emptyList).data).toEqual([]);
+
+    await request(server as never)
+      .get(`${PREFIX}/cohorts/${uuidv7()}/professors`)
+      .set('Cookie', cookieHeader(coordinatorCookies))
+      .expect(404);
+
     const enrollments = await cohorts.listEnrollments({
       actorId: professor.id,
       cohortId: cohort.id,
@@ -244,5 +319,76 @@ describe('contrato HTTP da vertical cohort', () => {
     });
     if (!enrollments.ok) throw new Error(enrollments.failure.code);
     expect(enrollments.value.items).toHaveLength(2);
+  });
+
+  it('lista numa consulta as turmas que cada papel lê (cohort-listing)', async () => {
+    sequence += 1;
+    const institution = await institutions.create({
+      name: `Instituição Listagem ${sequence}`,
+      code: `LIST${sequence}${Date.now() % 10000}`,
+    });
+    if (!institution.ok) throw new Error(institution.failure.code);
+
+    const admin = await createAccount(institution.value.id, 'INSTITUTION_ADMIN');
+    const coordinator = await createAccount(institution.value.id, 'PROFESSOR');
+    const professor = await createAccount(institution.value.id, 'PROFESSOR');
+    const course = await courses.create({
+      actorId: admin.id,
+      name: 'Curso Listagem',
+      identification: `L${sequence}`,
+    });
+    if (!course.ok) throw new Error(course.failure.code);
+    await courses.assignCoordinator({
+      actorId: admin.id,
+      courseId: course.value.id,
+      userId: coordinator.id,
+    });
+
+    const coordinatorCookies = await authenticate(coordinator.email);
+    const createCohort = async (identification: string) => {
+      const response = await request(server as never)
+        .post(`${PREFIX}/courses/${course.value.id}/cohorts`)
+        .set('Cookie', cookieHeader(coordinatorCookies))
+        .set('X-CSRF-Token', coordinatorCookies.csrf)
+        .send({
+          identification,
+          term: '2026/2',
+          startsAt: '2026-08-01T00:00:00.000Z',
+          endsAt: '2026-12-15T00:00:00.000Z',
+        })
+        .expect(201);
+      return (bodyOf(response).data as { readonly id: string }).id;
+    };
+    const mine = await createCohort('MINHA');
+    const other = await createCohort('OUTRA');
+    await request(server as never)
+      .post(`${PREFIX}/cohorts/${mine}/professors/${professor.id}`)
+      .set('Cookie', cookieHeader(coordinatorCookies))
+      .set('X-CSRF-Token', coordinatorCookies.csrf)
+      .expect(204);
+
+    const professorCookies = await authenticate(professor.email);
+    const studentEmail = `listagem-${uuidv7()}@exemplo.test`;
+    await request(server as never)
+      .post(`${PREFIX}/cohorts/${mine}/enrollments`)
+      .set('Cookie', cookieHeader(professorCookies))
+      .set('X-CSRF-Token', professorCookies.csrf)
+      .send({ name: 'Aluno Listagem', email: studentEmail })
+      .expect(201);
+    const issued = await access.requestPasswordReset({ email: studentEmail });
+    if (issued === null) throw new Error('redefinição não emitida');
+    await access.resetPassword({ token: issued.token, password: PASSWORD });
+
+    const listed = async (cookies: Cookies) => {
+      const response = await request(server as never)
+        .get(`${PREFIX}/cohorts?pageSize=100`)
+        .set('Cookie', cookieHeader(cookies))
+        .expect(200);
+      return (bodyOf(response).data as { readonly id: string }[]).map((item) => item.id).sort();
+    };
+
+    expect(await listed(coordinatorCookies)).toEqual([mine, other].sort());
+    expect(await listed(professorCookies)).toEqual([mine]);
+    expect(await listed(await authenticate(studentEmail))).toEqual([mine]);
   });
 });
