@@ -12,7 +12,7 @@ import {
   Query,
   Res,
 } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiProperty, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { CurrentSession } from '@shared/auth/request-session';
@@ -20,13 +20,14 @@ import type { Session } from '@shared/auth/session-store';
 import { ApiEnvelope, ApiFailures, ApiPageQuery, ApiPagedEnvelope } from '@shared/http/openapi';
 import { pageRequestSchema, toPageRequest } from '@shared/http/pagination';
 import { respondWithPage, type EnvelopeResult } from '@shared/http/response-envelope';
-import { RequiresPermission } from '@shared/http/route-access';
+import { AuthenticatedRoute, RequiresPermission } from '@shared/http/route-access';
 import { parseOrFail } from '@shared/http/validation';
 
 import type {
   ArticleCitationDto,
   ArticleDto,
   ArticleSummaryDto,
+  ArticleProgressDto,
   ArticleReferenceDto,
   ArticleRemarkDto,
   ArticleSubmissionDto,
@@ -85,10 +86,47 @@ import {
 } from './article.dto';
 import { unwrap } from './result-mapper';
 
+class MemberArticleResponseDto {
+  @ApiProperty({ format: 'uuid' }) articleId!: string;
+  @ApiProperty({ format: 'uuid' }) teamId!: string;
+  @ApiProperty({ format: 'uuid' }) eventId!: string;
+  @ApiProperty({ format: 'uuid', nullable: true }) advisorId!: string | null;
+  @ApiProperty({ type: [String] }) memberIds!: readonly string[];
+  @ApiProperty() status!: string;
+  @ApiProperty({ format: 'uuid', nullable: true }) currentMilestoneId!: string | null;
+  @ApiProperty({ nullable: true }) currentMilestoneOrder!: number | null;
+  @ApiProperty({ nullable: true }) lastMilestoneOrder!: number | null;
+  @ApiProperty({ format: 'date-time', nullable: true })
+  currentMilestoneDeadline!: string | null;
+  @ApiProperty() pendingRemarkCount!: number;
+  @ApiProperty({ format: 'date-time' }) lastEditedAt!: string;
+  @ApiProperty({ format: 'date-time' }) createdAt!: string;
+}
+
 @ApiTags('Artigo')
 @Controller()
 export class ArticleController {
   constructor(private readonly articles: ArticleFacade) {}
+
+  @Get('my/articles')
+  @AuthenticatedRoute()
+  @ApiOperation({ summary: 'Lista os artigos das equipes das quais o usuário é integrante' })
+  @ApiPageQuery()
+  @ApiPagedEnvelope(MemberArticleResponseDto)
+  @ApiFailures('AUTHENTICATION_FAILED', 'PERMISSION_DENIED', 'INSTITUTION_INACTIVE')
+  async myArticles(
+    @Query() query: Record<string, unknown>,
+    @CurrentSession() session: Session,
+  ): Promise<EnvelopeResult<readonly MemberArticleResponseDto[]>> {
+    const page = unwrap(
+      await this.articles.listProgress({
+        actorId: session.state.userId,
+        request: toPageRequest(parseOrFail(pageRequestSchema, query)),
+        scope: 'member',
+      }),
+    );
+    return respondWithPage(page.items.map(toMemberArticleResponse), page.pagination);
+  }
 
   @Post('article-templates')
   @HttpCode(201)
@@ -863,6 +901,24 @@ export class ArticleController {
   }
 }
 
+function toMemberArticleResponse(article: ArticleProgressDto): MemberArticleResponseDto {
+  return {
+    articleId: article.articleId,
+    teamId: article.teamId,
+    eventId: article.eventId,
+    advisorId: article.advisorId,
+    memberIds: [...article.memberIds],
+    status: article.status,
+    currentMilestoneId: article.currentMilestoneId,
+    currentMilestoneOrder: article.currentMilestoneOrder,
+    lastMilestoneOrder: article.lastMilestoneOrder,
+    currentMilestoneDeadline: article.currentMilestoneDeadline?.toISOString() ?? null,
+    pendingRemarkCount: article.pendingRemarkCount,
+    lastEditedAt: article.lastEditedAt.toISOString(),
+    createdAt: article.createdAt.toISOString(),
+  };
+}
+
 function toTemplateResponse(template: TemplateDto): TemplateResponseDto {
   return {
     id: template.id,
@@ -874,6 +930,13 @@ function toTemplateResponse(template: TemplateDto): TemplateResponseDto {
     currentVersionNumber: template.currentVersionNumber,
     currentVersionId: template.currentVersionId,
     content: template.content,
+    versions: template.versions?.map((version) => ({
+      id: version.id,
+      versionNumber: version.versionNumber,
+      content: version.content,
+      createdBy: version.createdBy,
+      createdAt: version.createdAt.toISOString(),
+    })),
   };
 }
 
@@ -921,8 +984,12 @@ function toArticleResponse(article: ArticleDto): ArticleResponseDto {
     status: article.status,
     currentMilestoneId: article.currentMilestoneId,
     currentMilestoneOrder: article.currentMilestoneOrder,
+    lastMilestoneOrder: article.lastMilestoneOrder,
     currentMilestoneDeadline: article.currentMilestoneDeadline?.toISOString() ?? null,
     title: article.title,
+    templateVersionId: article.templateVersionId,
+    createdAt: article.createdAt.toISOString(),
+    updatedAt: article.updatedAt.toISOString(),
     content: article.content,
     formatProfile: article.formatProfile,
   };
@@ -937,6 +1004,10 @@ function toReferenceResponse(reference: ArticleReferenceDto): ReferenceResponseD
     title: reference.title,
     year: reference.year,
     vehicle: reference.vehicle,
+    edition: reference.edition,
+    place: reference.place,
+    publisher: reference.publisher,
+    pages: reference.pages,
     doi: reference.doi,
     url: reference.url,
   };
@@ -1003,8 +1074,10 @@ function toSubmissionResponse(submission: ArticleSubmissionDto): SubmissionRespo
     articleId: submission.articleId,
     milestoneId: submission.milestoneId,
     milestoneOrder: submission.milestoneOrder,
+    content: submission.content,
     automatic: submission.automatic,
     submittedBy: submission.submittedBy,
+    revokedAt: submission.revokedAt?.toISOString() ?? null,
     createdAt: submission.createdAt.toISOString(),
   };
 }
@@ -1020,6 +1093,14 @@ function toRemarkResponse(remark: ArticleRemarkDto): RemarkResponseDto {
     currentText: remark.currentText,
     body: remark.body,
     visibleToTeam: remark.visibleToTeam,
+    createdBy: remark.createdBy,
+    addressedBy: remark.addressedBy,
+    addressedAt: remark.addressedAt?.toISOString() ?? null,
+    decidedBy: remark.decidedBy,
+    decidedAt: remark.decidedAt?.toISOString() ?? null,
+    decisionReason: remark.decisionReason,
+    createdAt: remark.createdAt.toISOString(),
+    updatedAt: remark.updatedAt.toISOString(),
   };
 }
 

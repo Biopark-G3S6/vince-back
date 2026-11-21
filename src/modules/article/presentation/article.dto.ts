@@ -41,6 +41,15 @@ export class TemplateResponseDto {
 
   @ApiProperty({ type: 'object', additionalProperties: true })
   content!: unknown;
+
+  @ApiPropertyOptional({ type: [Object] })
+  versions?: readonly {
+    id: string;
+    versionNumber: number;
+    content: unknown;
+    createdBy: string;
+    createdAt: string;
+  }[];
 }
 
 export class TemplateSelectionResponseDto {
@@ -142,6 +151,9 @@ export class ArticleResponseDto {
   @ApiPropertyOptional({ nullable: true })
   currentMilestoneOrder!: number | null;
 
+  @ApiPropertyOptional({ nullable: true })
+  lastMilestoneOrder!: number | null;
+
   @ApiPropertyOptional({ format: 'date-time', nullable: true })
   currentMilestoneDeadline!: string | null;
 
@@ -150,6 +162,14 @@ export class ArticleResponseDto {
 
   @ApiPropertyOptional({ nullable: true })
   title!: string | null;
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  templateVersionId!: string | null;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  updatedAt!: string;
 
   @ApiProperty({ type: 'object', additionalProperties: true })
   content!: unknown;
@@ -179,6 +199,18 @@ export class ReferenceResponseDto {
 
   @ApiPropertyOptional({ nullable: true })
   vehicle!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  edition!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  place!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  publisher!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  pages!: string | null;
 
   @ApiPropertyOptional({ nullable: true })
   doi!: string | null;
@@ -254,11 +286,17 @@ export class SubmissionResponseDto {
   @ApiProperty()
   milestoneOrder!: number;
 
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  content!: unknown;
+
   @ApiProperty()
   automatic!: boolean;
 
   @ApiPropertyOptional({ format: 'uuid', nullable: true })
   submittedBy!: string | null;
+
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  revokedAt!: string | null;
 
   @ApiProperty({ format: 'date-time' })
   createdAt!: string;
@@ -291,6 +329,30 @@ export class RemarkResponseDto {
 
   @ApiProperty()
   visibleToTeam!: boolean;
+
+  @ApiProperty({ format: 'uuid' })
+  createdBy!: string;
+
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  addressedBy!: string | null;
+
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  addressedAt!: string | null;
+
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  decidedBy!: string | null;
+
+  @ApiPropertyOptional({ format: 'date-time', nullable: true })
+  decidedAt!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  decisionReason!: string | null;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  updatedAt!: string;
 }
 
 export class FormatReportResponseDto {

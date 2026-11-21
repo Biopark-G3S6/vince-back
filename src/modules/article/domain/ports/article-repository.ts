@@ -36,6 +36,14 @@ export interface TemplateUpdateData {
   readonly actorId: string;
 }
 
+export interface TemplateVersionRecord {
+  readonly id: string;
+  readonly templateId: string;
+  readonly institutionId: string;
+  readonly courseId: string | null;
+  readonly content: JsonValue;
+}
+
 export interface ArticleCreateData {
   readonly id: string;
   readonly institutionId: string;
@@ -172,6 +180,7 @@ export abstract class ArticleRepository {
     filters: { readonly courseId?: string; readonly includeInactive: boolean },
   ): Promise<Page<Template>>;
   abstract findTemplate(id: string): Promise<Template | null>;
+  abstract findTemplateVersion(versionId: string): Promise<TemplateVersionRecord | null>;
   abstract updateTemplate(data: TemplateUpdateData): Promise<Template | null>;
   abstract setTemplateActive(id: string, active: boolean): Promise<Template | null>;
   abstract createSelection(data: {
@@ -204,6 +213,7 @@ export abstract class ArticleRepository {
       readonly advisorId?: string;
       readonly courseId?: string;
       readonly institutionId?: string;
+      readonly memberId?: string;
     },
     request: PageRequest,
   ): Promise<Page<ArticleProgressRecord>>;
