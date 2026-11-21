@@ -858,6 +858,61 @@ describe('contrato HTTP da vertical team', () => {
       expect(await listArticles(owner, `eventId=${fixture.eventId}`)).toHaveLength(1);
     });
 
+    it('o evento congela o template do curso e o artigo nasce com essa versão (RF-TPL-002)', async () => {
+      const fixture = await teamScenario();
+      const owner = await authenticate(fixture.coordinator.email);
+      const advisor = await authenticate(fixture.professor.email);
+      const outsider = await authenticate(fixture.outsider.email);
+      const doc = (text: string) => ({
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
+      });
+      const created = await request(server as never)
+        .post(`${PREFIX}/article-templates`)
+        .set('Cookie', cookieHeader(owner))
+        .set('X-CSRF-Token', owner.csrf)
+        .send({ name: 'Modelo do curso', courseId: fixture.courseId, content: doc('Versão um') })
+        .expect(201);
+      const templateId = (bodyOf(created).data as { readonly id: string }).id;
+      const select = (cookies: Cookies, status: number) =>
+        request(server as never)
+          .post(`${PREFIX}/article-template-selections`)
+          .set('Cookie', cookieHeader(cookies))
+          .set('X-CSRF-Token', cookies.csrf)
+          .send({ eventId: fixture.eventId, templateId })
+          .expect(status);
+
+      // Quem não é dono do escopo do evento não seleciona.
+      expect(bodyOf(await select(outsider, 403)).status.code).toBe('PERMISSION_DENIED');
+      // O dono seleciona sem informar curso: o curso vem do evento.
+      await select(owner, 201);
+      // A seleção é imutável (E2).
+      const again = await request(server as never)
+        .post(`${PREFIX}/article-template-selections`)
+        .set('Cookie', cookieHeader(owner))
+        .set('X-CSRF-Token', owner.csrf)
+        .send({ eventId: fixture.eventId, templateId: null });
+      expect(bodyOf(again).status.code).toBe('TEMPLATE_ALREADY_FIXED');
+
+      // Alteração posterior do template não alcança o evento (RN3).
+      await request(server as never)
+        .patch(`${PREFIX}/article-templates/${templateId}`)
+        .set('Cookie', cookieHeader(owner))
+        .set('X-CSRF-Token', owner.csrf)
+        .send({ content: doc('Versão dois') })
+        .expect(200);
+
+      const teamId = await createTeam(advisor, fixture.eventId, 'Equipe Semente');
+      const [article] = await listArticles(advisor, `teamId=${teamId}`);
+      const full = await request(server as never)
+        .get(`${PREFIX}/articles/${article?.id ?? ''}`)
+        .set('Cookie', cookieHeader(advisor))
+        .expect(200);
+      const content = JSON.stringify((bodyOf(full).data as { content: unknown }).content);
+      expect(content).toContain('Versão um');
+      expect(content).not.toContain('Versão dois');
+    });
+
     it('título na criação e pelo integrante, parecer na nota e papel do integrante', async () => {
       const fixture = await teamScenario();
       const advisor = await authenticate(fixture.professor.email);

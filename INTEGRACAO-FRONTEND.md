@@ -215,8 +215,8 @@ oferecidos conforme o vínculo, controles de gestão apenas para o dono do escop
 de `EventScope`, `ADR-0032`), edição de etapa, confirmação ao cancelar, busca de orientador, lista
 agrupada por escopo e atalho para as equipes do evento.
 
-- Pendência de Templates (fora dos contextos desta rodada): o modelo de artigo só é escolhido na
-  criação do evento; não há troca posterior pela tela.
+- O modelo de artigo só é escolhido na criação do evento: é a regra de `RF-TPL-002` RN1 (seleção
+  imutável, `TEMPLATE_ALREADY_FIXED`), e não pendência.
 
 ## Auditoria do contexto de equipe (2026-11-18)
 
@@ -246,3 +246,24 @@ Todas as rotas de `RF-ART-001` a `004` passaram a ser usadas, inclusive a altera
   individuais, edição de publicação e confirmação ao remover.
 - Fora do escopo desta rodada (relatório, `RF-ACP`): o coordenador não lê as notas individuais, que
   `RF-ART-003` RN2 aponta como a informação principal pedida pela coordenação.
+
+## Rodada 2 — integração do colega (branch `Integração`, 2026-11-21)
+
+A branch `Integração` (gs4vo, 2026-11-16) partia de uma `main` anterior à rodada 1. Foi juntada em
+`feat/integracao-frontend-2`, preservando os commits do colega; nos conflitos, prevaleceram a sessão e o
+cliente HTTP da `main`. Por decisão do usuário, as telas do colega deixam os dados simulados e o
+sinalizador `VITE_USE_BACKEND`, e o desenho dele prevalece no que é da sua responsabilidade.
+
+- O commit de documentação do colega (`vince-docs`, `efc3150`, branch `Integração`) não foi
+  incorporado: o submódulo continua na versão publicada. Reconciliar no `vince-docs`.
+- `article-integration-reads`: registra em OpenSpec as leituras que o colega acrescentou
+  (`GET /my/articles`, versões do template, campos de resposta).
+
+### Template (`RF-TPL-001`, `002`)
+
+- `template-selection-from-event`: a seleção recusava todo template restrito a curso (usava o
+  `courseId` do cliente) e não conferia o dono do evento; o artigo criado com a equipe nascia vazio,
+  sem a versão congelada (defeito da rodada 1, `article-follows-team`).
+- Tela: biblioteca de modelos da instituição e dos cursos, com versões (autor e instante),
+  desativação com confirmação e seção de desativados; saíram o fluxo de criar artigo a partir do
+  modelo, os modelos pessoais e as inscrições em evento, que não constam da URS.
