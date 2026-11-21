@@ -43,9 +43,10 @@ export class ArticleScope {
   /**
    * O alcance de leitura do ator sobre os artigos da sua instituição.
    *
-   * `null` significa a instituição inteira — administrador institucional e coordenador,
-   * como em `readableArticle`. Os demais alcançam o artigo das equipes que integram, das
-   * que orientam como responsáveis e das equipes dos eventos que orientam (RF-ART-001 RN3).
+   * `null` significa a instituição inteira — só o administrador institucional, como em
+   * `readableArticle`. Os demais alcançam o artigo das equipes que integram, das que
+   * orientam como responsáveis, das equipes dos eventos que orientam e, o coordenador, dos
+   * cursos que coordena (RF-ART-001 RN3, `article-course-scope`).
    */
   async readingReach(
     actorId: string,
@@ -58,16 +59,18 @@ export class ArticleScope {
 
     const roles = new Set(institution.value.profile.roleCodes);
 
-    if (roles.has(ROLE.INSTITUTION_ADMIN) || roles.has(ROLE.COORDINATOR)) {
+    if (roles.has(ROLE.INSTITUTION_ADMIN)) {
       return ok({ institutionId: institution.value.id, reach: null });
     }
 
+    const [advisedEventIds, coordinatedCourseIds] = await Promise.all([
+      this.events?.advisedEventIdsOf(actorId) ?? Promise.resolve([]),
+      roles.has(ROLE.COORDINATOR) ? this.courses.coordinatedBy(actorId) : Promise.resolve([]),
+    ]);
+
     return ok({
       institutionId: institution.value.id,
-      reach: {
-        userId: actorId,
-        advisedEventIds: (await this.events?.advisedEventIdsOf(actorId)) ?? [],
-      },
+      reach: { userId: actorId, advisedEventIds, coordinatedCourseIds },
     });
   }
 
@@ -160,8 +163,40 @@ export class ArticleScope {
 
     const roles = new Set(institution.value.profile.roleCodes);
 
-    return roles.has(ROLE.INSTITUTION_ADMIN) || roles.has(ROLE.COORDINATOR)
-      ? ok(article)
+    if (roles.has(ROLE.INSTITUTION_ADMIN)) {
+      return ok(article);
+    }
+
+    // O coordenador alcança os artigos dos cursos que coordena (RN3, `article-course-scope`).
+    if (
+      roles.has(ROLE.COORDINATOR) &&
+      article.courseId !== null &&
+      (await this.courses.coordinatedBy(actorId)).includes(article.courseId)
+    ) {
+      return ok(article);
+    }
+
+    return fail(FAILURE.RESOURCE_NOT_FOUND);
+  }
+
+  /**
+   * Quem mantém o registro de publicação externa (`publication-actors`, RF-ART-004): o
+   * integrante ativo, o orientador responsável e qualquer orientador do evento.
+   */
+  async publicationWriter(actorId: string, articleId: string): Promise<Result<Article>> {
+    const article = await this.readableArticle(actorId, articleId);
+
+    if (!article.ok) {
+      return article;
+    }
+
+    if (isTeamMember(article.value, actorId) || isResponsibleAdvisor(article.value, actorId)) {
+      return article;
+    }
+
+    return this.events !== undefined &&
+      (await this.events.isAdvisor(article.value.eventId, actorId))
+      ? article
       : fail(FAILURE.RESOURCE_NOT_FOUND);
   }
 

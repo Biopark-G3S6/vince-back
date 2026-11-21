@@ -66,6 +66,8 @@ model Article {
   courseId                 String?   @map("course_id") @db.Uuid
   eventId                  String    @map("event_id") @db.Uuid
   teamId                   String    @unique @map("team_id") @db.Uuid
+  /// Cópia do nome da equipe, mantida pela sincronização (`article-team-name`).
+  teamIdentification       String?   @map("team_identification")
   advisorId                String?   @map("advisor_id") @db.Uuid
   memberIds                String[]  @map("member_ids") @db.Uuid
   status                   String

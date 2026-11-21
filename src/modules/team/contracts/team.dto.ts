@@ -114,6 +114,8 @@ export interface TeamStateDto {
   readonly institutionId: string | null;
   /** O orientador responsável corrente, ou `null`. É ele quem avalia (RF-EQP-005 RN2). */
   readonly responsibleAdvisorId: string | null;
+  /** O nome da equipe, para a cópia que o artigo mantém (`article-team-name`). */
+  readonly identification?: string | null;
 }
 
 /**

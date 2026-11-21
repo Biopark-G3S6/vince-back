@@ -230,6 +230,7 @@ export class PrismaArticleRepository extends ArticleRepository {
         courseId: data.courseId,
         eventId: data.eventId,
         teamId: data.teamId,
+        teamIdentification: data.teamIdentification ?? null,
         advisorId: data.advisorId,
         memberIds: [...data.memberIds],
         status: ARTICLE_STATUS.STARTED,
@@ -290,6 +291,9 @@ export class PrismaArticleRepository extends ArticleRepository {
               ...(filters.reach.advisedEventIds.length === 0
                 ? []
                 : [{ eventId: { in: [...filters.reach.advisedEventIds] } }]),
+              ...(filters.reach.coordinatedCourseIds.length === 0
+                ? []
+                : [{ courseId: { in: [...filters.reach.coordinatedCourseIds] } }]),
             ],
           }),
     };
@@ -301,6 +305,7 @@ export class PrismaArticleRepository extends ArticleRepository {
         courseId: true,
         eventId: true,
         teamId: true,
+        teamIdentification: true,
         advisorId: true,
         memberIds: true,
         status: true,
@@ -355,7 +360,12 @@ export class PrismaArticleRepository extends ArticleRepository {
         : {};
     const row = await this.prisma.article.update({
       where: { teamId },
-      data: { memberIds: [...roster.memberIds], advisorId: roster.advisorId, ...milestone },
+      data: {
+        memberIds: [...roster.memberIds],
+        advisorId: roster.advisorId,
+        ...(roster.teamIdentification ? { teamIdentification: roster.teamIdentification } : {}),
+        ...milestone,
+      },
     });
 
     return toArticle(row);
@@ -972,6 +982,7 @@ function toArticle(row: {
   courseId: string | null;
   eventId: string;
   teamId: string;
+  teamIdentification: string | null;
   advisorId: string | null;
   memberIds: string[];
   status: string;

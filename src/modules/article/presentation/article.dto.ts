@@ -101,6 +101,9 @@ export class ArticleSummaryResponseDto {
   @ApiPropertyOptional({ format: 'date-time', nullable: true })
   currentMilestoneDeadline!: string | null;
 
+  @ApiPropertyOptional({ nullable: true, description: 'O nome da equipe (article-team-name).' })
+  teamIdentification!: string | null;
+
   @ApiPropertyOptional({ nullable: true })
   title!: string | null;
 
@@ -141,6 +144,9 @@ export class ArticleResponseDto {
 
   @ApiPropertyOptional({ format: 'date-time', nullable: true })
   currentMilestoneDeadline!: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'O nome da equipe (article-team-name).' })
+  teamIdentification!: string | null;
 
   @ApiPropertyOptional({ nullable: true })
   title!: string | null;

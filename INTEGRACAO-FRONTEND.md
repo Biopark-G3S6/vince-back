@@ -140,8 +140,8 @@ local (`vince-front/e2e/integration`, `pnpm run test:integration`).
 
 ### Fora desta rodada
 
-- O coordenador lê todos os artigos da instituição (`ArticleScope.readableArticle`). A URS
-  (`RF-ART-001` RN3) o restringe ao próprio curso. Fica para mudança própria.
+- ~~O coordenador lê todos os artigos da instituição~~ — corrigido em `article-course-scope`
+  (2026-11-21).
 - As telas de editor, revisão, discussão e assistência continuam nos mocks e não enxergam os
   artigos reais.
 - O seed (`pnpm run db:seed`) imprime o resultado, mas o processo não termina, porque alguma conexão
@@ -231,3 +231,18 @@ Todas as rotas de `RF-EQP-001` a `006` são usadas, inclusive a consulta da equi
 - Conflito na URS, mantido por decisão do usuário: `RF-EQP-005` lista o Professor como ator, mas a
   composição de §2.3.1 não lhe dá `TEAM:ASSIGN_ADVISOR`. Em evento de turma, quem nomeia o
   responsável é o coordenador do curso ou o administrador institucional.
+
+## Auditoria do contexto de artigo — avaliação e situação (2026-11-21)
+
+Todas as rotas de `RF-ART-001` a `004` passaram a ser usadas, inclusive a alteração de publicação.
+
+- `article-course-scope`: o coordenador alcança só os artigos dos cursos que coordena (RN3); o
+  administrador institucional continua com a instituição inteira.
+- `publication-actors`: consulta das publicações por quem lê o artigo (o coordenador recebia `404`);
+  registro, alteração e remoção pelo integrante, pelo responsável e por qualquer orientador do evento.
+- `article-team-name`: o artigo traz o nome da equipe; a tela fazia uma requisição por evento.
+  Artigos anteriores recebem o nome no próximo fato da equipe; até lá, a tela consulta a equipe.
+- Tela: filtros por evento e situação, autor no histórico da nota e histórico das notas
+  individuais, edição de publicação e confirmação ao remover.
+- Fora do escopo desta rodada (relatório, `RF-ACP`): o coordenador não lê as notas individuais, que
+  `RF-ART-003` RN2 aponta como a informação principal pedida pela coordenação.

@@ -44,6 +44,7 @@ export class SyncArticleWithTeamUseCase {
       this.events.currentMilestoneOf(team.eventId),
     ]);
     const roster = {
+      teamIdentification: team.identification ?? null,
       memberIds,
       advisorId: team.responsibleAdvisorId,
       currentMilestone:
@@ -60,6 +61,7 @@ export class SyncArticleWithTeamUseCase {
         courseId: event.courseId,
         eventId: team.eventId,
         teamId,
+        teamIdentification: roster.teamIdentification,
         advisorId: roster.advisorId,
         memberIds,
         currentMilestoneId: milestone?.id ?? null,

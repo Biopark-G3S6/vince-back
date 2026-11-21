@@ -10,6 +10,7 @@ const ABSENT: TeamStateDto = {
   eventId: null,
   institutionId: null,
   responsibleAdvisorId: null,
+  identification: null,
 };
 
 /**
@@ -37,6 +38,7 @@ export class ReadTeamStateUseCase {
       eventId: team.eventId,
       institutionId: team.institutionId,
       responsibleAdvisorId: advisor?.userId ?? null,
+      identification: team.identification,
     };
   }
 

@@ -85,3 +85,31 @@ MUST NOT aceitar `feedback`, sob pena de `VALIDATION_FAILED`.
 
 - **WHEN** o orientador responsável registra nota 9 com parecer
 - **THEN** a consulta das avaliações devolve a nota e o parecer
+
+### Requirement: Alcance do coordenador restrito ao curso
+
+O coordenador SHALL alcançar, na listagem e na consulta por identificador, os artigos dos cursos que
+coordena, além dos que alcança como integrante ou orientador (`RF-ART-001` RN3). Artigo de outro
+curso SHALL responder `RESOURCE_NOT_FOUND`. O administrador institucional SHALL continuar alcançando
+os artigos de toda a sua instituição.
+
+#### Scenario: Coordenador de outro curso
+
+- **WHEN** o coordenador de um curso consulta o artigo de uma equipe de outro curso
+- **THEN** a resposta é `RESOURCE_NOT_FOUND` e a listagem não o contém
+
+#### Scenario: Coordenador do curso
+
+- **WHEN** o coordenador consulta o artigo de uma equipe de evento do seu curso
+- **THEN** recebe o artigo
+
+### Requirement: Nome da equipe no artigo
+
+O artigo devolvido pela listagem e pela consulta por identificador SHALL trazer `teamIdentification`,
+o nome da sua equipe, mantido pela sincronização com a equipe. Antes da primeira sincronização que o
+grave, o campo SHALL ser `null`.
+
+#### Scenario: Artigo criado com a equipe
+
+- **WHEN** a equipe é criada no evento
+- **THEN** o artigo listado traz `teamIdentification` igual ao nome da equipe

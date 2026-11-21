@@ -42,6 +42,7 @@ export interface ArticleCreateData {
   readonly courseId: string | null;
   readonly eventId: string;
   readonly teamId: string;
+  readonly teamIdentification?: string | null;
   readonly advisorId: string | null;
   readonly memberIds: readonly string[];
   readonly currentMilestoneId: string | null;
@@ -57,6 +58,8 @@ export interface ArticleCreateData {
 export interface ArticleReach {
   readonly userId: string;
   readonly advisedEventIds: readonly string[];
+  /** Os cursos que o ator coordena: alcança os artigos deles (`article-course-scope`). */
+  readonly coordinatedCourseIds: readonly string[];
 }
 
 export interface ArticleListFilters {
@@ -74,6 +77,7 @@ export type ArticleSummary = Omit<
 >;
 
 export interface TeamRosterData {
+  readonly teamIdentification?: string | null;
   readonly memberIds: readonly string[];
   readonly advisorId: string | null;
   readonly currentMilestone: {

@@ -702,6 +702,7 @@ describe('contrato HTTP da vertical team', () => {
       readonly advisorId: string | null;
       readonly memberIds: readonly string[];
       readonly title?: string | null;
+      readonly teamIdentification?: string | null;
     }
 
     const listArticles = async (cookies: Cookies, query: string): Promise<ArticleItem[]> =>
@@ -796,6 +797,65 @@ describe('contrato HTTP da vertical team', () => {
         .set('X-CSRF-Token', student.csrf)
         .send({ content: { type: 'doc' } })
         .expect(404);
+    });
+
+    it('coordenador alcança só o seu curso; orientador do evento mantém publicação; nome da equipe', async () => {
+      const fixture = await teamScenario();
+      const advisor = await authenticate(fixture.professor.email);
+      const owner = await authenticate(fixture.coordinator.email);
+      const teamId = await createTeam(advisor, fixture.eventId, 'Equipe Nomeada');
+
+      // article-team-name: o artigo traz o nome da equipe.
+      const [article] = await listArticles(advisor, `teamId=${teamId}`);
+      expect(article).toMatchObject({ teamId, teamIdentification: 'Equipe Nomeada' });
+      const articleId = article?.id ?? '';
+
+      // publication-actors: o coordenador, orientador do evento mas não responsável, registra
+      // e consulta a publicação; o professor de fora, não.
+      const assigned = await events.assignAdvisor({
+        actorId: fixture.coordinator.id,
+        eventId: fixture.eventId,
+        userId: fixture.coordinator.id,
+      });
+      if (!assigned.ok) throw new Error(assigned.failure.code);
+      await request(server as never)
+        .post(`${PREFIX}/articles/${articleId}/publications`)
+        .set('Cookie', cookieHeader(owner))
+        .set('X-CSRF-Token', owner.csrf)
+        .send({
+          venueName: 'Revista Externa',
+          kind: 'JOURNAL',
+          publicationDate: '2026-10-01T12:00:00.000Z',
+          url: 'https://revista.example/1',
+        })
+        .expect(201);
+      const listed = await request(server as never)
+        .get(`${PREFIX}/articles/${articleId}/publications`)
+        .set('Cookie', cookieHeader(owner))
+        .expect(200);
+      expect(bodyOf(listed).data).toHaveLength(1);
+
+      // article-course-scope: o coordenador de outro curso da instituição não alcança.
+      const otherCourse = await courses.create({
+        actorId: fixture.admin.id,
+        name: `Outro curso ${Date.now()}`,
+        identification: `O${Date.now() % 100000}`,
+      });
+      if (!otherCourse.ok) throw new Error(otherCourse.failure.code);
+      const designated = await courses.assignCoordinator({
+        actorId: fixture.admin.id,
+        courseId: otherCourse.value.id,
+        userId: fixture.outsider.id,
+      });
+      if (!designated.ok) throw new Error(designated.failure.code);
+      const outsider = await authenticate(fixture.outsider.email);
+      expect(await listArticles(outsider, `eventId=${fixture.eventId}`)).toHaveLength(0);
+      await request(server as never)
+        .get(`${PREFIX}/articles/${articleId}`)
+        .set('Cookie', cookieHeader(outsider))
+        .expect(404);
+      // O coordenador do curso do evento continua alcançando.
+      expect(await listArticles(owner, `eventId=${fixture.eventId}`)).toHaveLength(1);
     });
 
     it('título na criação e pelo integrante, parecer na nota e papel do integrante', async () => {

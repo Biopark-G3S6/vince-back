@@ -72,13 +72,8 @@ export class CreatePublicationUseCase {
     private readonly scope: ArticleScope,
   ) {}
   async execute(command: PublicationCommand): Promise<Result<ExternalPublicationDto>> {
-    const article = await this.scope.readableArticle(command.actorId, command.articleId);
+    const article = await this.scope.publicationWriter(command.actorId, command.articleId);
     if (!article.ok) return article;
-    if (
-      !article.value.memberIds.includes(command.actorId) &&
-      article.value.advisorId !== command.actorId
-    )
-      return fail(FAILURE.RESOURCE_NOT_FOUND);
     const violations = publicationViolations(command);
     if (violations.length > 0) return failValidation(violations);
     return ok(
@@ -105,13 +100,9 @@ export class ListPublicationsUseCase {
     private readonly scope: ArticleScope,
   ) {}
   async execute(query: ArticleQuery): Promise<Result<readonly ExternalPublicationDto[]>> {
+    // Consulta: quem lê o artigo (`publication-actors`).
     const article = await this.scope.readableArticle(query.actorId, query.articleId);
     if (!article.ok) return article;
-    if (
-      !article.value.memberIds.includes(query.actorId) &&
-      article.value.advisorId !== query.actorId
-    )
-      return fail(FAILURE.RESOURCE_NOT_FOUND);
     return ok((await this.articles.listPublications(query.articleId)).map(toPublication));
   }
 }
@@ -123,13 +114,8 @@ export class UpdatePublicationUseCase {
     private readonly scope: ArticleScope,
   ) {}
   async execute(command: UpdatePublicationCommand): Promise<Result<ExternalPublicationDto>> {
-    const article = await this.scope.readableArticle(command.actorId, command.articleId);
+    const article = await this.scope.publicationWriter(command.actorId, command.articleId);
     if (!article.ok) return article;
-    if (
-      !article.value.memberIds.includes(command.actorId) &&
-      article.value.advisorId !== command.actorId
-    )
-      return fail(FAILURE.RESOURCE_NOT_FOUND);
     if ((await this.articles.findPublication(command.articleId, command.publicationId)) === null)
       return fail(FAILURE.RESOURCE_NOT_FOUND);
     const violations = publicationViolations(command);
@@ -154,13 +140,8 @@ export class DeletePublicationUseCase {
     private readonly scope: ArticleScope,
   ) {}
   async execute(query: PublicationQuery): Promise<Result<void>> {
-    const article = await this.scope.readableArticle(query.actorId, query.articleId);
+    const article = await this.scope.publicationWriter(query.actorId, query.articleId);
     if (!article.ok) return article;
-    if (
-      !article.value.memberIds.includes(query.actorId) &&
-      article.value.advisorId !== query.actorId
-    )
-      return fail(FAILURE.RESOURCE_NOT_FOUND);
     return (await this.articles.deletePublication(query.articleId, query.publicationId))
       ? ok(undefined)
       : fail(FAILURE.RESOURCE_NOT_FOUND);

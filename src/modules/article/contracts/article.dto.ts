@@ -17,6 +17,7 @@ export interface ArticleDto {
   readonly courseId: string | null;
   readonly eventId: string;
   readonly teamId: string;
+  readonly teamIdentification: string | null;
   readonly advisorId: string | null;
   readonly memberIds: readonly string[];
   readonly status: ArticleStatus;
@@ -233,6 +234,7 @@ export interface ArticleSummaryDto {
   readonly courseId: string | null;
   readonly eventId: string;
   readonly teamId: string;
+  readonly teamIdentification: string | null;
   readonly advisorId: string | null;
   readonly memberIds: readonly string[];
   readonly status: ArticleStatus;
