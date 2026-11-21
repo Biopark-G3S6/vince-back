@@ -4,6 +4,7 @@ import { v7 as uuidv7 } from 'uuid';
 import { EventFacade } from '@modules/event/contracts/event.facade';
 import { TeamFacade } from '@modules/team/contracts/team.facade';
 
+import type { JsonValue } from '../domain/article';
 import { ArticleRepository } from '../domain/ports/article-repository';
 
 /** O resultado da sincronização, para diagnóstico e teste. */
@@ -54,7 +55,12 @@ export class SyncArticleWithTeamUseCase {
     };
 
     if ((await this.repo.findArticleByTeam(teamId)) === null) {
-      const event = await this.events.stateOf(team.eventId);
+      // O artigo nasce com a versão do template congelada pelo evento (RF-TPL-002 RN3,
+      // `template-selection-from-event`); sem seleção, ou em branco, nasce vazio (RN2).
+      const [event, seed] = await Promise.all([
+        this.events.stateOf(team.eventId),
+        this.frozenTemplateOf(team.eventId),
+      ]);
       const created = await this.repo.createTeamArticle({
         id: uuidv7(),
         institutionId: team.institutionId,
@@ -68,9 +74,9 @@ export class SyncArticleWithTeamUseCase {
         currentMilestoneOrder: milestone?.order ?? null,
         currentMilestoneDeadline: milestone?.dueAt ?? null,
         lastMilestoneOrder: null,
-        templateVersionId: null,
+        templateVersionId: seed?.versionId ?? null,
         title: articleTitle ?? null,
-        content: {},
+        content: seed?.content ?? {},
       });
 
       if (created !== 'ALREADY_EXISTS') {
@@ -81,5 +87,19 @@ export class SyncArticleWithTeamUseCase {
     await this.repo.updateTeamRoster(teamId, roster);
 
     return 'UPDATED';
+  }
+
+  private async frozenTemplateOf(
+    eventId: string,
+  ): Promise<{ readonly versionId: string; readonly content: JsonValue } | null> {
+    const selection = await this.repo.findSelectionByEvent(eventId);
+
+    if (selection?.templateVersionId === null || selection?.templateVersionId === undefined) {
+      return null;
+    }
+
+    const version = await this.repo.findTemplateVersion(selection.templateVersionId);
+
+    return version === null ? null : { versionId: version.id, content: version.content };
   }
 }

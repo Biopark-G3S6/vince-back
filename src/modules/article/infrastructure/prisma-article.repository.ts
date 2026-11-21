@@ -213,6 +213,12 @@ export class PrismaArticleRepository extends ArticleRepository {
     }
   }
 
+  async findSelectionByEvent(eventId: string): Promise<TemplateSelection | null> {
+    const row = await this.prisma.articleTemplateSelection.findUnique({ where: { eventId } });
+
+    return row === null ? null : toSelection(row);
+  }
+
   async createSelection(data: {
     readonly id: string;
     readonly eventId: string;

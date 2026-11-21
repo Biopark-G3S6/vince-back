@@ -183,6 +183,8 @@ export abstract class ArticleRepository {
   abstract findTemplateVersion(versionId: string): Promise<TemplateVersionRecord | null>;
   abstract updateTemplate(data: TemplateUpdateData): Promise<Template | null>;
   abstract setTemplateActive(id: string, active: boolean): Promise<Template | null>;
+  /** A seleção de template do evento (`template-selection-from-event`), ou `null`. */
+  abstract findSelectionByEvent(eventId: string): Promise<TemplateSelection | null>;
   abstract createSelection(data: {
     readonly id: string;
     readonly eventId: string;

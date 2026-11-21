@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { v7 as uuidv7 } from 'uuid';
 
+import { EventFacade } from '@modules/event/contracts/event.facade';
 import type { Page } from '@shared/http/pagination';
 
 import type {
@@ -159,8 +160,14 @@ export class SelectTemplateUseCase {
   constructor(
     private readonly repo: ArticleRepository,
     private readonly scope: ArticleScope,
+    /** Ausente quando o processo não ativa `event`: então não há evento a que selecionar. */
+    @Optional() private readonly events?: EventFacade,
   ) {}
 
+  /**
+   * RF-TPL-002: o dono do escopo do evento seleciona o template na criação do evento. O
+   * curso e a instituição vêm do **evento**, não do cliente (`template-selection-from-event`).
+   */
   async execute(command: SelectTemplateCommand): Promise<Result<TemplateSelectionDto>> {
     const institution = await this.scope.actorInstitution(command.actorId);
 
@@ -168,7 +175,21 @@ export class SelectTemplateUseCase {
       return institution;
     }
 
-    const courseId = command.courseId ?? null;
+    if (this.events === undefined) {
+      return fail(FAILURE.RESOURCE_NOT_FOUND);
+    }
+
+    const event = await this.events.stateOf(command.eventId);
+
+    if (!event.exists || event.institutionId !== institution.value.id) {
+      return fail(FAILURE.RESOURCE_NOT_FOUND);
+    }
+
+    if (!(await this.events.isScopeOwner(command.eventId, command.actorId))) {
+      return fail(FAILURE.PERMISSION_DENIED);
+    }
+
+    const courseId = event.courseId;
     const template =
       command.templateId === null || command.templateId === undefined
         ? null
@@ -189,7 +210,7 @@ export class SelectTemplateUseCase {
     const selection = await this.repo.createSelection({
       id: uuidv7(),
       eventId: command.eventId,
-      institutionId: command.institutionId ?? institution.value.id,
+      institutionId: institution.value.id,
       courseId,
       templateId: template?.value.id ?? null,
       templateVersionId: template?.value.currentVersionId ?? null,
