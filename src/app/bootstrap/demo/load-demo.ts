@@ -26,6 +26,7 @@ const API_URL = process.env.DEMO_API_URL ?? 'http://localhost:3000/api/v1';
 const ADMIN_EMAIL = process.env.DEMO_ADMIN_EMAIL ?? 'admin@vinceart.local';
 const ADMIN_PASSWORD = process.env.DEMO_ADMIN_PASSWORD ?? 'Vince#Admin2026';
 
+const SYSTEM_ADMIN_NAME = 'Administração VinceArt';
 const DAY = 24 * 60 * 60 * 1000;
 
 type Account = { id: string; email: string; name: string; session?: ApiSession };
@@ -491,7 +492,12 @@ async function systemAdmin(): Promise<ApiSession> {
     log(`senha do administrador de sistema definida (${ADMIN_EMAIL})`);
   }
 
-  return ApiSession.login(API_URL, ADMIN_EMAIL, ADMIN_PASSWORD);
+  const admin = await ApiSession.login(API_URL, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+  // O seed nomeia a conta em inglês; na apresentação ela aparece no cabeçalho.
+  await admin.patch('/profile', { name: SYSTEM_ADMIN_NAME });
+
+  return admin;
 }
 
 function printAccess() {
