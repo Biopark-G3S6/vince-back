@@ -75,14 +75,15 @@ Cada diretório tem um README com as regras que valem ali.
 
 ## Comandos
 
-| Comando                | O que faz                                                                |
-| :--------------------- | :----------------------------------------------------------------------- |
-| `pnpm run verify`      | **A porta de verificação**: tipos, lint, formatação, fronteiras e testes |
-| `pnpm run start:dev`   | Sobe a aplicação com recarga                                             |
-| `pnpm run test`        | Testes unitários e de integração                                         |
-| `pnpm run db:migrate`  | Cria e aplica migração                                                   |
-| `pnpm run db:seed`     | Carga inicial: o catálogo de permissões e os cinco papéis                |
-| `pnpm run docs:update` | Atualiza o submódulo de documentação para o último commit                |
+| Comando                | O que faz                                                                             |
+| :--------------------- | :------------------------------------------------------------------------------------ |
+| `pnpm run verify`      | **A porta de verificação**: tipos, lint, formatação, fronteiras e testes              |
+| `pnpm run start:dev`   | Sobe a aplicação com recarga                                                          |
+| `pnpm run test`        | Testes unitários e de integração                                                      |
+| `pnpm run db:migrate`  | Cria e aplica migração                                                                |
+| `pnpm run db:seed`     | Carga inicial: o catálogo de permissões e os cinco papéis                             |
+| `pnpm run db:demo`     | Dados de demonstração, com a API no ar ([detalhes](src/app/bootstrap/demo/README.md)) |
+| `pnpm run docs:update` | Atualiza o submódulo de documentação para o último commit                             |
 
 ## A API
 

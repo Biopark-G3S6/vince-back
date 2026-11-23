@@ -33,6 +33,7 @@ import {
   type SubmissionData,
   type TeamRosterData,
   type TemplateCreateData,
+  type TemplateVersionRecord,
   type TemplateUpdateData,
   type ExternalPublication,
   type PublicationData,
@@ -129,6 +130,28 @@ export class PrismaArticleRepository extends ArticleRepository {
     return row === null ? null : toTemplate(row);
   }
 
+  async findTemplateVersion(versionId: string): Promise<TemplateVersionRecord | null> {
+    const row = await this.prisma.articleTemplateVersion.findUnique({
+      where: { id: versionId },
+      select: {
+        id: true,
+        templateId: true,
+        content: true,
+        template: { select: { institutionId: true, courseId: true } },
+      },
+    });
+
+    return row === null
+      ? null
+      : {
+          id: row.id,
+          templateId: row.templateId,
+          institutionId: row.template.institutionId,
+          courseId: row.template.courseId,
+          content: asJson(row.content),
+        };
+  }
+
   async updateTemplate(data: TemplateUpdateData): Promise<Template | null> {
     try {
       const row = await this.prisma.transaction(async (tx) => {
@@ -188,6 +211,12 @@ export class PrismaArticleRepository extends ArticleRepository {
 
       throw error;
     }
+  }
+
+  async findSelectionByEvent(eventId: string): Promise<TemplateSelection | null> {
+    const row = await this.prisma.articleTemplateSelection.findUnique({ where: { eventId } });
+
+    return row === null ? null : toSelection(row);
   }
 
   async createSelection(data: {
@@ -376,6 +405,7 @@ export class PrismaArticleRepository extends ArticleRepository {
       readonly advisorId?: string;
       readonly courseId?: string;
       readonly institutionId?: string;
+      readonly memberId?: string;
     },
     request: PageRequest,
   ): Promise<Page<ArticleProgressRecord>> {
@@ -383,6 +413,7 @@ export class PrismaArticleRepository extends ArticleRepository {
       ...(filters.advisorId === undefined ? {} : { advisorId: filters.advisorId }),
       ...(filters.courseId === undefined ? {} : { courseId: filters.courseId }),
       ...(filters.institutionId === undefined ? {} : { institutionId: filters.institutionId }),
+      ...(filters.memberId === undefined ? {} : { memberIds: { has: filters.memberId } }),
     };
     const rows = await this.prisma.article.findMany({
       where,
@@ -919,7 +950,6 @@ export class PrismaArticleRepository extends ArticleRepository {
 const TEMPLATE_INCLUDE = {
   versions: {
     orderBy: { versionNumber: 'desc' as const },
-    take: 1,
   },
 } as const;
 
@@ -936,7 +966,10 @@ interface TemplateRow {
   updatedAt: Date;
   versions: readonly {
     id: string;
+    versionNumber: number;
     content: Prisma.JsonValue;
+    createdBy: string;
+    createdAt: Date;
   }[];
 }
 
@@ -957,6 +990,13 @@ function toTemplate(row: TemplateRow): Template {
     currentVersionNumber: row.currentVersionNumber,
     currentVersionId: current.id,
     content: asJson(current.content),
+    versions: row.versions.map((version) => ({
+      id: version.id,
+      versionNumber: version.versionNumber,
+      content: asJson(version.content),
+      createdBy: version.createdBy,
+      createdAt: version.createdAt,
+    })),
     createdBy: row.createdBy,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

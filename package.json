@@ -25,6 +25,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "db:seed": "pnpm run build && node dist/app/bootstrap/seed-catalog.js",
+    "db:demo": "pnpm run build && node dist/app/bootstrap/demo/load-demo.js",
     "docs:update": "git submodule update --remote docs",
     "docs:check-catalog": "tsx src/app/bootstrap/check-catalog.ts",
     "prepare": "lefthook install"

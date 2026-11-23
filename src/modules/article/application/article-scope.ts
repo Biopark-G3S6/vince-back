@@ -240,13 +240,14 @@ export class ArticleScope {
 
   async progressFilter(
     actorId: string,
-    scope: 'advisor' | 'course' | 'institution',
+    scope: 'advisor' | 'course' | 'institution' | 'member',
     courseId?: string,
   ): Promise<
     Result<{
       readonly advisorId?: string;
       readonly courseId?: string;
       readonly institutionId?: string;
+      readonly memberId?: string;
     }>
   > {
     const institution = await this.actorInstitution(actorId);
@@ -259,6 +260,10 @@ export class ArticleScope {
 
     if (scope === 'advisor' && roles.has('PROFESSOR')) {
       return ok({ advisorId: actorId, institutionId: institution.value.id });
+    }
+
+    if (scope === 'member' && roles.has('STUDENT')) {
+      return ok({ memberId: actorId, institutionId: institution.value.id });
     }
 
     if (scope === 'course' && courseId !== undefined && roles.has(ROLE.COORDINATOR)) {
